@@ -48930,6 +48930,14 @@ PrefabInstance:
       propertyPath: m_AnchorMax.y
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 663517221929021409, guid: baebdca8bdbc74707ab7dfb922f07cae, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 150
+      objectReference: {fileID: 0}
+    - target: {fileID: 663517221929021409, guid: baebdca8bdbc74707ab7dfb922f07cae, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 150
+      objectReference: {fileID: 0}
     - target: {fileID: 1299205264087425723, guid: baebdca8bdbc74707ab7dfb922f07cae, type: 3}
       propertyPath: m_AnchoredPosition.x
       value: -61
@@ -48946,6 +48954,10 @@ PrefabInstance:
       propertyPath: m_AnchoredPosition.y
       value: -102
       objectReference: {fileID: 0}
+    - target: {fileID: 1378684218649559918, guid: baebdca8bdbc74707ab7dfb922f07cae, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 58ee8888efe424028a7bfe191df068b8, type: 3}
     - target: {fileID: 2232065278581853486, guid: baebdca8bdbc74707ab7dfb922f07cae, type: 3}
       propertyPath: 'm_ActiveFontFeatures.Array.data[0]'
       value: 1801810542
