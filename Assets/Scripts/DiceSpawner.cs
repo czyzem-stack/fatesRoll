@@ -29,6 +29,12 @@ public class DiceSpawner : MonoBehaviour
         
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero != null && hero.IsMoving) return false;
+
+        if (EnergyManager.Instance != null && !EnergyManager.Instance.HasEnergy(GlobalSettings.Instance.energyDepletionPerRoll))
+        {
+            Debug.LogWarning("DiceSpawner: Not enough energy to roll!");
+            return false;
+        }
         
         return true;
     }

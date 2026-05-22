@@ -32,6 +32,10 @@ public class GlobalSettings : MonoBehaviour
     public int energyDepletionPerRoll = 3;
     public int startingEnergy = 60;
     public int maxEnergy = 60;
+    public float energyRegenInterval = 15f;
+    public int energyRegenAmount = 1;
+    public float energyDisplayTotalDuration = 15f;
+    public float energyDisplayNextDuration = 3f;
 
     [Header("XP & Leveling Settings")]
     public float baseXPForLevel1 = 50f;

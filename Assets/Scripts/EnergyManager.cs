@@ -23,8 +23,10 @@ public class EnergyManager : MonoBehaviour
 
     [Header("UI References")]
     public TextMeshProUGUI energyText;
+    public TextMeshProUGUI regenTimerText;
 
     private int currentEnergy;
+    private float nextRegenTime;
 
     private void Awake()
     {
@@ -39,13 +41,67 @@ public class EnergyManager : MonoBehaviour
     private void Start()
     {
         currentEnergy = GlobalSettings.Instance.startingEnergy;
+        nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
         UpdateUI();
+    }
+
+    private void Update()
+    {
+        UpdateRegeneration();
+        UpdateDisplay();
+    }
+
+    private void UpdateRegeneration()
+    {
+        if (currentEnergy >= GlobalSettings.Instance.maxEnergy) return;
+
+        if (Time.time >= nextRegenTime)
+        {
+            AddEnergy(GlobalSettings.Instance.energyRegenAmount);
+            nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+        }
+    }
+
+    private void UpdateDisplay()
+    {
+        // Main text (inside the box) now shows the actual energy
+        if (energyText != null)
+        {
+            energyText.text = $"{currentEnergy}/{GlobalSettings.Instance.maxEnergy}";
+        }
+
+        // Small text (below the box) now shows the timer
+        if (regenTimerText != null)
+        {
+            if (currentEnergy >= GlobalSettings.Instance.maxEnergy)
+            {
+                regenTimerText.text = "Energy Full";
+            }
+            else
+            {
+                float timeRemaining = nextRegenTime - Time.time;
+                regenTimerText.text = $"More energy in {Mathf.CeilToInt(timeRemaining)}s";
+            }
+        }
+    }
+
+    public bool HasEnergy(int amount)
+    {
+        return currentEnergy >= amount;
     }
 
     public void Deplete(int amount)
     {
+        bool wasAtMax = currentEnergy >= GlobalSettings.Instance.maxEnergy;
+        
         currentEnergy -= amount;
         if (currentEnergy < 0) currentEnergy = 0;
+        
+        if (wasAtMax && currentEnergy < GlobalSettings.Instance.maxEnergy)
+        {
+            nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+        }
+
         UpdateUI();
         Debug.Log($"EnergyManager: Depleted {amount}. Remaining: {currentEnergy}");
     }
@@ -53,15 +109,14 @@ public class EnergyManager : MonoBehaviour
     public void AddEnergy(int amount)
     {
         currentEnergy += amount;
-        UpdateUI();
+        if (currentEnergy > GlobalSettings.Instance.maxEnergy)
+            currentEnergy = GlobalSettings.Instance.maxEnergy;
+        UpdateDisplay();
     }
 
     private void UpdateUI()
     {
-        if (energyText != null)
-        {
-            energyText.text = $"{currentEnergy} / {GlobalSettings.Instance.maxEnergy}";
-        }
+        UpdateDisplay();
     }
 
     [ContextMenu("Auto-Assign UI")]
@@ -71,7 +126,14 @@ public class EnergyManager : MonoBehaviour
         if (go != null)
         {
             energyText = go.GetComponent<TextMeshProUGUI>();
-            UpdateUI();
         }
+
+        GameObject totalGo = GameObject.Find("MainUI_Canvas/HUD_Resources/HUD_Item_Energy/Energy/EnergyTotal_Text");
+        if (totalGo != null)
+        {
+            regenTimerText = totalGo.GetComponent<TextMeshProUGUI>();
+        }
+        
+        UpdateDisplay();
     }
 }
