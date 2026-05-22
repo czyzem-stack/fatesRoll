@@ -20,9 +20,10 @@ public class HeroController : MonoBehaviour
         
         // Ensure consistent agent setup
         agent.speed = 4.0f;
-        agent.acceleration = 12.0f;
-        agent.stoppingDistance = 0.5f;
+        agent.acceleration = 24.0f; // Snappier
+        agent.stoppingDistance = 1.0f; // Prevent jitter
         agent.autoBraking = true;
+        agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance; // Don't avoid dice
 
         SetupPathLines();
         SetLayerRecursive(gameObject, 8);
@@ -70,7 +71,10 @@ public class HeroController : MonoBehaviour
         // Visuals
         if (animator != null)
         {
-            animator.SetFloat("Speed", agent.velocity.magnitude);
+            float speed = isMoving ? agent.velocity.magnitude : 0f;
+            // Higher threshold to prevent walking in place during slow-down
+            if (speed < 0.6f) speed = 0f;
+            animator.SetFloat("Speed", speed);
         }
 
         UpdatePathLines();
@@ -83,9 +87,9 @@ public class HeroController : MonoBehaviour
                 FinalizeMovement("Destination reached");
             }
 
-            // 2. Proximity Check (POI)
+            // 2. Proximity Check (POI) - Larger trigger area
             GameObject poi = GetNearestPOI();
-            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 2.0f)
+            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 2.5f)
             {
                 FinalizeMovement("Reached POI");
                 

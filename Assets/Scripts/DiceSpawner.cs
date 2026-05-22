@@ -67,7 +67,7 @@ public class DiceSpawner : MonoBehaviour
             }
 
             // Wait for the animation to reach the "throw" point
-            yield return new WaitForSeconds(0.4f);
+            yield return new WaitForSeconds(0.5f);
 
             // 1. Aggressive Cleanup of old dice
             var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclude);
@@ -166,6 +166,17 @@ public class DiceSpawner : MonoBehaviour
             LastRoll = total;
             LastIndividualRolls = string.Join(", ", individual);
             Debug.Log($"<color=green><b>[QA] FINAL DICE RESULT: {total}</b></color> (Individual: {LastIndividualRolls})");
+
+            // Add XP based on roll
+            if (LevelManager.Instance != null)
+            {
+                bool leveledUp = LevelManager.Instance.AddXP(total);
+                if (leveledUp)
+                {
+                    // Wait for dance animation to finish (approx 2.67s)
+                    yield return new WaitForSeconds(2.7f);
+                }
+            }
 
             if (hero != null)
             {

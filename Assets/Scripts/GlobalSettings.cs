@@ -33,6 +33,10 @@ public class GlobalSettings : MonoBehaviour
     public int startingEnergy = 60;
     public int maxEnergy = 60;
 
+    [Header("XP & Leveling Settings")]
+    public float baseXPForLevel1 = 50f;
+    public float xpExponentialMultiplier = 1.2f;
+
     [Header("QA Settings")]
     public bool showPath = true;
 
