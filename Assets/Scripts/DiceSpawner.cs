@@ -49,6 +49,12 @@ public class DiceSpawner : MonoBehaviour
         {
             Debug.Log("DiceSpawner: Starting Roll Routine.");
 
+            // Deplete Energy
+            if (EnergyManager.Instance != null)
+            {
+                EnergyManager.Instance.Deplete(GlobalSettings.Instance.energyDepletionPerRoll);
+            }
+
             var hero = Object.FindAnyObjectByType<HeroController>();
             if (hero != null)
             {

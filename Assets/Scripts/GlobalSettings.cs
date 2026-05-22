@@ -28,6 +28,11 @@ public class GlobalSettings : MonoBehaviour
     [Tooltip("Distance in meters for a single 'step'")]
     public float metersPerStep = 3.0f;
 
+    [Header("Energy Settings")]
+    public int energyDepletionPerRoll = 3;
+    public int startingEnergy = 60;
+    public int maxEnergy = 60;
+
     [Header("QA Settings")]
     public bool showPath = true;
 
