@@ -36,5 +36,6 @@ if ($Sync) {
     $afterBaseline = [int](git rev-list --count "${baseline}..HEAD")
     Set-VersionFiles -patch (1 + $afterBaseline)
 } else {
-    Set-VersionFiles -patch (Get-PatchNumber + 1)
+    $nextPatch = (Get-PatchNumber) + 1
+    Set-VersionFiles -patch $nextPatch
 }
