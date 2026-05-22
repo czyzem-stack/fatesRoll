@@ -12,19 +12,31 @@ public class DiceSpawner : MonoBehaviour
 
     private List<GameObject> activeDice = new List<GameObject>();
     private bool isRolling = false;
+    public int LastRoll { get; private set; }
+    public string LastIndividualRolls { get; private set; }
 
     public void OnRoll(InputAction.CallbackContext ctx)
     {
-        if (ctx.performed && !isRolling)
+        if (ctx.performed && CanRoll())
         {
             RollDice();
         }
     }
 
+    private bool CanRoll()
+    {
+        if (isRolling) return false;
+        
+        var hero = Object.FindAnyObjectByType<HeroController>();
+        if (hero != null && hero.IsMoving) return false;
+        
+        return true;
+    }
+
     [ContextMenu("Roll Dice")]
     public void RollDice()
     {
-        if (isRolling) return;
+        if (!CanRoll()) return;
         StartCoroutine(RollRoutine());
     }
 
@@ -95,15 +107,19 @@ public class DiceSpawner : MonoBehaviour
 
             // 4. Calculate result
             int total = 0;
+            List<int> individual = new List<int>();
             foreach (var d in activeDice)
             {
                 if (d != null)
                 {
                     int val = d.GetComponent<DieResult>().GetValue();
                     total += val;
+                    individual.Add(val);
                 }
             }
-            Debug.Log($"DiceSpawner: Total result is {total}");
+            LastRoll = total;
+            LastIndividualRolls = string.Join(", ", individual);
+            Debug.Log($"DiceSpawner: Total result is {total} ({LastIndividualRolls})");
 
             // 5. Trigger Hero Movement
             var hero = Object.FindAnyObjectByType<HeroController>();
