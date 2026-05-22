@@ -1756,7 +1756,7 @@ GameObject:
   - component: {fileID: 5872981573095373504}
   m_Layer: 0
   m_Name: OrcPBRDefault
-  m_TagString: POI
+  m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1788,7 +1788,7 @@ Animator:
   m_GameObject: {fileID: 8511647367374691266}
   m_Enabled: 1
   m_Avatar: {fileID: 9000000, guid: 7ae43199b327470fa6e16ce133cb2799, type: 3}
-  m_Controller: {fileID: 9100000, guid: 10211501388d4bfba42a1281194503ec, type: 2}
+  m_Controller: {fileID: 9100000, guid: d46d70a411faa4a4b8d0d4208dc42740, type: 2}
   m_CullingMode: 1
   m_UpdateMode: 0
   m_ApplyRootMotion: 1

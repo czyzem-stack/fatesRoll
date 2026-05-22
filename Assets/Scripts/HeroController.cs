@@ -77,17 +77,24 @@ public class HeroController : MonoBehaviour
             
         if (isMoving)
         {
-            // 1. Arrival Check
+            // 1. Arrival Check (Normal pathing)
             if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             {
                 FinalizeMovement("Destination reached");
             }
 
             // 2. Proximity Check (POI)
-            GameObject poi = GameObject.FindWithTag("POI");
-            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 1.5f)
+            GameObject poi = GetNearestPOI();
+            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 2.0f)
             {
                 FinalizeMovement("Reached POI");
+                
+                // Despawn POI when reached
+                var pm = POIManager.Instance;
+                if (pm != null)
+                {
+                    pm.ResolvePOI(poi);
+                }
             }
         }
     }
@@ -112,7 +119,7 @@ public class HeroController : MonoBehaviour
         }
 
         // 2. Full Path to POI (Magenta)
-        GameObject poi = GameObject.FindWithTag("POI");
+        GameObject poi = GetNearestPOI();
         if (show && poi != null)
         {
             NavMeshPath path = new NavMeshPath();
@@ -139,9 +146,36 @@ public class HeroController : MonoBehaviour
     private void FinalizeMovement(string reason)
     {
         isMoving = false;
-        agent.isStopped = true;
-        agent.ResetPath();
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+            agent.updateRotation = false;
+        }
         Debug.Log($"HeroController: Movement Finalized. Reason: {reason}");
+    }
+
+    private GameObject GetNearestPOI()
+    {
+        GameObject[] pois = GameObject.FindGameObjectsWithTag("POI");
+        GameObject nearest = null;
+        float minDist = float.MaxValue;
+        foreach (var p in pois)
+        {
+            // If it's a POINode, we check its type or existence
+            float dist = Vector3.Distance(transform.position, p.transform.position);
+            
+            // Ignore POIs that are too close (likely the one we are standing on/just reached)
+            if (dist < 1.0f) continue;
+            
+            if (dist < minDist)
+            {
+                minDist = dist;
+                nearest = p;
+            }
+        }
+        return nearest;
     }
 
     public void MoveSteps(int diceResult)
@@ -163,8 +197,12 @@ public class HeroController : MonoBehaviour
             else return;
         }
 
-        GameObject poi = GameObject.FindWithTag("POI");
-        if (poi == null) return;
+        GameObject poi = GetNearestPOI();
+        if (poi == null) 
+        {
+            Debug.LogWarning("HeroController: No valid POI found to move towards.");
+            return;
+        }
 
         // 1. Calculate the FULL path to the POI
         NavMeshPath path = new NavMeshPath();
@@ -176,10 +214,10 @@ public class HeroController : MonoBehaviour
                 Vector3 targetPoint = GetPointOnPath(path, totalMeters);
                 
                 agent.isStopped = false;
+                agent.updateRotation = true;
                 if (agent.SetDestination(targetPoint))
                 {
                     isMoving = true;
-                    // Note: Agent will handle rotation towards velocity
                 }
             }
         }
