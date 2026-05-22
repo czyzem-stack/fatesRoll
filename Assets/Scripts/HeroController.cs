@@ -25,6 +25,16 @@ public class HeroController : MonoBehaviour
         agent.autoBraking = true;
 
         SetupPathLines();
+        SetLayerRecursive(gameObject, 8);
+    }
+
+    private void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursive(child.gameObject, layer);
+        }
     }
 
     private void SetupPathLines()
