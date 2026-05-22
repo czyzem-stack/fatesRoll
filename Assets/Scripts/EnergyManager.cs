@@ -25,6 +25,9 @@ public class EnergyManager : MonoBehaviour
     public TextMeshProUGUI energyText;
     public TextMeshProUGUI regenTimerText;
 
+    [Header("Floating Text Settings")]
+    public Color energyColor = new Color(0.75f, 0.25f, 0.75f, 1f); // Vibrant Purple
+
     private int currentEnergy;
     private float nextRegenTime;
 
@@ -43,6 +46,19 @@ public class EnergyManager : MonoBehaviour
         currentEnergy = GlobalSettings.Instance.startingEnergy;
         nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
         UpdateUI();
+    }
+
+    public void SpawnFloatingEnergyText(int amount)
+    {
+        var hero = Object.FindAnyObjectByType<HeroController>();
+        if (hero != null)
+        {
+            GameObject go = new GameObject("FloatingText_Energy");
+            go.transform.position = hero.transform.position + Vector3.up * 2.2f;
+            
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup($"{amount} energy", energyColor);
+        }
     }
 
     private void Update()
@@ -103,6 +119,7 @@ public class EnergyManager : MonoBehaviour
         }
 
         UpdateUI();
+        SpawnFloatingEnergyText(amount);
         Debug.Log($"EnergyManager: Depleted {amount}. Remaining: {currentEnergy}");
     }
 

@@ -11,6 +11,8 @@ public class HeroController : MonoBehaviour
     private LineRenderer pathLine;
     private LineRenderer fullPathLine;
 
+    private GameObject currentTarget;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -89,10 +91,11 @@ public class HeroController : MonoBehaviour
             }
 
             // 2. Proximity Check (POI) - Larger trigger area
-            GameObject poi = GetNearestPOI();
-            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 2.5f)
+            if (currentTarget != null && Vector3.Distance(transform.position, currentTarget.transform.position) < 2.5f)
             {
+                GameObject poi = currentTarget;
                 FinalizeMovement("Reached POI");
+                currentTarget = null;
                 
                 // Despawn POI when reached
                 var pm = POIManager.Instance;
@@ -124,11 +127,10 @@ public class HeroController : MonoBehaviour
         }
 
         // 2. Full Path to POI (Magenta)
-        GameObject poi = GetNearestPOI();
-        if (show && poi != null)
+        if (show && currentTarget != null)
         {
             NavMeshPath path = new NavMeshPath();
-            if (NavMesh.CalculatePath(transform.position, poi.transform.position, NavMesh.AllAreas, path))
+            if (NavMesh.CalculatePath(transform.position, currentTarget.transform.position, NavMesh.AllAreas, path))
             {
                 fullPathLine.enabled = true;
                 fullPathLine.positionCount = path.corners.Length;
@@ -202,8 +204,12 @@ public class HeroController : MonoBehaviour
             else return;
         }
 
-        GameObject poi = GetNearestPOI();
-        if (poi == null) 
+        if (currentTarget == null)
+        {
+            currentTarget = GetNearestPOI();
+        }
+
+        if (currentTarget == null) 
         {
             Debug.LogWarning("HeroController: No valid POI found to move towards.");
             return;
@@ -211,7 +217,7 @@ public class HeroController : MonoBehaviour
 
         // 1. Calculate the FULL path to the POI
         NavMeshPath path = new NavMeshPath();
-        if (NavMesh.CalculatePath(transform.position, poi.transform.position, NavMesh.AllAreas, path))
+        if (NavMesh.CalculatePath(transform.position, currentTarget.transform.position, NavMesh.AllAreas, path))
         {
             if (path.status != NavMeshPathStatus.PathInvalid)
             {
