@@ -28,6 +28,9 @@ public class GlobalSettings : MonoBehaviour
     [Tooltip("Distance in meters for a single 'step'")]
     public float metersPerStep = 3.0f;
 
+    [Header("QA Settings")]
+    public bool showPath = true;
+
     private void Awake()
     {
         if (_instance != null && _instance != this)

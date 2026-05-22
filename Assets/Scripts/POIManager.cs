@@ -12,10 +12,25 @@ public class POIManager : MonoBehaviour
         Invoke("SpawnNewPOI", 1.5f);
     }
 
+    public void ResolvePOI(GameObject poi)
+    {
+        if (poi != null)
+        {
+            Destroy(poi);
+            SpawnNewPOI();
+        }
+    }
+
+    public void ClearAllPOIs()
+    {
+        foreach (Transform child in transform)
+        {
+            Destroy(child.gameObject);
+        }
+    }
+
     public void SpawnNewPOI()
     {
-        if (currentPOI != null) Destroy(currentPOI);
-
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero == null) return;
 
@@ -39,7 +54,7 @@ public class POIManager : MonoBehaviour
                     {
                         if (path.status == NavMeshPathStatus.PathComplete)
                         {
-                            currentPOI = Instantiate(poiPrefabs[0], hit.position, Quaternion.identity);
+                            currentPOI = Instantiate(poiPrefabs[0], hit.position, Quaternion.identity, transform);
                             currentPOI.tag = "POI";
                             Debug.Log($"POIManager: Target at {hit.position} (Dist: {Vector3.Distance(heroPos, hit.position):F1}m)");
                             found = true;
@@ -54,7 +69,7 @@ public class POIManager : MonoBehaviour
         if (!found)
         {
             Vector3 fallback = heroPos + hero.transform.forward * 8f;
-            currentPOI = Instantiate(poiPrefabs[0], fallback, Quaternion.identity);
+            currentPOI = Instantiate(poiPrefabs[0], fallback, Quaternion.identity, transform);
             currentPOI.tag = "POI";
             Debug.LogWarning("POIManager: Spawning fallback near hero.");
         }

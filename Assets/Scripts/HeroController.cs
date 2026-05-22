@@ -8,6 +8,9 @@ public class HeroController : MonoBehaviour
     private bool isMoving = false;
     public bool IsMoving => isMoving;
 
+    private LineRenderer pathLine;
+    private LineRenderer fullPathLine;
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -18,8 +21,36 @@ public class HeroController : MonoBehaviour
         // Ensure consistent agent setup
         agent.speed = 4.0f;
         agent.acceleration = 12.0f;
-        agent.stoppingDistance = 0.15f;
+        agent.stoppingDistance = 0.5f;
         agent.autoBraking = true;
+
+        SetupPathLines();
+    }
+
+    private void SetupPathLines()
+    {
+        // Path for current roll
+        GameObject goPath = new GameObject("RollPathLine");
+        goPath.transform.SetParent(transform);
+        pathLine = goPath.AddComponent<LineRenderer>();
+        ConfigureLine(pathLine, Color.yellow, 0.2f);
+
+        // Full path to POI
+        GameObject goFull = new GameObject("FullPathLine");
+        goFull.transform.SetParent(transform);
+        fullPathLine = goFull.AddComponent<LineRenderer>();
+        ConfigureLine(fullPathLine, Color.magenta, 0.1f);
+    }
+
+    private void ConfigureLine(LineRenderer lr, Color color, float width)
+    {
+        lr.startWidth = width;
+        lr.endWidth = width;
+        lr.material = new Material(Shader.Find("Sprites/Default"));
+        lr.startColor = color;
+        lr.endColor = color;
+        lr.positionCount = 0;
+        lr.enabled = false;
     }
 
     void Update()
@@ -31,6 +62,8 @@ public class HeroController : MonoBehaviour
         {
             animator.SetFloat("Speed", agent.velocity.magnitude);
         }
+
+        UpdatePathLines();
             
         if (isMoving)
         {
@@ -42,12 +75,54 @@ public class HeroController : MonoBehaviour
 
             // 2. Proximity Check (POI)
             GameObject poi = GameObject.FindWithTag("POI");
-            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 1.4f)
+            if (poi != null && Vector3.Distance(transform.position, poi.transform.position) < 1.5f)
             {
                 FinalizeMovement("Reached POI");
-                var pm = Object.FindAnyObjectByType<POIManager>();
-                if (pm != null) pm.SpawnNewPOI();
             }
+        }
+    }
+
+    private void UpdatePathLines()
+    {
+        bool show = GlobalSettings.Instance.showPath;
+
+        // 1. Roll Path (Yellow)
+        if (show && agent.hasPath)
+        {
+            pathLine.enabled = true;
+            pathLine.positionCount = agent.path.corners.Length;
+            for (int i = 0; i < agent.path.corners.Length; i++)
+            {
+                pathLine.SetPosition(i, agent.path.corners[i] + Vector3.up * 0.15f);
+            }
+        }
+        else
+        {
+            pathLine.enabled = false;
+        }
+
+        // 2. Full Path to POI (Magenta)
+        GameObject poi = GameObject.FindWithTag("POI");
+        if (show && poi != null)
+        {
+            NavMeshPath path = new NavMeshPath();
+            if (NavMesh.CalculatePath(transform.position, poi.transform.position, NavMesh.AllAreas, path))
+            {
+                fullPathLine.enabled = true;
+                fullPathLine.positionCount = path.corners.Length;
+                for (int i = 0; i < path.corners.Length; i++)
+                {
+                    fullPathLine.SetPosition(i, path.corners[i] + Vector3.up * 0.1f);
+                }
+            }
+            else
+            {
+                fullPathLine.enabled = false;
+            }
+        }
+        else
+        {
+            fullPathLine.enabled = false;
         }
     }
 
@@ -62,15 +137,12 @@ public class HeroController : MonoBehaviour
     public void MoveSteps(int diceResult)
     {
         GlobalSettings settings = GlobalSettings.Instance;
-        
-        // CALCULATION: Total meters to travel
         float totalMeters = diceResult * settings.stepsPerDiceValue * settings.metersPerStep;
         
-        Debug.Log($"HeroController: Processing Move. Roll: {diceResult}, Unit Scale: {settings.stepsPerDiceValue}x{settings.metersPerStep}m. Target Distance: {totalMeters}m");
+        Debug.Log($"HeroController: Processing Move. Roll: {diceResult}, Target Distance: {totalMeters}m");
 
         if (agent == null) agent = GetComponent<NavMeshAgent>();
 
-        // NavMesh Sanity Check
         if (!agent.isOnNavMesh)
         {
             NavMeshHit hit;
@@ -78,49 +150,50 @@ public class HeroController : MonoBehaviour
             {
                 agent.Warp(hit.position);
             }
-            else
-            {
-                Debug.LogError("HeroController: Hero is off NavMesh and cannot warp back!");
-                return;
-            }
+            else return;
         }
 
-        // Direction Logic
-        Vector3 direction = transform.forward;
         GameObject poi = GameObject.FindWithTag("POI");
-        float distToObjective = float.MaxValue;
+        if (poi == null) return;
 
-        if (poi != null)
+        // 1. Calculate the FULL path to the POI
+        NavMeshPath path = new NavMeshPath();
+        if (NavMesh.CalculatePath(transform.position, poi.transform.position, NavMesh.AllAreas, path))
         {
-            Vector3 offset = (poi.transform.position - transform.position);
-            offset.y = 0;
-            distToObjective = offset.magnitude;
-            if (distToObjective > 0.1f)
+            if (path.status != NavMeshPathStatus.PathInvalid)
             {
-                direction = offset.normalized;
+                // 2. Find the point along this path that corresponds to totalMeters
+                Vector3 targetPoint = GetPointOnPath(path, totalMeters);
+                
+                agent.isStopped = false;
+                if (agent.SetDestination(targetPoint))
+                {
+                    isMoving = true;
+                    // Note: Agent will handle rotation towards velocity
+                }
             }
         }
+    }
 
-        // Clamp travel distance so we don't overshoot the POI
-        float clampedDistance = Mathf.Min(totalMeters, distToObjective);
-        Vector3 targetPos = transform.position + (direction * clampedDistance);
+    private Vector3 GetPointOnPath(NavMeshPath path, float distance)
+    {
+        if (path.corners.Length < 2) return transform.position;
 
-        // Find best NavMesh landing spot
-        NavMeshHit finalHit;
-        if (NavMesh.SamplePosition(targetPos, out finalHit, 2.0f, NavMesh.AllAreas))
+        float accumulatedDistance = 0;
+        for (int i = 0; i < path.corners.Length - 1; i++)
         {
-            agent.isStopped = false;
-            if (agent.SetDestination(finalHit.position))
+            float segmentDistance = Vector3.Distance(path.corners[i], path.corners[i+1]);
+            if (accumulatedDistance + segmentDistance >= distance)
             {
-                isMoving = true;
-                transform.rotation = Quaternion.LookRotation(direction);
-                Debug.Log($"HeroController: Moving to {finalHit.position}. Distance: {Vector3.Distance(transform.position, finalHit.position):F2}m");
+                float remainingDistance = distance - accumulatedDistance;
+                float fraction = remainingDistance / segmentDistance;
+                return Vector3.Lerp(path.corners[i], path.corners[i+1], fraction);
             }
+            accumulatedDistance += segmentDistance;
         }
-        else
-        {
-            Debug.LogError($"HeroController: NavMesh gap at destination {targetPos}. Movement aborted.");
-        }
+
+        // If distance is longer than path, return last corner (POI)
+        return path.corners[path.corners.Length - 1];
     }
 
     public void SetTarget(GameObject target)
