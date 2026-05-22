@@ -15,9 +15,10 @@ public class HeroController : MonoBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
         animator = GetComponent<Animator>();
+        if (animator != null) animator.applyRootMotion = false;
         
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
-        
+
         // Ensure consistent agent setup
         agent.speed = 4.0f;
         agent.acceleration = 24.0f; // Snappier
@@ -72,8 +73,8 @@ public class HeroController : MonoBehaviour
         if (animator != null)
         {
             float speed = isMoving ? agent.velocity.magnitude : 0f;
-            // Higher threshold to prevent walking in place during slow-down
-            if (speed < 0.6f) speed = 0f;
+            // Lower threshold to match animator (0.1)
+            if (speed < 0.1f) speed = 0f;
             animator.SetFloat("Speed", speed);
         }
 
