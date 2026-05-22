@@ -49,28 +49,4 @@ public class QADashboard : MonoBehaviour
             }
         }
     }
-
-    void OnGUI()
-    {
-        var settings = GlobalSettings.Instance;
-        if (settings == null) return;
-
-        GUILayout.BeginArea(new Rect(10, Screen.height - 100, 200, 90));
-        GUILayout.BeginVertical("box");
-        
-        settings.showPath = GUILayout.Toggle(settings.showPath, "Show Path (QA)");
-
-        if (GUILayout.Button("Resolve POI"))
-        {
-            var poi = GameObject.FindWithTag("POI");
-            var pm = Object.FindAnyObjectByType<POIManager>();
-            if (pm != null && poi != null)
-            {
-                pm.ResolvePOI(poi);
-            }
-        }
-
-        GUILayout.EndVertical();
-        GUILayout.EndArea();
-    }
 }

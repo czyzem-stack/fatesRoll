@@ -12,8 +12,11 @@ public class DieResult : MonoBehaviour
     public bool IsSettled()
     {
         if (rb == null) return true;
-        // In Unity 6, velocity is linearVelocity
-        bool moving = rb.linearVelocity.sqrMagnitude > 0.002f || rb.angularVelocity.sqrMagnitude > 0.002f;
+        
+        // Stricter settling threshold
+        if (rb.IsSleeping()) return true;
+
+        bool moving = rb.linearVelocity.sqrMagnitude > 0.000005f || rb.angularVelocity.sqrMagnitude > 0.000005f;
         return !moving;
     }
 
@@ -23,19 +26,22 @@ public class DieResult : MonoBehaviour
         float maxDot = -2f;
         int value = 0;
 
-        // Face Normals for the white D6 model
-        // We'll test standard orientation: 1-Up, 6-Down, etc.
-        // If results are consistently wrong, we rotate the mapping here.
+        // Visual Calibration Mapping (Fixed Z+/Z- swap):
+        // Top (Y+) = 2 -> Down (Y-) = 5
+        // Front (Z+) = 1 -> Back (Z-) = 6
+        // Right (X+) = 4 -> Left (X-) = 3
         Vector3[] faceNormals = new Vector3[]
         {
-            Vector3.up,       // 1
-            Vector3.down,     // 6
-            Vector3.forward,  // 2
-            Vector3.back,     // 5
-            Vector3.right,    // 3
-            Vector3.left      // 4
+            Vector3.up,       // 2
+            Vector3.down,     // 5
+            Vector3.forward,  // 1
+            Vector3.back,     // 6
+            Vector3.right,    // 4
+            Vector3.left      // 3
         };
-        int[] faceValues = new int[] { 1, 6, 2, 5, 3, 4 };
+        int[] faceValues = new int[] { 2, 5, 1, 6, 4, 3 };
+
+        string bestAxis = "None";
 
         for (int i = 0; i < faceNormals.Length; i++)
         {
@@ -44,11 +50,11 @@ public class DieResult : MonoBehaviour
             {
                 maxDot = dot;
                 value = faceValues[i];
+                bestAxis = faceNormals[i].ToString();
             }
         }
 
-        Vector3 localUp = transform.InverseTransformDirection(Vector3.up);
-        Debug.Log($"DieResult: Value {value} detected. Local Up: {localUp:F2}. Max Dot: {maxDot:F2}");
+        Debug.Log($"<color=cyan>DieResult: Detected {value}. Best Local Axis: {bestAxis} (Dot: {maxDot:F2})</color>");
         return value;
     }
 }

@@ -12,6 +12,16 @@ public class POIManager : MonoBehaviour
         Invoke("SpawnNewPOI", 1.5f);
     }
 
+    [ContextMenu("Resolve Current POI")]
+    public void ResolveActivePOI()
+    {
+        var poi = GameObject.FindWithTag("POI");
+        if (poi != null)
+        {
+            ResolvePOI(poi);
+        }
+    }
+
     public void ResolvePOI(GameObject poi)
     {
         if (poi != null)
