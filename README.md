@@ -61,7 +61,15 @@ scripts/update-readme.ps1    # Refresh README (run via commit-msg hook)
 
 Patch versions use **`v0.0.XXX`** in `VERSION` and **`0.0.XXX`** in Unity.
 
-**On each commit (recommended):** enable hooks once (bumps `VERSION`, updates this README changelog):
+**On each commit:** version and this changelog update automatically when hooks run.
+
+Option A — wrapper (no global git config):
+
+```powershell
+.\scripts\git-commit.ps1 -m "Your commit message"
+```
+
+Option B — enable hooks for all commits in this repo:
 
 ```powershell
 git config core.hooksPath .githooks
