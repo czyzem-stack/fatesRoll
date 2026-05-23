@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.017` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.018` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -50,7 +50,8 @@ Assets/
   Heroes/                    # Steve anims / controllers
   Dice/                      # Dice prefabs
 VERSION                      # Release label: v0.0.XXX
-scripts/bump-version.ps1     # Bump patch version
+scripts/git-commit.ps1       # Commit with hooks (recommended)
+scripts/bump-version.ps1     # Bump patch version only
 scripts/update-readme.ps1    # Refresh README (run via commit-msg hook)
 .githooks/                   # pre-commit: version; commit-msg: README
 ```
@@ -117,6 +118,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.018** | Add git-commit wrapper so hooks run without global config. |
 | **v0.0.017** | Solid state: scene + `IsDead` on hero/orc animators |
 | **v0.0.016** | Basic combat working; hero & orc animation fixes |
 | **v0.0.015** | Floating energy text, UI press effect, sticky POI target |

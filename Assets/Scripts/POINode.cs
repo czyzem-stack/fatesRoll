@@ -26,9 +26,14 @@ public class POINode : MonoBehaviour
     {
         currentType = type;
         
-        // 1. Clear all existing content
+        // 1. Clear all existing content, but KEEP the UI and Hidden components
         var children = new System.Collections.Generic.List<GameObject>();
-        foreach (Transform child in transform) children.Add(child.gameObject);
+        foreach (Transform child in transform) 
+        {
+            if (child.name == "Background" || child.name == "Slider") continue;
+            children.Add(child.gameObject);
+        }
+
         foreach (var child in children)
         {
             if (Application.isPlaying) Destroy(child);
@@ -67,14 +72,12 @@ public class POINode : MonoBehaviour
             
             nodeAnim.runtimeAnimatorController = prefabAnim.runtimeAnimatorController;
             nodeAnim.avatar = prefabAnim.avatar;
-            nodeAnim.applyRootMotion = false; // Disable root motion
+            nodeAnim.applyRootMotion = false;
             nodeAnim.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             nodeAnim.updateMode = prefabAnim.updateMode;
-
-            // nodeAnim.hideFlags = HideFlags.HideInInspector; // Removed
         }
 
-        // Move children and HIDE them from the hierarchy slop
+        // Move children and HIDE them
         var prefabChildren = new System.Collections.Generic.List<Transform>();
         foreach (Transform t in tempInstance.transform) prefabChildren.Add(t);
 
@@ -83,45 +86,159 @@ public class POINode : MonoBehaviour
             t.SetParent(transform);
             t.localPosition = Vector3.zero;
             t.localRotation = Quaternion.identity;
-            
-            // Hide everything inside the node from the hierarchy
             t.gameObject.hideFlags = HideFlags.HideInHierarchy;
         }
 
         if (Application.isPlaying) Destroy(tempInstance);
         else DestroyImmediate(tempInstance);
 
-        if (type == POIType.Orc)
+        // 4. Handle Enemy Components and Health Bar
+        if (IsEnemy(type))
         {
             if (gameObject.GetComponent<EnemyCombatant>() == null)
             {
                 gameObject.AddComponent<EnemyCombatant>();
             }
+
+            // Setup root as Canvas and integrate UI
+            EnsureRootCanvas();
+        }
+        else
+        {
+            RemoveUI();
         }
 
         SetLayerRecursive(gameObject, 8);
     }
 
-    private void SetLayerRecursive(GameObject obj, int layer)
+    private bool IsEnemy(POIType type)
     {
-        // Skip UI elements and LineRenderers
-        if (obj.GetComponent<Canvas>() != null || 
-            obj.GetComponent<RectTransform>() != null || 
-            obj.GetComponent<LineRenderer>() != null)
+        return type == POIType.Orc || 
+               type == POIType.Skeleton || 
+               type == POIType.Slime || 
+               type == POIType.Cyclops || 
+               type == POIType.Beholder ||
+               type == POIType.BishopKnight;
+    }
+
+    private void EnsureRootCanvas()
+    {
+        // 1. Ensure root has Canvas components
+        var canvas = GetComponent<Canvas>();
+        if (canvas == null)
         {
-            int target = (obj.GetComponent<LineRenderer>() != null) ? 0 : 5;
-            SetLayerRecursiveInternal(obj, target);
-            return;
+            canvas = gameObject.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            gameObject.AddComponent<UnityEngine.UI.CanvasScaler>();
+            gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+            
+            var rt = GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(1, 0.2f);
+            rt.localScale = Vector3.one;
         }
 
-        var renderer = obj.GetComponent<Renderer>();
-        if (renderer != null)
+        // 2. Ensure UI children exist and are hidden
+        if (transform.Find("Slider") == null)
         {
-            obj.layer = layer;
+#if UNITY_EDITOR
+            string prefabPath = "Assets/Prefabs/UI/HealthBar.prefab";
+            GameObject hbPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (hbPrefab != null)
+            {
+                GameObject tempHB = Instantiate(hbPrefab);
+                
+                // Load overlay material
+                Material overlayMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/UIOverlay.mat");
+
+                // Move children to root
+                var children = new System.Collections.Generic.List<Transform>();
+                foreach (Transform child in tempHB.transform) children.Add(child);
+                
+                foreach (var child in children)
+                {
+                    child.SetParent(transform);
+                    child.localPosition = Vector3.up * 2.5f;
+                    child.localRotation = Quaternion.identity;
+                    child.gameObject.hideFlags = HideFlags.HideInHierarchy;
+
+                    // Apply overlay material to images
+                    var img = child.GetComponent<UnityEngine.UI.Image>();
+                    if (img != null && overlayMat != null) img.material = overlayMat;
+
+                    // Check children (like Slider Fill)
+                    foreach (Transform grandChild in child.GetComponentsInChildren<Transform>(true))
+                    {
+                        var gcImg = grandChild.GetComponent<UnityEngine.UI.Image>();
+                        if (gcImg != null && overlayMat != null) gcImg.material = overlayMat;
+                    }
+                }
+                
+                DestroyImmediate(tempHB);
+            }
+#endif
         }
         else
         {
-            obj.layer = 0;
+            // Enforce hiding and material if they exist
+            var bg = transform.Find("Background");
+            var slider = transform.Find("Slider");
+            
+            if (bg != null) 
+            {
+                bg.gameObject.hideFlags = HideFlags.HideInHierarchy;
+                bg.localPosition = Vector3.up * 2.5f;
+            }
+            if (slider != null) 
+            {
+                slider.gameObject.hideFlags = HideFlags.HideInHierarchy;
+                slider.localPosition = Vector3.up * 2.5f;
+            }
+        }
+    }
+
+    private void RemoveUI()
+    {
+        var ec = gameObject.GetComponent<EnemyCombatant>();
+        if (ec != null) 
+        {
+            if (Application.isPlaying) Destroy(ec);
+            else DestroyImmediate(ec);
+        }
+
+        // Clean up UI components
+        var raycaster = GetComponent<UnityEngine.UI.GraphicRaycaster>();
+        if (raycaster != null) DestroyImmediate(raycaster);
+        var scaler = GetComponent<UnityEngine.UI.CanvasScaler>();
+        if (scaler != null) DestroyImmediate(scaler);
+        var canvas = GetComponent<Canvas>();
+        if (canvas != null) DestroyImmediate(canvas);
+
+        // Clean up UI children
+        var bg = transform.Find("Background");
+        if (bg != null) DestroyImmediate(bg.gameObject);
+        var slider = transform.Find("Slider");
+        if (slider != null) DestroyImmediate(slider.gameObject);
+    }
+
+    private void SetLayerRecursive(GameObject obj, int layer)
+    {
+        // UI layer logic
+        bool isUIElement = obj.GetComponent<Canvas>() != null || 
+                          obj.GetComponent<UnityEngine.UI.Image>() != null || 
+                          obj.GetComponent<UnityEngine.UI.Slider>() != null ||
+                          obj.name == "Background" || obj.name == "Slider";
+
+        if (isUIElement)
+        {
+            obj.layer = 5; // UI
+        }
+        else if (obj.GetComponent<Renderer>() != null)
+        {
+            obj.layer = layer; // Highlight/Character
+        }
+        else
+        {
+            obj.layer = 0; // Default
         }
 
         foreach (Transform child in obj.transform)
@@ -130,12 +247,4 @@ public class POINode : MonoBehaviour
         }
     }
 
-    private void SetLayerRecursiveInternal(GameObject obj, int layer)
-{
-        obj.layer = layer;
-        foreach (Transform child in obj.transform)
-        {
-            SetLayerRecursiveInternal(child.gameObject, layer);
-        }
     }
-}
