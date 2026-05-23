@@ -8,7 +8,7 @@ public class HeroController : MonoBehaviour
     private bool isMoving = false;
     public bool IsMoving => isMoving;
 
-    private int currentHP;
+    private PlayerStats stats;
     private bool inCombat = false;
     public bool InCombat => inCombat;
     public GameObject currentEnemy;
@@ -23,13 +23,26 @@ public class HeroController : MonoBehaviour
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        animator = GetComponent<Animator>();
-        if (animator != null) animator.applyRootMotion = false;
-        
-        currentHP = GlobalSettings.Instance.heroMaxHP;
-        AutoAssignHealthUI();
-
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
+
+        // Ensure agent is on NavMesh immediately
+        if (!agent.isOnNavMesh)
+        {
+            NavMeshHit hit;
+            if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
+            {
+                agent.Warp(hit.position);
+                Debug.Log($"HeroController: Warped {gameObject.name} to NavMesh at {hit.position}");
+            }
+        }
+
+        animator = GetComponentInChildren<Animator>();
+        if (animator != null) animator.applyRootMotion = false;
+
+        stats = GetComponent<PlayerStats>();
+        if (stats == null) stats = gameObject.AddComponent<PlayerStats>();
+        
+        AutoAssignHealthUI();
 
         // Ensure consistent agent setup
         agent.speed = 4.0f;
@@ -94,10 +107,10 @@ public class HeroController : MonoBehaviour
 
     private void UpdateHealthUI()
     {
-        if (healthSlider != null)
+        if (healthSlider != null && stats != null)
         {
-            healthSlider.maxValue = GlobalSettings.Instance.heroMaxHP;
-            healthSlider.value = currentHP;
+            healthSlider.maxValue = stats.MaxHP;
+            healthSlider.value = stats.currentHP;
         }
     }
 
@@ -210,12 +223,27 @@ else
         }
     }
 
-    private System.Collections.IEnumerator InitialAttackCoroutine(EnemyCombatant enemy, int damage)
+    private System.Collections.IEnumerator InitialAttackCoroutine(EnemyCombatant enemy, int diceRoll)
     {
         // Steve faces enemy immediately
         Vector3 direction = (enemy.transform.position - transform.position).normalized;
         direction.y = 0;
         if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
+
+        // Calculate damage based on stats and the roll
+        float baseDamage = stats != null ? stats.AttackDamage : 20f;
+        float rollMultiplier = diceRoll / 7.0f;
+        float heroDamage = baseDamage * rollMultiplier;
+
+        // Crit check for arrival attack
+        bool isCrit = false;
+        if (stats != null && Random.Range(0f, 100f) < stats.CritChance)
+        {
+            isCrit = true;
+            heroDamage *= (1f + (stats.CritDamage / 100f));
+        }
+
+        int finalDamage = Mathf.RoundToInt(heroDamage);
 
         // Reset triggers before starting arrival attack
         if (animator != null) animator.ResetTrigger("Attack");
@@ -225,8 +253,9 @@ else
         yield return new WaitForSeconds(0.25f);
         if (enemy != null)
         {
-            enemy.TakeDamage(damage);
-            Debug.Log($"HeroController: Initial Arrival Attack dealt {damage} damage.");
+            enemy.TakeDamage(finalDamage);
+            string critMsg = isCrit ? " (CRITICAL!)" : "";
+            Debug.Log($"HeroController: Initial Arrival Attack dealt {finalDamage} damage{critMsg}.");
 
             if (enemy.IsDead)
             {
@@ -426,8 +455,12 @@ else
             agent.velocity = Vector3.zero;
         }
 
+        // Show Enemy Health Bar
+        var enemyCombatant = enemy.GetComponent<EnemyCombatant>();
+        if (enemyCombatant != null) enemyCombatant.SetHealthBarVisible(true);
+
         // Safety: Reset pending triggers to avoid 'random' animation hiccups
-        if (animator != null)
+if (animator != null)
         {
             animator.ResetTrigger("Throw");
             animator.ResetTrigger("LevelUp");
@@ -454,29 +487,35 @@ else
         Debug.Log("HeroController: Combat resolved.");
     }
 
-    public void TakeDamage(int amount)
+    public bool TakeDamage(int amount)
     {
-        if (currentHP <= 0) return;
+        if (stats == null || stats.currentHP <= 0) return false;
 
-        currentHP -= amount;
+        bool tookDamage = stats.TakeDamage(amount);
         UpdateHealthUI();
         
-        GameObject go = new GameObject("FloatingText_Damage");
-        go.transform.position = transform.position + Vector3.up * 2.2f;
-        var ft = go.AddComponent<FloatingText>();
-        ft.Setup($"-{amount} HP", Color.red);
+        if (tookDamage)
+        {
+            if (Application.isPlaying)
+            {
+                GameObject go = new GameObject("FloatingText_Damage");
+                go.transform.position = transform.position + Vector3.up * 2.2f;
+                var ft = go.AddComponent<FloatingText>();
+                ft.Setup($"-{amount} HP", Color.red);
+            }
 
-        if (currentHP <= 0)
-        {
-            currentHP = 0;
-            if (animator != null) animator.SetTrigger("Die");
-            Debug.LogError("Hero Died!");
+            if (stats.currentHP <= 0)
+            {
+                if (animator != null) animator.SetTrigger("Die");
+                Debug.LogError("Hero Died!");
+            }
+            else
+            {
+                if (animator != null) animator.SetTrigger("GetHit");
+            }
         }
-        else
-        {
-            // Using DefendHit (grounded) to avoid flips
-            if (animator != null) animator.SetTrigger("GetHit");
-        }
+
+        return tookDamage;
     }
 
     public void VictoryFlourish()

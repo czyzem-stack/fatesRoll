@@ -100,10 +100,20 @@ public class POINode : MonoBehaviour
                 gameObject.AddComponent<EnemyCombatant>();
             }
 
+            if (gameObject.GetComponent<PlayerStats>() == null)
+            {
+                var stats = gameObject.AddComponent<PlayerStats>();
+                // Basic enemy stats
+                stats.strength = 8;
+                stats.agility = 8;
+                stats.vitality = 8;
+                stats.luck = 5;
+            }
+
             // Setup root as Canvas and integrate UI
             EnsureRootCanvas();
         }
-        else
+else
         {
             RemoveUI();
         }

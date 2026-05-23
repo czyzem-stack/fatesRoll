@@ -5,8 +5,7 @@ using TMPro;
 [ExecuteAlways]
 public class EnemyCombatant : MonoBehaviour
 {
-    private int currentHP;
-    private int maxHP;
+    private PlayerStats stats;
     private Slider healthSlider;
     private Canvas healthCanvas;
     private Animator animator;
@@ -16,20 +15,13 @@ public class EnemyCombatant : MonoBehaviour
     {
         Initialize();
         cachedHero = Object.FindAnyObjectByType<HeroController>();
+        SetHealthBarVisible(false); // Hide by default
     }
 
     private void Initialize()
-{
-        if (GlobalSettings.Instance != null)
-        {
-            maxHP = GlobalSettings.Instance.orcStartHP;
-            if (currentHP == 0) currentHP = maxHP;
-        }
-        else
-        {
-            maxHP = 15;
-            if (currentHP == 0) currentHP = 15;
-        }
+    {
+        stats = GetComponent<PlayerStats>();
+        if (stats == null) stats = gameObject.AddComponent<PlayerStats>();
 
         animator = GetComponent<Animator>();
         if (animator == null) animator = GetComponentInParent<Animator>();
@@ -37,23 +29,33 @@ public class EnemyCombatant : MonoBehaviour
         EnsureHealthBar();
     }
 
+    public void SetHealthBarVisible(bool visible)
+    {
+        if (healthCanvas != null) healthCanvas.enabled = visible;
+        // If slider is on a separate canvas or object, handle that too
+        if (healthSlider != null && healthSlider.gameObject.activeSelf != visible)
+        {
+             // If we don't have a canvas, we might toggle the slider GO
+             if (healthCanvas == null) healthSlider.gameObject.SetActive(visible);
+        }
+    }
+
     private void EnsureHealthBar()
     {
         if (healthCanvas == null)
         {
-            healthCanvas = GetComponent<Canvas>();
+            healthCanvas = GetComponentInChildren<Canvas>(true);
         }
 
         if (healthSlider == null)
         {
-            var sliderObj = transform.Find("Slider");
-            if (sliderObj != null) healthSlider = sliderObj.GetComponent<Slider>();
+            healthSlider = GetComponentInChildren<Slider>(true);
         }
         
-        if (healthSlider != null)
+        if (healthSlider != null && stats != null)
         {
-            healthSlider.maxValue = maxHP;
-            healthSlider.value = currentHP;
+            healthSlider.maxValue = stats.MaxHP;
+            healthSlider.value = stats.currentHP;
         }
     }
 
@@ -61,14 +63,13 @@ public class EnemyCombatant : MonoBehaviour
 public bool IsDead => isDead;
 
     private void Update()
-{
+    {
         if (isDead) return;
 
-        if (healthCanvas == null)
+        // Ensure UI references are fresh
+        if (healthSlider == null || healthCanvas == null)
         {
-            healthCanvas = GetComponent<Canvas>();
-            var sliderObj = transform.Find("Slider");
-            if (sliderObj != null) healthSlider = sliderObj.GetComponent<Slider>();
+            EnsureHealthBar();
         }
 
         if (healthCanvas != null && Camera.main != null)
@@ -79,15 +80,15 @@ public bool IsDead => isDead;
         if (!Application.isPlaying) return;
 
         // Face the hero if nearby and not dead
-        if (currentHP > 0)
-{
-            var hero = Object.FindAnyObjectByType<HeroController>();
-            if (hero != null)
+        if (stats != null && stats.currentHP > 0)
+        {
+            if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
+            if (cachedHero != null)
             {
-                float dist = Vector3.Distance(transform.position, hero.transform.position);
-                if (dist < 10.0f) // Increased range
+                float dist = Vector3.Distance(transform.position, cachedHero.transform.position);
+                if (dist < 10.0f)
                 {
-                    FaceTarget(hero.transform);
+                    FaceTarget(cachedHero.transform);
                 }
             }
         }
@@ -103,27 +104,53 @@ public bool IsDead => isDead;
         }
     }
 
-    public void TakeDamage(int amount)
+    public bool TakeDamage(int amount)
     {
-        if (currentHP <= 0) return; // Already dead
+        if (stats == null) stats = GetComponent<PlayerStats>();
+        if (stats == null) 
+        {
+            Debug.LogError($"[Combat] {gameObject.name} is missing PlayerStats component!");
+            return false;
+        }
 
-        currentHP -= amount;
-        if (healthSlider != null) healthSlider.value = currentHP;
+        if (stats.currentHP <= 0) return false; // Already dead
+
+        SetHealthBarVisible(true);
+
+        float oldHP = stats.currentHP;
+        bool tookDamage = stats.TakeDamage((float)amount);
         
-        GameObject go = new GameObject("FloatingText_Damage");
-        go.transform.position = transform.position + Vector3.up * 2.8f;
-        var ft = go.AddComponent<FloatingText>();
-        ft.Setup($"-{amount} HP", Color.yellow);
+        if (tookDamage)
+        {
+            // Sync UI
+            if (healthSlider == null) healthSlider = GetComponentInChildren<Slider>(true);
+            if (healthSlider != null) 
+            {
+                healthSlider.maxValue = stats.MaxHP;
+                healthSlider.value = stats.currentHP;
+            }
 
-        if (currentHP <= 0)
-        {
-            currentHP = 0;
-            Die();
+            Debug.Log($"[Combat] {gameObject.name} HP: {oldHP:F1} -> {stats.currentHP:F1} (Took {amount} damage)");
+
+            if (Application.isPlaying)
+            {
+                GameObject go = new GameObject("FloatingText_Damage");
+                go.transform.position = transform.position + Vector3.up * 2.8f;
+                var ft = go.AddComponent<FloatingText>();
+                ft.Setup($"-{amount} HP", Color.yellow);
+            }
+
+            if (stats.currentHP <= 0)
+            {
+                Die();
+            }
+            else
+            {
+                if (animator != null) animator.SetTrigger("GetHit");
+            }
         }
-        else
-        {
-            if (animator != null) animator.SetTrigger("GetHit");
-        }
+        
+        return tookDamage;
     }
 
     private void Die()
@@ -169,7 +196,7 @@ public bool IsDead => isDead;
 
     public void PerformAttack(HeroController hero)
     {
-        if (isDead || currentHP <= 0) return;
+        if (isDead || stats == null || stats.currentHP <= 0) return;
         
         FaceTarget(hero.transform); // Explicit face target
         if (animator != null)
@@ -186,12 +213,20 @@ public bool IsDead => isDead;
     private System.Collections.IEnumerator DealDelayedDamage(HeroController hero)
     {
         yield return new WaitForSeconds(0.4f);
-        if (!isDead && currentHP > 0 && hero != null)
+        if (!isDead && stats != null && stats.currentHP > 0 && hero != null)
         {
-            // Simple enemy damage logic
-            int damage = Random.Range(2, 5);
-            hero.TakeDamage(damage);
-            Debug.Log($"{gameObject.name} deals {damage} damage to hero.");
+            // Use derived Attack Damage from stats
+            float baseDamage = stats.AttackDamage;
+            
+            // Enemy Crit Check
+            if (Random.Range(0f, 100f) < stats.CritChance)
+            {
+                baseDamage *= (1f + (stats.CritDamage / 100f));
+            }
+
+            int finalDamage = Mathf.RoundToInt(baseDamage);
+hero.TakeDamage(finalDamage);
+            // Logging is now handled by PlayerStats.TakeDamage
         }
     }
 }

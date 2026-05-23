@@ -121,7 +121,7 @@ public class DiceSpawner : MonoBehaviour
             var hero = Object.FindAnyObjectByType<HeroController>();
             if (hero != null)
             {
-                var anim = hero.GetComponent<Animator>();
+                var anim = hero.GetComponentInChildren<Animator>();
                 if (anim != null)
                 {
                     // Only play the body throw animation if we are NOT in combat.
@@ -231,25 +231,29 @@ activeDice.Add(die);
             }
             LastRoll = total;
             LastIndividualRolls = string.Join(", ", individual);
-            Debug.Log($"<color=green><b>[QA] FINAL DICE RESULT: {total}</b></color> (Individual: {LastIndividualRolls})");
-
-            // Add XP based on roll
-            if (LevelManager.Instance != null)
-            {
-                bool leveledUp = LevelManager.Instance.AddXP(total);
-                if (leveledUp)
-                {
-                    // Wait for dance animation to finish (approx 2.67s)
-                    yield return new WaitForSeconds(2.7f);
-                }
-            }
+            Debug.Log($"<color=green><b>[Dice Result] {total}</b></color> (Individual: {LastIndividualRolls})");
 
             if (hero != null)
             {
                 if (hero.InCombat)
                 {
-                    // Combat Attack - Hero must roll to continue
-                    int heroDamage = total * GlobalSettings.Instance.combatDamageMultiplier;
+                    // Combat Attack - Driven by PlayerStats
+                    PlayerStats pStats = hero.GetComponent<PlayerStats>();
+                    float baseDamage = pStats != null ? pStats.AttackDamage : 20f;
+                    
+                    // Scaling: roll of 7 is 100% base damage
+                    float rollMultiplier = total / 7.0f;
+                    float heroDamage = baseDamage * rollMultiplier;
+
+                    // Critical Hit Check
+                    bool isCrit = false;
+                    if (pStats != null && Random.Range(0f, 100f) < pStats.CritChance)
+                    {
+                        isCrit = true;
+                        heroDamage *= (1f + (pStats.CritDamage / 100f));
+                    }
+
+                    int finalDamage = Mathf.RoundToInt(heroDamage);
                     
                     if (hero.currentEnemy != null)
                     {
@@ -257,43 +261,54 @@ activeDice.Add(die);
                         if (enemy != null)
                         {
                             // 1. Hero Attack Animation
-                            var heroAnim = hero.GetComponent<Animator>();
+                            var heroAnim = hero.GetComponentInChildren<Animator>();
                             if (heroAnim != null)
                             {
                                 heroAnim.ResetTrigger("Attack");
                                 heroAnim.SetTrigger("Attack");
                             }
-                            Debug.Log($"DiceSpawner: Hero ATTACKS {enemy.name} for {heroDamage} damage.");
-
-                            // Perfect strike timing (aligned with sword impact)
-                            yield return new WaitForSeconds(0.25f);
+                            
+                            string critMsg = isCrit ? " <color=red>CRITICAL HIT!</color>" : "";
+                            Debug.Log($"Steve Attacks: Dealing {finalDamage} damage to {enemy.name}{critMsg}");
 
                             // 2. Enemy takes damage and reacts
-                            enemy.TakeDamage(heroDamage);
+                            yield return new WaitForSeconds(0.25f);
+                            enemy.TakeDamage(finalDamage);
 
-                            // Check if enemy died (use IsDead because ExitCombat is delayed for visuals)
+                            // Check if enemy died
                             if (enemy.IsDead) 
                             {
-                                Debug.Log("DiceSpawner: Enemy defeated.");
+                                Debug.Log($"{enemy.name} defeated!");
                                 hero.VictoryFlourish();
-                                yield return new WaitForSeconds(1.2f); // Buttery delay to let animations play
+                                
+                                // Grant XP bonus for kill
+                                if (LevelManager.Instance != null) LevelManager.Instance.AddXP(total * 2);
+                                
+                                yield return new WaitForSeconds(1.2f);
                                 yield break;
                             }
 
-                            // Snappier reaction delay
+                            // Retaliation delay
                             yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
 
                             // 3. Enemy Attacks back
-if (hero.currentEnemy != null && enemy != null)
+                            if (hero.currentEnemy != null && enemy != null)
                             {
                                 enemy.PerformAttack(hero);
                             }
-}
+                        }
                     }
                 }
                 else
                 {
                     hero.MoveSteps(total);
+                }
+                
+                // Add XP after the action (unless died/interrupted)
+                if (LevelManager.Instance != null)
+                {
+                    bool leveledUp = LevelManager.Instance.AddXP(total);
+                    if (leveledUp) yield return new WaitForSeconds(2.7f);
                 }
             }
 else
