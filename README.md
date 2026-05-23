@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** see [`VERSION`](VERSION) (also in Unity **Player Settings → Version**).
+**Current version:** `v0.0.017` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -51,7 +51,8 @@ Assets/
   Dice/                      # Dice prefabs
 VERSION                      # Release label: v0.0.XXX
 scripts/bump-version.ps1     # Bump patch version
-.githooks/pre-commit         # Auto-bump VERSION on commit (if enabled)
+scripts/update-readme.ps1    # Refresh README (run via commit-msg hook)
+.githooks/                   # pre-commit: version; commit-msg: README
 ```
 
 ---
@@ -60,7 +61,7 @@ scripts/bump-version.ps1     # Bump patch version
 
 Patch versions use **`v0.0.XXX`** in `VERSION` and **`0.0.XXX`** in Unity.
 
-**On each commit (recommended):** enable the hook once:
+**On each commit (recommended):** enable hooks once (bumps `VERSION`, updates this README changelog):
 
 ```powershell
 git config core.hooksPath .githooks
@@ -95,7 +96,7 @@ git checkout v0.0.016
 - **Commit** when a feature or stable slice works in Play mode.
 - **Push** when you want GitHub backup.
 - Always **save the scene** in Unity before committing (`main.unity` must be included for level/POI/combat wiring).
-- Prefer **one logical change per commit**; version bumps automatically if the hook is on.
+- Prefer **one logical change per commit**; version and README changelog update automatically when hooks are on.
 
 **Do not commit** (usually): `Assets/_Recovery/`, `Library/`, `Temp/`, GUI pack reserialize-only prefab noise unless intentional.
 
@@ -103,8 +104,9 @@ git checkout v0.0.016
 
 ## Changelog (high level)
 
-Updates here when we land notable commits; detail is always in `git log`.
+Auto-updated on every commit when `.githooks` are enabled. Full history: `git log`.
 
+<!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
 | **v0.0.017** | Solid state: scene + `IsDead` on hero/orc animators |
@@ -114,6 +116,7 @@ Updates here when we land notable commits; detail is always in `git log`.
 | **v0.0.013** | Pre-combat checkpoint; version bump script fix |
 | **v0.0.011+** | Energy burn on roll, regen, QA version display |
 | **v0.0.001** | Project version baseline |
+<!-- CHANGELOG:END -->
 
 ---
 

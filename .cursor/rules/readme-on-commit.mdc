@@ -1,0 +1,13 @@
+---
+description: README and version update on every git commit
+alwaysApply: true
+---
+
+# FatesRoll — commit hygiene
+
+When creating a git commit in this repo:
+
+1. Hooks should be enabled (`git config core.hooksPath .githooks`): **pre-commit** bumps `VERSION`; **commit-msg** runs `scripts/update-readme.ps1` and stages `README.md`.
+2. Write a clear **first line** commit message — it becomes the README changelog summary for that version.
+3. If hooks are not enabled, after `git commit` run: `.\scripts\bump-version.ps1` then `.\scripts\update-readme.ps1 -CommitMessageFile .git\COMMIT_EDITMSG` and amend or make a follow-up commit including `README.md` and `VERSION`.
+4. Do not ask the user to manually update the README changelog.

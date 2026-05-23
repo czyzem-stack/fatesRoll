@@ -1,5 +1,5 @@
 #!/bin/sh
-# Auto-bump version before each commit (enable: git config core.hooksPath .githooks)
+# Auto-bump version before each commit; README updates in commit-msg (enable: git config core.hooksPath .githooks)
 root=$(git rev-parse --show-toplevel)
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$root/scripts/bump-version.ps1"
 git add "$root/VERSION" "$root/ProjectSettings/ProjectSettings.asset"
