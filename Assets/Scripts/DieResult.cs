@@ -16,14 +16,32 @@ public class DieResult : MonoBehaviour
         // Stricter settling threshold
         if (rb.IsSleeping()) return true;
 
-        bool moving = rb.linearVelocity.sqrMagnitude > 0.000005f || rb.angularVelocity.sqrMagnitude > 0.000005f;
+        // Very strict threshold to ensure dice are truly still
+        bool moving = rb.linearVelocity.sqrMagnitude > 0.0001f || rb.angularVelocity.sqrMagnitude > 0.0001f;
         return !moving;
+    }
+
+    void Update()
+    {
+        // Safety: If die falls through the floor, warp it back to Steve's feet or a safe height
+        if (transform.position.y < -5.0f)
+        {
+            var hero = Object.FindAnyObjectByType<HeroController>();
+            Vector3 safePos = hero != null ? hero.transform.position + Vector3.up * 2.0f : new Vector3(transform.position.x, 2.0f, transform.position.z);
+            transform.position = safePos;
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector3.zero;
+                rb.angularVelocity = Vector3.zero;
+            }
+            Debug.LogWarning("Die fell through floor! Warped back to safe height.");
+        }
     }
 
     public int GetValue()
     {
         Vector3 up = Vector3.up;
-        float maxDot = -2f;
+float maxDot = -2f;
         int value = 0;
 
         // Visual Calibration Mapping (Fixed Z+/Z- swap):

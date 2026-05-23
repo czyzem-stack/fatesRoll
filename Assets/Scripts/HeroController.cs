@@ -19,13 +19,13 @@ public class HeroController : MonoBehaviour
     private LineRenderer fullPathLine;
 
     private GameObject currentTarget;
+    private float leftoverDiceValue = 0;
 
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
 
-        // Ensure agent is on NavMesh immediately
         if (!agent.isOnNavMesh)
         {
             NavMeshHit hit;
@@ -44,12 +44,11 @@ public class HeroController : MonoBehaviour
         
         AutoAssignHealthUI();
 
-        // Ensure consistent agent setup
         agent.speed = 4.0f;
-        agent.acceleration = 24.0f; // Snappier
-        agent.stoppingDistance = 1.0f; // Prevent jitter
+        agent.acceleration = 24.0f;
+        agent.stoppingDistance = 1.0f;
         agent.autoBraking = true;
-        agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance; // Don't avoid dice
+        agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
 
         SetupPathLines();
         SetLayerRecursive(gameObject, 8);
@@ -57,42 +56,27 @@ public class HeroController : MonoBehaviour
 
     private void SetLayerRecursive(GameObject obj, int layer)
     {
-        // Never put UI or Path Lines on the highlight layer
         if (obj.GetComponent<UnityEngine.Canvas>() != null || 
             obj.GetComponent<UnityEngine.RectTransform>() != null || 
             obj.GetComponent<UnityEngine.LineRenderer>() != null ||
             obj.name.Contains("PathLine"))
         {
-            // PathLines and UI must stay off Layer 8
             int targetLayer = (obj.GetComponent<UnityEngine.LineRenderer>() != null || obj.name.Contains("PathLine")) ? 0 : 5;
             SetLayerRecursiveInternal(obj, targetLayer);
             return;
         }
 
-        // Only put character Renderers on the highlight layer
         var renderer = obj.GetComponent<Renderer>();
-        if (renderer != null)
-        {
-            obj.layer = layer;
-        }
-        else
-        {
-            obj.layer = 0;
-        }
+        if (renderer != null) obj.layer = layer;
+        else obj.layer = 0;
 
-        foreach (Transform child in obj.transform)
-        {
-            SetLayerRecursive(child.gameObject, layer);
-        }
+        foreach (Transform child in obj.transform) SetLayerRecursive(child.gameObject, layer);
     }
 
     private void SetLayerRecursiveInternal(GameObject obj, int layer)
-{
+    {
         obj.layer = layer;
-        foreach (Transform child in obj.transform)
-        {
-            SetLayerRecursiveInternal(child.gameObject, layer);
-        }
+        foreach (Transform child in obj.transform) SetLayerRecursiveInternal(child.gameObject, layer);
     }
 
     private void AutoAssignHealthUI()
@@ -116,17 +100,15 @@ public class HeroController : MonoBehaviour
 
     private void SetupPathLines()
     {
-        // Path for current roll
         GameObject goPath = new GameObject("RollPathLine");
         goPath.transform.SetParent(transform);
-        goPath.layer = 0; // Force to Default layer
+        goPath.layer = 0;
         pathLine = goPath.AddComponent<LineRenderer>();
         ConfigureLine(pathLine, Color.yellow, 0.2f);
 
-        // Full path to POI
         GameObject goFull = new GameObject("FullPathLine");
         goFull.transform.SetParent(transform);
-        goFull.layer = 0; // Force to Default layer
+        goFull.layer = 0;
         fullPathLine = goFull.AddComponent<LineRenderer>();
         ConfigureLine(fullPathLine, Color.magenta, 0.1f);
     }
@@ -142,77 +124,63 @@ public class HeroController : MonoBehaviour
         lr.enabled = false;
     }
 
+    public void FaceTarget(Transform target, bool instant = false)
+    {
+        if (target == null) return;
+        Vector3 direction = (target.position - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            if (instant) transform.rotation = targetRotation;
+            else transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 1.0f);
+        }
+    }
+
     void Update()
     {
         if (agent == null) return;
 
-        // Visuals
+        if (healthSlider != null && stats != null)
+        {
+            if (healthSlider.maxValue != stats.MaxHP) healthSlider.maxValue = stats.MaxHP;
+            healthSlider.value = stats.currentHP;
+        }
+
         if (animator != null)
         {
-            // Ensure Root Motion doesn't hijack NavMeshAgent movement
             if (animator.applyRootMotion) animator.applyRootMotion = false;
-
-            // Use direct agent velocity for the animator speed, with a floor if we are meant to be moving
             float currentSpeed = agent.velocity.magnitude;
             float animatorSpeed = isMoving ? Mathf.Max(currentSpeed, 2.0f) : currentSpeed;
-            
-            // Smoother threshold check
             if (animatorSpeed < 0.05f) animatorSpeed = 0f;
             animator.SetFloat("Speed", animatorSpeed);
-            
-            if (isMoving && animatorSpeed < 0.1f)
-            {
-                Debug.LogWarning($"HeroController: Moving but Speed is low! {animatorSpeed}");
-            }
         }
 
         UpdatePathLines();
             
-        if (inCombat && currentEnemy != null)
-        {
-            // Keep facing the enemy during combat
-            Vector3 direction = (currentEnemy.transform.position - transform.position).normalized;
-            direction.y = 0;
-            if (direction != Vector3.zero)
-            {
-                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 5.0f);
-            }
-        }
-
         if (isMoving)
-{
-            // 1. Arrival Check (Normal pathing)
+        {
             if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             {
                 FinalizeMovement("Destination reached");
             }
 
-            // 2. Proximity Check (POI) - Larger trigger area
             if (currentTarget != null)
             {
                 float dist = Vector3.Distance(transform.position, currentTarget.transform.position);
-                // Increased distance and check if we have a path to ensure we're actively moving toward it
                 if (dist < 3.0f)
                 {
                     Debug.Log($"HeroController: Close enough to {currentTarget.name} (Dist: {dist:F2}m). Entering combat/resolution.");
                     GameObject poi = currentTarget;
-                    
-                    // Stop immediately
                     FinalizeMovement("Proximity trigger");
                     
-                    // Check if it's an enemy
                     var enemy = poi.GetComponent<EnemyCombatant>();
                     if (enemy != null)
                     {
                         EnterCombat(poi);
-                        
-                        // Initial damage from leftover roll
-                        if (leftoverDamage > 0)
-                        {
-                            StartCoroutine(InitialAttackCoroutine(enemy, leftoverDamage));
-                        }
+                        StartCoroutine(InitialAttackCoroutine(enemy, leftoverDiceValue));
                     }
-else
+                    else
                     {
                         var pm = POIManager.Instance;
                         if (pm != null) pm.ResolvePOI(poi);
@@ -223,39 +191,43 @@ else
         }
     }
 
-    private System.Collections.IEnumerator InitialAttackCoroutine(EnemyCombatant enemy, int diceRoll)
+    private System.Collections.IEnumerator InitialAttackCoroutine(EnemyCombatant enemy, float diceValue)
     {
-        // Steve faces enemy immediately
-        Vector3 direction = (enemy.transform.position - transform.position).normalized;
-        direction.y = 0;
-        if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
+        Debug.Log($"<b>[Combat Flow]</b> Starting Arrival Attack. Leftover steps: {diceValue:F2}");
+        
+        FaceTarget(enemy.transform, true);
+        enemy.FaceTarget(this.transform, true);
 
-        // Calculate damage based on stats and the roll
-        float baseDamage = stats != null ? stats.AttackDamage : 20f;
-        float rollMultiplier = diceRoll / 7.0f;
-        float heroDamage = baseDamage * rollMultiplier;
+        // Wait a beat after settle/facing
+        yield return new WaitForSeconds(0.45f);
 
-        // Crit check for arrival attack
-        bool isCrit = false;
+        // FORMULA: Damage = (leftoverSteps * Multiplier) + (BaseAttack * 0.5)
+        float damageFromSteps = diceValue * GlobalSettings.Instance.leftoverStepDamageMultiplier;
+        float baseDmgBonus = stats != null ? stats.AttackDamage * 0.5f : 30f;
+        float heroDamage = damageFromSteps + baseDmgBonus;
+
         if (stats != null && Random.Range(0f, 100f) < stats.CritChance)
         {
-            isCrit = true;
             heroDamage *= (1f + (stats.CritDamage / 100f));
+            Debug.Log("<b>[Combat Flow]</b> <color=red>CRITICAL ARRIVAL HIT!</color>");
         }
 
         int finalDamage = Mathf.RoundToInt(heroDamage);
+        if (finalDamage == 0 && diceValue > 0.01f) finalDamage = 1;
 
-        // Reset triggers before starting arrival attack
-        if (animator != null) animator.ResetTrigger("Attack");
-        if (animator != null) animator.SetTrigger("Attack");
+        if (animator != null)
+        {
+            animator.ResetTrigger("Attack");
+            animator.SetTrigger("Attack");
+        }
 
-        // Perfect strike timing (aligned with sword impact)
-        yield return new WaitForSeconds(0.25f);
+        // Wait for sword swing
+        yield return new WaitForSeconds(0.35f);
+        
         if (enemy != null)
         {
+            Debug.Log($"<b>[Combat Flow]</b> Steve hits {enemy.name} for {finalDamage} arrival damage.");
             enemy.TakeDamage(finalDamage);
-            string critMsg = isCrit ? " (CRITICAL!)" : "";
-            Debug.Log($"HeroController: Initial Arrival Attack dealt {finalDamage} damage{critMsg}.");
 
             if (enemy.IsDead)
             {
@@ -263,39 +235,26 @@ else
                 yield break;
             }
 
-            // Snappier reaction
             yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
 
             if (enemy != null && enemy.gameObject != null && !enemy.IsDead)
             {
-                enemy.FaceTarget(this.transform);
                 enemy.PerformAttack(this);
             }
         }
     }
 
-    private int leftoverDamage = 0;
-
     private void UpdatePathLines()
-{
+    {
         bool show = GlobalSettings.Instance.showPath;
-
-        // 1. Roll Path (Yellow)
         if (show && agent.hasPath)
         {
             pathLine.enabled = true;
             pathLine.positionCount = agent.path.corners.Length;
-            for (int i = 0; i < agent.path.corners.Length; i++)
-            {
-                pathLine.SetPosition(i, agent.path.corners[i] + Vector3.up * 0.15f);
-            }
+            for (int i = 0; i < agent.path.corners.Length; i++) pathLine.SetPosition(i, agent.path.corners[i] + Vector3.up * 0.15f);
         }
-        else
-        {
-            pathLine.enabled = false;
-        }
+        else pathLine.enabled = false;
 
-        // 2. Full Path to POI (Magenta)
         if (show && currentTarget != null)
         {
             NavMeshPath path = new NavMeshPath();
@@ -303,20 +262,11 @@ else
             {
                 fullPathLine.enabled = true;
                 fullPathLine.positionCount = path.corners.Length;
-                for (int i = 0; i < path.corners.Length; i++)
-                {
-                    fullPathLine.SetPosition(i, path.corners[i] + Vector3.up * 0.1f);
-                }
+                for (int i = 0; i < path.corners.Length; i++) fullPathLine.SetPosition(i, path.corners[i] + Vector3.up * 0.1f);
             }
-            else
-            {
-                fullPathLine.enabled = false;
-            }
+            else fullPathLine.enabled = false;
         }
-        else
-        {
-            fullPathLine.enabled = false;
-        }
+        else fullPathLine.enabled = false;
     }
 
     private void FinalizeMovement(string reason)
@@ -339,17 +289,9 @@ else
         float minDist = float.MaxValue;
         foreach (var p in pois)
         {
-            // If it's a POINode, we check its type or existence
             float dist = Vector3.Distance(transform.position, p.transform.position);
-            
-            // Ignore POIs that are too close (likely the one we are standing on/just reached)
             if (dist < 1.0f) continue;
-            
-            if (dist < minDist)
-            {
-                minDist = dist;
-                nearest = p;
-            }
+            if (dist < minDist) { minDist = dist; nearest = p; }
         }
         return nearest;
     }
@@ -358,33 +300,18 @@ else
     {
         GlobalSettings settings = GlobalSettings.Instance;
         float totalMeters = diceResult * settings.stepsPerDiceValue * settings.metersPerStep;
-        
-        Debug.Log($"HeroController: Processing Move. Roll: {diceResult}, Target Distance: {totalMeters}m");
-
         if (agent == null) agent = GetComponent<NavMeshAgent>();
 
         if (!agent.isOnNavMesh)
         {
             NavMeshHit hit;
-            if (NavMesh.SamplePosition(transform.position, out hit, 3.0f, NavMesh.AllAreas))
-            {
-                agent.Warp(hit.position);
-            }
+            if (NavMesh.SamplePosition(transform.position, out hit, 3.0f, NavMesh.AllAreas)) agent.Warp(hit.position);
             else return;
         }
 
-        if (currentTarget == null)
-        {
-            currentTarget = GetNearestPOI();
-        }
+        if (currentTarget == null) currentTarget = GetNearestPOI();
+        if (currentTarget == null) return;
 
-        if (currentTarget == null) 
-        {
-            Debug.LogWarning("HeroController: No valid POI found to move towards.");
-            return;
-        }
-
-        // 1. Calculate the FULL path to the POI
         NavMeshPath path = new NavMeshPath();
         if (NavMesh.CalculatePath(transform.position, currentTarget.transform.position, NavMesh.AllAreas, path))
         {
@@ -393,27 +320,17 @@ else
                 float pathDist = 0;
                 for (int i = 0; i < path.corners.Length - 1; i++) pathDist += Vector3.Distance(path.corners[i], path.corners[i+1]);
 
-                // Calculate leftover damage based on remaining dice value
                 if (pathDist < totalMeters)
                 {
                     float usedDiceValue = pathDist / (settings.stepsPerDiceValue * settings.metersPerStep);
-                    float remainingDiceValue = diceResult - usedDiceValue;
-                    leftoverDamage = Mathf.RoundToInt(remainingDiceValue * GlobalSettings.Instance.combatDamageMultiplier);
+                    leftoverDiceValue = Mathf.Max(0, (float)diceResult - usedDiceValue);
                 }
-                else
-                {
-                    leftoverDamage = 0;
-                }
+                else leftoverDiceValue = 0;
 
-                // 2. Find the point along this path that corresponds to totalMeters
                 Vector3 targetPoint = GetPointOnPath(path, totalMeters);
-
                 agent.isStopped = false;
                 agent.updateRotation = true;
-                if (agent.SetDestination(targetPoint))
-                {
-                    isMoving = true;
-                }
+                if (agent.SetDestination(targetPoint)) isMoving = true;
             }
         }
     }
@@ -421,7 +338,6 @@ else
     private Vector3 GetPointOnPath(NavMeshPath path, float distance)
     {
         if (path.corners.Length < 2) return transform.position;
-
         float accumulatedDistance = 0;
         for (int i = 0; i < path.corners.Length - 1; i++)
         {
@@ -434,14 +350,7 @@ else
             }
             accumulatedDistance += segmentDistance;
         }
-
-        // If distance is longer than path, return last corner (POI)
         return path.corners[path.corners.Length - 1];
-    }
-
-    public void SetTarget(GameObject target)
-    {
-        Debug.Log($"HeroController: Objective target is {target.name}");
     }
 
     public void EnterCombat(GameObject enemy)
@@ -449,51 +358,28 @@ else
         inCombat = true;
         currentEnemy = enemy;
         isMoving = false;
-        if (agent != null) 
-        {
-            agent.isStopped = true;
-            agent.velocity = Vector3.zero;
-        }
+        if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
 
-        // Show Enemy Health Bar
-        var enemyCombatant = enemy.GetComponent<EnemyCombatant>();
-        if (enemyCombatant != null) enemyCombatant.SetHealthBarVisible(true);
+        var ec = enemy.GetComponent<EnemyCombatant>();
+        if (ec != null) ec.SetHealthBarVisible(true);
 
-        // Safety: Reset pending triggers to avoid 'random' animation hiccups
-if (animator != null)
+        if (animator != null)
         {
-            animator.ResetTrigger("Throw");
-            animator.ResetTrigger("LevelUp");
-            animator.ResetTrigger("Victory");
-            animator.ResetTrigger("Attack");
-            animator.ResetTrigger("GetHit");
+            animator.ResetTrigger("Throw"); animator.ResetTrigger("Attack"); animator.ResetTrigger("GetHit");
         }
         
-        Debug.Log($"HeroController: Entered COMBAT with {enemy.name}");
-
-        // Face the enemy
         Vector3 direction = (enemy.transform.position - transform.position).normalized;
         direction.y = 0;
-        if (direction != Vector3.zero)
-        {
-            transform.rotation = Quaternion.LookRotation(direction);
-        }
+        if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
     }
 
-    public void ExitCombat()
-    {
-        inCombat = false;
-        currentEnemy = null;
-        Debug.Log("HeroController: Combat resolved.");
-    }
+    public void ExitCombat() { inCombat = false; currentEnemy = null; }
 
     public bool TakeDamage(int amount)
     {
         if (stats == null || stats.currentHP <= 0) return false;
-
         bool tookDamage = stats.TakeDamage(amount);
         UpdateHealthUI();
-        
         if (tookDamage)
         {
             if (Application.isPlaying)
@@ -503,23 +389,11 @@ if (animator != null)
                 var ft = go.AddComponent<FloatingText>();
                 ft.Setup($"-{amount} HP", Color.red);
             }
-
-            if (stats.currentHP <= 0)
-            {
-                if (animator != null) animator.SetTrigger("Die");
-                Debug.LogError("Hero Died!");
-            }
-            else
-            {
-                if (animator != null) animator.SetTrigger("GetHit");
-            }
+            if (stats.currentHP <= 0) { if (animator != null) animator.SetTrigger("Die"); }
+            else if (animator != null) animator.SetTrigger("GetHit");
         }
-
         return tookDamage;
     }
 
-    public void VictoryFlourish()
-    {
-        if (animator != null) animator.SetTrigger("Victory");
-    }
+    public void VictoryFlourish() { if (animator != null) animator.SetTrigger("Victory"); }
 }

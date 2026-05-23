@@ -150,19 +150,30 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
             }
 
             // 2. Spawn new dice closer to Steve
-            float reducedThrowForce = 1.6f; // Further reduced from 2.5 to keep it very tight
+            float reducedThrowForce = 1.6f; 
+            
+            // Get hero collider to ignore
+            Collider heroCollider = hero != null ? hero.GetComponent<Collider>() : null;
             
             for (int i = 0; i < 2; i++)
             {
-                // Position dice slightly in front of the hand spawn point
-                Vector3 offset = new Vector3(i * 0.2f - 0.1f, 0.1f, 0.2f);
-                GameObject die = Instantiate(d6Prefab, spawnPoint.position + offset, Random.rotation);
+                // Position dice at chest height instead of hand to ensure they clear any ground geometry initially
+                Vector3 spawnOrigin = hero != null ? hero.transform.position + Vector3.up * 1.2f : spawnPoint.position;
+                Vector3 offset = new Vector3(i * 0.2f - 0.1f, 0.2f, 0.5f);
+                GameObject die = Instantiate(d6Prefab, spawnOrigin + (transform.forward * 0.2f) + offset, Random.rotation);
                 
                 // Set Layer to 8 for Highlighting/X-Ray
                 SetLayerRecursive(die, 8);
                 
                 if (die.GetComponent<DieResult>() == null) die.AddComponent<DieResult>();
-activeDice.Add(die);
+                activeDice.Add(die);
+                
+                // Ignore collision with hero to prevent dice from being shoved through the ground or flying away
+                Collider dieCollider = die.GetComponent<Collider>();
+                if (dieCollider != null && heroCollider != null)
+                {
+                    Physics.IgnoreCollision(dieCollider, heroCollider);
+                }
                 
                 Rigidbody rb = die.GetComponent<Rigidbody>();
                 if (rb != null)
@@ -170,18 +181,18 @@ activeDice.Add(die);
                     rb.linearVelocity = Vector3.zero;
                     rb.angularVelocity = Vector3.zero;
                     
-                    // Throw more downward to keep it close
-                    Vector3 throwDir = (transform.forward * 0.4f + transform.right * Random.Range(-0.2f, 0.2f) + Vector3.down * 0.4f).normalized;
-                    Vector3 force = (throwDir * reducedThrowForce) + (Vector3.up * 0.8f);
+                    // Throw slightly more upward and forward
+                    Vector3 throwDir = (transform.forward * 0.6f + transform.right * Random.Range(-0.2f, 0.2f) + Vector3.up * 0.1f).normalized;
+                    Vector3 force = (throwDir * reducedThrowForce) + (Vector3.up * 1.5f);
                     rb.AddForce(force, ForceMode.Impulse);
                     rb.AddTorque(Random.onUnitSphere * torque, ForceMode.Impulse);
                 }
             }
 
             // 3. Wait for dice to settle - more robust check
-            yield return new WaitForSeconds(0.1f); 
+            yield return new WaitForSeconds(0.2f); 
             
-            float settleTimeout = hero != null && hero.InCombat ? 1.0f : 2.0f; // Faster in combat
+            float settleTimeout = 3.0f; // Longer timeout
             bool allSettled = false;
             while (settleTimeout > 0)
             {
@@ -200,7 +211,8 @@ activeDice.Add(die);
                 }
                 if (allSettled) 
                 {
-                    yield return new WaitForSeconds(0.05f);
+                    // Brief additional check to confirm they aren't just bouncing
+                    yield return new WaitForSeconds(0.1f);
                     allSettled = true;
                     foreach (var d in activeDice)
                     {
@@ -216,7 +228,11 @@ activeDice.Add(die);
                 yield return null;
             }
 
-            if (!allSettled) Debug.LogWarning("DiceSpawner: Dice didn't settle perfectly, reading anyway.");
+            if (!allSettled) Debug.LogWarning("<b>[Dice Physics]</b> Dice didn't settle perfectly within 3s, reading anyway.");
+            else Debug.Log("<b>[Dice Physics]</b> Dice settled successfully.");
+
+            // 4. Extra visual buffer - Player sees the result before action
+            yield return new WaitForSeconds(1.0f);
 
             int total = 0;
             List<int> individual = new List<int>();
@@ -231,7 +247,7 @@ activeDice.Add(die);
             }
             LastRoll = total;
             LastIndividualRolls = string.Join(", ", individual);
-            Debug.Log($"<color=green><b>[Dice Result] {total}</b></color> (Individual: {LastIndividualRolls})");
+            Debug.Log($"<color=green><b>[Final Dice Roll] {total}</b></color> (Individual: {LastIndividualRolls})");
 
             if (hero != null)
             {
@@ -260,7 +276,18 @@ activeDice.Add(die);
                         var enemy = hero.currentEnemy.GetComponent<EnemyCombatant>();
                         if (enemy != null)
                         {
-                            // 1. Hero Attack Animation
+                            string critMsg = isCrit ? " <color=red>CRITICAL HIT!</color>" : "";
+                            Debug.Log($"<b>[Combat Action]</b> Steve Attacks: Dealing {finalDamage} damage to {enemy.name}{critMsg}");
+
+                            // [COMBAT CLEANUP]
+                            // 1. Force both combatants to face each other snappily
+                            hero.FaceTarget(enemy.transform, true);
+                            enemy.FaceTarget(hero.transform, true);
+
+                            // 2. Short beat to prepare the lunge
+                            yield return new WaitForSeconds(0.25f);
+
+                            // 3. Hero Attack Animation
                             var heroAnim = hero.GetComponentInChildren<Animator>();
                             if (heroAnim != null)
                             {
@@ -268,22 +295,25 @@ activeDice.Add(die);
                                 heroAnim.SetTrigger("Attack");
                             }
                             
-                            string critMsg = isCrit ? " <color=red>CRITICAL HIT!</color>" : "";
-                            Debug.Log($"Steve Attacks: Dealing {finalDamage} damage to {enemy.name}{critMsg}");
+                            // 4. Enemy takes damage and reacts
+                            yield return new WaitForSeconds(0.35f);
+                            bool hitOk = enemy.TakeDamage(finalDamage);
 
-                            // 2. Enemy takes damage and reacts
-                            yield return new WaitForSeconds(0.25f);
-                            enemy.TakeDamage(finalDamage);
+                            if (hitOk)
+                            {
+                                Debug.Log($"<b>[Combat Success]</b> {enemy.name} was hit for {finalDamage}.");
+                            }
+                            else
+                            {
+                                Debug.Log($"<b>[Combat Miss]</b> {enemy.name} dodged Steve's attack!");
+                            }
 
                             // Check if enemy died
                             if (enemy.IsDead) 
                             {
                                 Debug.Log($"{enemy.name} defeated!");
                                 hero.VictoryFlourish();
-                                
-                                // Grant XP bonus for kill
                                 if (LevelManager.Instance != null) LevelManager.Instance.AddXP(total * 2);
-                                
                                 yield return new WaitForSeconds(1.2f);
                                 yield break;
                             }
@@ -291,19 +321,19 @@ activeDice.Add(die);
                             // Retaliation delay
                             yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
 
-                            // 3. Enemy Attacks back
+                            // 5. Enemy Attacks back
                             if (hero.currentEnemy != null && enemy != null)
                             {
                                 enemy.PerformAttack(hero);
                             }
                         }
                     }
-                }
+}
                 else
                 {
                     hero.MoveSteps(total);
                 }
-                
+
                 // Add XP after the action (unless died/interrupted)
                 if (LevelManager.Instance != null)
                 {

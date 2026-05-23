@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.018` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.021` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -118,6 +118,9 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.021** | Combat works with stable hero and enemy animations. |
+| **v0.0.020** | Foundation for massive combat overhaul - everything is set. |
+| **v0.0.019** | Add HealthBar prefab on POI root canvas for all enemy types. |
 | **v0.0.018** | Add git-commit wrapper so hooks run without global config. |
 | **v0.0.017** | Solid state: scene + `IsDead` on hero/orc animators |
 | **v0.0.016** | Basic combat working; hero & orc animation fixes |

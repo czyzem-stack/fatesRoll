@@ -60,7 +60,8 @@ public class EnemyCombatant : MonoBehaviour
     }
 
     private bool isDead = false;
-public bool IsDead => isDead;
+    public bool IsDead => isDead;
+    private bool isAttacking = false;
 
     private void Update()
     {
@@ -72,6 +73,17 @@ public bool IsDead => isDead;
             EnsureHealthBar();
         }
 
+        // Keep HP Bar updated every frame to reflect reality
+        if (healthSlider != null && stats != null)
+        {
+            // Sync max value just in case stats changed
+            if (healthSlider.maxValue != stats.MaxHP) healthSlider.maxValue = stats.MaxHP;
+            
+            // Smoothly move the health bar or snap it? 
+            // Snapping is safer for "reflecting reality" immediately.
+            healthSlider.value = stats.currentHP;
+        }
+
         if (healthCanvas != null && Camera.main != null)
         {
             healthCanvas.transform.rotation = Camera.main.transform.rotation;
@@ -79,8 +91,8 @@ public bool IsDead => isDead;
 
         if (!Application.isPlaying) return;
 
-        // Face the hero if nearby and not dead
-        if (stats != null && stats.currentHP > 0)
+        // Face the hero if nearby and not dead, but only if not currently locked in an attack sequence
+        if (stats != null && stats.currentHP > 0 && !isAttacking)
         {
             if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
             if (cachedHero != null)
@@ -88,19 +100,30 @@ public bool IsDead => isDead;
                 float dist = Vector3.Distance(transform.position, cachedHero.transform.position);
                 if (dist < 10.0f)
                 {
-                    FaceTarget(cachedHero.transform);
+                    // Slightly slower but smoother rotation for passive tracking
+                    FaceTarget(cachedHero.transform, false, 8.0f);
                 }
             }
         }
     }
 
-    public void FaceTarget(Transform target)
+    public void FaceTarget(Transform target, bool instant = false, float speed = 15.0f)
     {
+        if (target == null) return;
+        
         Vector3 direction = (target.position - transform.position).normalized;
         direction.y = 0;
-        if (direction != Vector3.zero)
+        if (direction.sqrMagnitude > 0.001f)
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 10.0f); // Snappier
+            Quaternion targetRotation = Quaternion.LookRotation(direction);
+            if (instant)
+            {
+                transform.rotation = targetRotation;
+            }
+            else
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * speed);
+            }
         }
     }
 
@@ -198,15 +221,32 @@ public bool IsDead => isDead;
     {
         if (isDead || stats == null || stats.currentHP <= 0) return;
         
-        FaceTarget(hero.transform); // Explicit face target
+        isAttacking = true;
+
+        // 1. Snappy face target
+        FaceTarget(hero.transform, true); 
+        
+        // 2. Preparation delay so the retaliation isn't instant and jarring
+        StartCoroutine(DelayedAttackAnimation(hero));
+    }
+
+    private System.Collections.IEnumerator DelayedAttackAnimation(HeroController hero)
+    {
+        yield return new WaitForSeconds(0.4f);
+        
+        if (isDead || hero == null) 
+        {
+            isAttacking = false;
+            yield break;
+        }
+
         if (animator != null)
         {
             animator.ResetTrigger("Attack");
             animator.SetTrigger("Attack");
         }
-        Debug.Log($"{gameObject.name} plays attack animation.");
-
-        // Delay damage until animation swing (approx 0.4s for Orc)
+        
+        // 3. Delay damage until animation swing (approx 0.4s for Orc)
         StartCoroutine(DealDelayedDamage(hero));
     }
 
@@ -215,18 +255,25 @@ public bool IsDead => isDead;
         yield return new WaitForSeconds(0.4f);
         if (!isDead && stats != null && stats.currentHP > 0 && hero != null)
         {
-            // Use derived Attack Damage from stats
             float baseDamage = stats.AttackDamage;
-            
-            // Enemy Crit Check
             if (Random.Range(0f, 100f) < stats.CritChance)
             {
                 baseDamage *= (1f + (stats.CritDamage / 100f));
+                Debug.Log($"<color=orange>{gameObject.name} landed a CRITICAL retaliation hit!</color>");
             }
 
             int finalDamage = Mathf.RoundToInt(baseDamage);
-hero.TakeDamage(finalDamage);
-            // Logging is now handled by PlayerStats.TakeDamage
+            bool hitSucceeded = hero.TakeDamage(finalDamage);
+
+            if (hitSucceeded)
+            {
+                Debug.Log($"[Combat retaliation] {gameObject.name} deals {finalDamage} damage to Hero.");
+            }
+            else
+            {
+                Debug.Log($"[Combat retaliation] {gameObject.name}'s attack was DODGED by Hero.");
+            }
         }
+        isAttacking = false;
     }
 }

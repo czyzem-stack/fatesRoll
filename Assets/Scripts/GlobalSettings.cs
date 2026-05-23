@@ -41,7 +41,8 @@ public int energyDepletionPerRoll = 3;
     public int heroMaxHP = 20;
     public int orcStartHP = 10;
     public int combatDamageMultiplier = 2;
-    public float combatReactionDelay = 0.3f;
+    public float leftoverStepDamageMultiplier = 50.0f;
+public float combatReactionDelay = 0.3f;
 
     [Header("XP & Leveling Settings")]
     public float baseXPForLevel1 = 50f;
