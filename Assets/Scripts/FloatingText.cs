@@ -4,9 +4,9 @@ using TMPro;
 public class FloatingText : MonoBehaviour
 {
     private TextMeshPro textMesh;
-    private float floatSpeed = 1.5f;
-    private float fadeDuration = 1.0f;
-    private float lifeTime = 1.5f;
+    private float floatSpeed = 5.0f;
+    private float fadeDuration = 0.2f;
+    private float lifeTime = 0.5f;
     private Color startColor;
 
     public void Setup(string text, Color color)
@@ -17,11 +17,29 @@ public class FloatingText : MonoBehaviour
         textMesh.font = TMP_Settings.defaultFontAsset;
         textMesh.text = text;
         textMesh.color = color;
-        textMesh.fontSize = 6;
+        textMesh.fontSize = 7;
         textMesh.alignment = TextAlignmentOptions.Center;
         startColor = color;
         
+        // Manual scale pop
+        transform.localScale = Vector3.one * 0.5f;
+        StartCoroutine(PopScale());
+
         Destroy(gameObject, lifeTime);
+    }
+
+    private System.Collections.IEnumerator PopScale()
+    {
+        float t = 0;
+        Vector3 startScale = Vector3.one * 0.5f;
+        Vector3 targetScale = Vector3.one * 1.2f;
+        while (t < 0.1f)
+        {
+            t += Time.deltaTime;
+            transform.localScale = Vector3.Lerp(startScale, targetScale, t / 0.1f);
+            yield return null;
+        }
+        transform.localScale = targetScale;
     }
 
     void Update()

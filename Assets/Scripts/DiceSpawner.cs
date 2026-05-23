@@ -12,8 +12,40 @@ public class DiceSpawner : MonoBehaviour
 
     private List<GameObject> activeDice = new List<GameObject>();
     private bool isRolling = false;
+    private bool autoRollActive = false;
+    private float autoRollNextCheckTime = 0f;
+    private float autoRollCheckInterval = 1.0f;
+
     public int LastRoll { get; private set; }
     public string LastIndividualRolls { get; private set; }
+
+    [Header("Auto-Roll Settings")]
+    public UnityEngine.UI.Image autoRollIndicator;
+    public TMPro.TextMeshProUGUI autoRollText;
+    public Color autoRollActiveColor = Color.cyan;
+    public Color autoRollInactiveColor = Color.white;
+
+    public void ToggleAutoRoll()
+    {
+        autoRollActive = !autoRollActive;
+        Debug.Log($"DiceSpawner: Auto-Roll {(autoRollActive ? "ENABLED" : "DISABLED")}");
+        
+        if (autoRollIndicator != null)
+        {
+            autoRollIndicator.color = autoRollActive ? autoRollActiveColor : autoRollInactiveColor;
+        }
+
+        if (autoRollText == null)
+        {
+            var go = GameObject.Find("MainUI_Canvas/HUD_Control/Joystick_Button_l_Attack/AutoText");
+            if (go != null) autoRollText = go.GetComponent<TMPro.TextMeshProUGUI>();
+        }
+
+        if (autoRollText != null)
+        {
+            autoRollText.color = autoRollActive ? Color.cyan : new Color(1, 1, 1, 0);
+        }
+    }
 
     public void OnRoll(InputAction.CallbackContext ctx)
     {
@@ -30,13 +62,38 @@ public class DiceSpawner : MonoBehaviour
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero != null && hero.IsMoving) return false;
 
+        // Don't auto-roll in combat?
+        // Actually, user said "hold click to enable auto roll", likely for everything.
+        
         if (EnergyManager.Instance != null && !EnergyManager.Instance.HasEnergy(GlobalSettings.Instance.energyDepletionPerRoll))
         {
-            Debug.LogWarning("DiceSpawner: Not enough energy to roll!");
+            if (autoRollActive)
+            {
+                Debug.LogWarning("DiceSpawner: Auto-Roll paused - not enough energy!");
+            }
+            else
+            {
+                Debug.LogWarning("DiceSpawner: Not enough energy to roll!");
+            }
             return false;
         }
         
         return true;
+    }
+
+    void Update()
+    {
+        if (autoRollActive && !isRolling)
+        {
+            if (Time.time >= autoRollNextCheckTime)
+            {
+                if (CanRoll())
+                {
+                    RollDice();
+                    autoRollNextCheckTime = Time.time + autoRollCheckInterval;
+                }
+            }
+        }
     }
 
     [ContextMenu("Roll Dice")]
@@ -67,16 +124,19 @@ public class DiceSpawner : MonoBehaviour
                 var anim = hero.GetComponent<Animator>();
                 if (anim != null)
                 {
-                    // Use the new trigger
-                    anim.SetTrigger("Throw");
+                    // Only play the body throw animation if we are NOT in combat.
+                    // During combat, Steve is already in a battle stance; we just spawn the dice.
+                    if (!hero.InCombat)
+                    {
+                        anim.SetTrigger("Throw");
+                        // Wait for the animation to reach the "throw" point
+                        yield return new WaitForSeconds(0.2f);
+                    }
                 }
             }
 
-            // Wait for the animation to reach the "throw" point
-            yield return new WaitForSeconds(0.5f);
-
             // 1. Aggressive Cleanup of old dice
-            var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclude);
+var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclude);
             foreach (var d in existingDice)
             {
                 if (d != null && d.gameObject != null) Destroy(d.gameObject);
@@ -98,11 +158,11 @@ public class DiceSpawner : MonoBehaviour
                 Vector3 offset = new Vector3(i * 0.2f - 0.1f, 0.1f, 0.2f);
                 GameObject die = Instantiate(d6Prefab, spawnPoint.position + offset, Random.rotation);
                 
-                // Set Layer to 8 for Stencil-based Highlighting
+                // Set Layer to 8 for Highlighting/X-Ray
                 SetLayerRecursive(die, 8);
                 
                 if (die.GetComponent<DieResult>() == null) die.AddComponent<DieResult>();
-                activeDice.Add(die);
+activeDice.Add(die);
                 
                 Rigidbody rb = die.GetComponent<Rigidbody>();
                 if (rb != null)
@@ -119,9 +179,9 @@ public class DiceSpawner : MonoBehaviour
             }
 
             // 3. Wait for dice to settle - more robust check
-            yield return new WaitForSeconds(0.5f); 
+            yield return new WaitForSeconds(0.1f); 
             
-            float settleTimeout = 4f;
+            float settleTimeout = hero != null && hero.InCombat ? 1.0f : 2.0f; // Faster in combat
             bool allSettled = false;
             while (settleTimeout > 0)
             {
@@ -140,7 +200,7 @@ public class DiceSpawner : MonoBehaviour
                 }
                 if (allSettled) 
                 {
-                    yield return new WaitForSeconds(0.3f);
+                    yield return new WaitForSeconds(0.05f);
                     allSettled = true;
                     foreach (var d in activeDice)
                     {
@@ -186,9 +246,57 @@ public class DiceSpawner : MonoBehaviour
 
             if (hero != null)
             {
-                hero.MoveSteps(total);
+                if (hero.InCombat)
+                {
+                    // Combat Attack - Hero must roll to continue
+                    int heroDamage = total * GlobalSettings.Instance.combatDamageMultiplier;
+                    
+                    if (hero.currentEnemy != null)
+                    {
+                        var enemy = hero.currentEnemy.GetComponent<EnemyCombatant>();
+                        if (enemy != null)
+                        {
+                            // 1. Hero Attack Animation
+                            var heroAnim = hero.GetComponent<Animator>();
+                            if (heroAnim != null)
+                            {
+                                heroAnim.ResetTrigger("Attack");
+                                heroAnim.SetTrigger("Attack");
+                            }
+                            Debug.Log($"DiceSpawner: Hero ATTACKS {enemy.name} for {heroDamage} damage.");
+
+                            // Perfect strike timing (aligned with sword impact)
+                            yield return new WaitForSeconds(0.25f);
+
+                            // 2. Enemy takes damage and reacts
+                            enemy.TakeDamage(heroDamage);
+
+                            // Check if enemy died (use IsDead because ExitCombat is delayed for visuals)
+                            if (enemy.IsDead) 
+                            {
+                                Debug.Log("DiceSpawner: Enemy defeated.");
+                                hero.VictoryFlourish();
+                                yield return new WaitForSeconds(1.2f); // Buttery delay to let animations play
+                                yield break;
+                            }
+
+                            // Snappier reaction delay
+                            yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
+
+                            // 3. Enemy Attacks back
+if (hero.currentEnemy != null && enemy != null)
+                            {
+                                enemy.PerformAttack(hero);
+                            }
+}
+                    }
+                }
+                else
+                {
+                    hero.MoveSteps(total);
+                }
             }
-            else
+else
             {
                 Debug.LogError("DiceSpawner: HeroController NOT found!");
             }
@@ -201,10 +309,38 @@ public class DiceSpawner : MonoBehaviour
 
     private void SetLayerRecursive(GameObject obj, int layer)
     {
-        obj.layer = layer;
+        if (obj.GetComponent<Canvas>() != null || 
+            obj.GetComponent<RectTransform>() != null || 
+            obj.GetComponent<LineRenderer>() != null)
+        {
+            int target = (obj.GetComponent<LineRenderer>() != null) ? 0 : 5;
+            SetLayerRecursiveInternal(obj, target);
+            return;
+        }
+
+        var renderer = obj.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            obj.layer = layer;
+        }
+        else
+        {
+            obj.layer = 0;
+        }
+
         foreach (Transform child in obj.transform)
         {
             SetLayerRecursive(child.gameObject, layer);
         }
     }
+
+    private void SetLayerRecursiveInternal(GameObject obj, int layer)
+{
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursiveInternal(child.gameObject, layer);
+        }
+    }
+
 }

@@ -8,6 +8,13 @@ public class HeroController : MonoBehaviour
     private bool isMoving = false;
     public bool IsMoving => isMoving;
 
+    private int currentHP;
+    private bool inCombat = false;
+    public bool InCombat => inCombat;
+    public GameObject currentEnemy;
+
+    public UnityEngine.UI.Slider healthSlider;
+
     private LineRenderer pathLine;
     private LineRenderer fullPathLine;
 
@@ -19,6 +26,9 @@ public class HeroController : MonoBehaviour
         animator = GetComponent<Animator>();
         if (animator != null) animator.applyRootMotion = false;
         
+        currentHP = GlobalSettings.Instance.heroMaxHP;
+        AutoAssignHealthUI();
+
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
 
         // Ensure consistent agent setup
@@ -34,10 +44,60 @@ public class HeroController : MonoBehaviour
 
     private void SetLayerRecursive(GameObject obj, int layer)
     {
-        obj.layer = layer;
+        // Never put UI or Path Lines on the highlight layer
+        if (obj.GetComponent<UnityEngine.Canvas>() != null || 
+            obj.GetComponent<UnityEngine.RectTransform>() != null || 
+            obj.GetComponent<UnityEngine.LineRenderer>() != null ||
+            obj.name.Contains("PathLine"))
+        {
+            // PathLines and UI must stay off Layer 8
+            int targetLayer = (obj.GetComponent<UnityEngine.LineRenderer>() != null || obj.name.Contains("PathLine")) ? 0 : 5;
+            SetLayerRecursiveInternal(obj, targetLayer);
+            return;
+        }
+
+        // Only put character Renderers on the highlight layer
+        var renderer = obj.GetComponent<Renderer>();
+        if (renderer != null)
+        {
+            obj.layer = layer;
+        }
+        else
+        {
+            obj.layer = 0;
+        }
+
         foreach (Transform child in obj.transform)
         {
             SetLayerRecursive(child.gameObject, layer);
+        }
+    }
+
+    private void SetLayerRecursiveInternal(GameObject obj, int layer)
+{
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursiveInternal(child.gameObject, layer);
+        }
+    }
+
+    private void AutoAssignHealthUI()
+    {
+        if (healthSlider == null)
+        {
+            GameObject sliderGO = GameObject.Find("MainUI_Canvas/HUD_Profile/Slider_Bottom");
+            if (sliderGO != null) healthSlider = sliderGO.GetComponent<UnityEngine.UI.Slider>();
+        }
+        UpdateHealthUI();
+    }
+
+    private void UpdateHealthUI()
+    {
+        if (healthSlider != null)
+        {
+            healthSlider.maxValue = GlobalSettings.Instance.heroMaxHP;
+            healthSlider.value = currentHP;
         }
     }
 
@@ -46,12 +106,14 @@ public class HeroController : MonoBehaviour
         // Path for current roll
         GameObject goPath = new GameObject("RollPathLine");
         goPath.transform.SetParent(transform);
+        goPath.layer = 0; // Force to Default layer
         pathLine = goPath.AddComponent<LineRenderer>();
         ConfigureLine(pathLine, Color.yellow, 0.2f);
 
         // Full path to POI
         GameObject goFull = new GameObject("FullPathLine");
         goFull.transform.SetParent(transform);
+        goFull.layer = 0; // Force to Default layer
         fullPathLine = goFull.AddComponent<LineRenderer>();
         ConfigureLine(fullPathLine, Color.magenta, 0.1f);
     }
@@ -74,16 +136,38 @@ public class HeroController : MonoBehaviour
         // Visuals
         if (animator != null)
         {
-            float speed = isMoving ? agent.velocity.magnitude : 0f;
-            // Lower threshold to match animator (0.1)
-            if (speed < 0.1f) speed = 0f;
-            animator.SetFloat("Speed", speed);
+            // Ensure Root Motion doesn't hijack NavMeshAgent movement
+            if (animator.applyRootMotion) animator.applyRootMotion = false;
+
+            // Use direct agent velocity for the animator speed, with a floor if we are meant to be moving
+            float currentSpeed = agent.velocity.magnitude;
+            float animatorSpeed = isMoving ? Mathf.Max(currentSpeed, 2.0f) : currentSpeed;
+            
+            // Smoother threshold check
+            if (animatorSpeed < 0.05f) animatorSpeed = 0f;
+            animator.SetFloat("Speed", animatorSpeed);
+            
+            if (isMoving && animatorSpeed < 0.1f)
+            {
+                Debug.LogWarning($"HeroController: Moving but Speed is low! {animatorSpeed}");
+            }
         }
 
         UpdatePathLines();
             
-        if (isMoving)
+        if (inCombat && currentEnemy != null)
         {
+            // Keep facing the enemy during combat
+            Vector3 direction = (currentEnemy.transform.position - transform.position).normalized;
+            direction.y = 0;
+            if (direction != Vector3.zero)
+            {
+                transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.LookRotation(direction), Time.deltaTime * 5.0f);
+            }
+        }
+
+        if (isMoving)
+{
             // 1. Arrival Check (Normal pathing)
             if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             {
@@ -91,24 +175,80 @@ public class HeroController : MonoBehaviour
             }
 
             // 2. Proximity Check (POI) - Larger trigger area
-            if (currentTarget != null && Vector3.Distance(transform.position, currentTarget.transform.position) < 2.5f)
+            if (currentTarget != null)
             {
-                GameObject poi = currentTarget;
-                FinalizeMovement("Reached POI");
-                currentTarget = null;
-                
-                // Despawn POI when reached
-                var pm = POIManager.Instance;
-                if (pm != null)
+                float dist = Vector3.Distance(transform.position, currentTarget.transform.position);
+                // Increased distance and check if we have a path to ensure we're actively moving toward it
+                if (dist < 3.0f)
                 {
-                    pm.ResolvePOI(poi);
+                    Debug.Log($"HeroController: Close enough to {currentTarget.name} (Dist: {dist:F2}m). Entering combat/resolution.");
+                    GameObject poi = currentTarget;
+                    
+                    // Stop immediately
+                    FinalizeMovement("Proximity trigger");
+                    
+                    // Check if it's an enemy
+                    var enemy = poi.GetComponent<EnemyCombatant>();
+                    if (enemy != null)
+                    {
+                        EnterCombat(poi);
+                        
+                        // Initial damage from leftover roll
+                        if (leftoverDamage > 0)
+                        {
+                            StartCoroutine(InitialAttackCoroutine(enemy, leftoverDamage));
+                        }
+                    }
+else
+                    {
+                        var pm = POIManager.Instance;
+                        if (pm != null) pm.ResolvePOI(poi);
+                    }
+                    currentTarget = null;
                 }
             }
         }
     }
 
-    private void UpdatePathLines()
+    private System.Collections.IEnumerator InitialAttackCoroutine(EnemyCombatant enemy, int damage)
     {
+        // Steve faces enemy immediately
+        Vector3 direction = (enemy.transform.position - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
+
+        // Reset triggers before starting arrival attack
+        if (animator != null) animator.ResetTrigger("Attack");
+        if (animator != null) animator.SetTrigger("Attack");
+
+        // Perfect strike timing (aligned with sword impact)
+        yield return new WaitForSeconds(0.25f);
+        if (enemy != null)
+        {
+            enemy.TakeDamage(damage);
+            Debug.Log($"HeroController: Initial Arrival Attack dealt {damage} damage.");
+
+            if (enemy.IsDead)
+            {
+                VictoryFlourish();
+                yield break;
+            }
+
+            // Snappier reaction
+            yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
+
+            if (enemy != null && enemy.gameObject != null && !enemy.IsDead)
+            {
+                enemy.FaceTarget(this.transform);
+                enemy.PerformAttack(this);
+            }
+        }
+    }
+
+    private int leftoverDamage = 0;
+
+    private void UpdatePathLines()
+{
         bool show = GlobalSettings.Instance.showPath;
 
         // 1. Roll Path (Yellow)
@@ -221,9 +361,24 @@ public class HeroController : MonoBehaviour
         {
             if (path.status != NavMeshPathStatus.PathInvalid)
             {
+                float pathDist = 0;
+                for (int i = 0; i < path.corners.Length - 1; i++) pathDist += Vector3.Distance(path.corners[i], path.corners[i+1]);
+
+                // Calculate leftover damage based on remaining dice value
+                if (pathDist < totalMeters)
+                {
+                    float usedDiceValue = pathDist / (settings.stepsPerDiceValue * settings.metersPerStep);
+                    float remainingDiceValue = diceResult - usedDiceValue;
+                    leftoverDamage = Mathf.RoundToInt(remainingDiceValue * GlobalSettings.Instance.combatDamageMultiplier);
+                }
+                else
+                {
+                    leftoverDamage = 0;
+                }
+
                 // 2. Find the point along this path that corresponds to totalMeters
                 Vector3 targetPoint = GetPointOnPath(path, totalMeters);
-                
+
                 agent.isStopped = false;
                 agent.updateRotation = true;
                 if (agent.SetDestination(targetPoint))
@@ -258,5 +413,74 @@ public class HeroController : MonoBehaviour
     public void SetTarget(GameObject target)
     {
         Debug.Log($"HeroController: Objective target is {target.name}");
+    }
+
+    public void EnterCombat(GameObject enemy)
+    {
+        inCombat = true;
+        currentEnemy = enemy;
+        isMoving = false;
+        if (agent != null) 
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+        }
+
+        // Safety: Reset pending triggers to avoid 'random' animation hiccups
+        if (animator != null)
+        {
+            animator.ResetTrigger("Throw");
+            animator.ResetTrigger("LevelUp");
+            animator.ResetTrigger("Victory");
+            animator.ResetTrigger("Attack");
+            animator.ResetTrigger("GetHit");
+        }
+        
+        Debug.Log($"HeroController: Entered COMBAT with {enemy.name}");
+
+        // Face the enemy
+        Vector3 direction = (enemy.transform.position - transform.position).normalized;
+        direction.y = 0;
+        if (direction != Vector3.zero)
+        {
+            transform.rotation = Quaternion.LookRotation(direction);
+        }
+    }
+
+    public void ExitCombat()
+    {
+        inCombat = false;
+        currentEnemy = null;
+        Debug.Log("HeroController: Combat resolved.");
+    }
+
+    public void TakeDamage(int amount)
+    {
+        if (currentHP <= 0) return;
+
+        currentHP -= amount;
+        UpdateHealthUI();
+        
+        GameObject go = new GameObject("FloatingText_Damage");
+        go.transform.position = transform.position + Vector3.up * 2.2f;
+        var ft = go.AddComponent<FloatingText>();
+        ft.Setup($"-{amount} HP", Color.red);
+
+        if (currentHP <= 0)
+        {
+            currentHP = 0;
+            if (animator != null) animator.SetTrigger("Die");
+            Debug.LogError("Hero Died!");
+        }
+        else
+        {
+            // Using DefendHit (grounded) to avoid flips
+            if (animator != null) animator.SetTrigger("GetHit");
+        }
+    }
+
+    public void VictoryFlourish()
+    {
+        if (animator != null) animator.SetTrigger("Victory");
     }
 }

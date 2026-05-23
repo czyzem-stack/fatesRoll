@@ -37,6 +37,12 @@ public class GlobalSettings : MonoBehaviour
     public float energyDisplayTotalDuration = 15f;
     public float energyDisplayNextDuration = 3f;
 
+    [Header("Combat Settings")]
+    public int heroMaxHP = 20;
+    public int orcStartHP = 10;
+    public int combatDamageMultiplier = 2;
+    public float combatReactionDelay = 0.3f;
+
     [Header("XP & Leveling Settings")]
     public float baseXPForLevel1 = 50f;
     public float xpExponentialMultiplier = 1.2f;
