@@ -26,10 +26,12 @@ public class POINode : MonoBehaviour
     {
         currentType = type;
         
-        // 1. Clear all existing content, but KEEP the UI and Hidden components
+        // 1. Clear all existing content, but KEEP the UI children
         var children = new System.Collections.Generic.List<GameObject>();
         foreach (Transform child in transform) 
         {
+            if (child.name == "HealthBar_Canvas") continue;
+            // Legacy cleanup
             if (child.name == "Background" || child.name == "Slider") continue;
             children.Add(child.gameObject);
         }
@@ -77,7 +79,7 @@ public class POINode : MonoBehaviour
             nodeAnim.updateMode = prefabAnim.updateMode;
         }
 
-        // Move children and HIDE them
+        // Move children to root
         var prefabChildren = new System.Collections.Generic.List<Transform>();
         foreach (Transform t in tempInstance.transform) prefabChildren.Add(t);
 
@@ -86,7 +88,8 @@ public class POINode : MonoBehaviour
             t.SetParent(transform);
             t.localPosition = Vector3.zero;
             t.localRotation = Quaternion.identity;
-            t.gameObject.hideFlags = HideFlags.HideInHierarchy;
+            // Removed HideFlags to ensure compatibility with all systems and avoid flickering
+            t.gameObject.hideFlags = HideFlags.None;
         }
 
         if (Application.isPlaying) Destroy(tempInstance);
@@ -103,22 +106,34 @@ public class POINode : MonoBehaviour
             if (gameObject.GetComponent<PlayerStats>() == null)
             {
                 var stats = gameObject.AddComponent<PlayerStats>();
-                // Basic enemy stats
                 stats.strength = 8;
                 stats.agility = 8;
                 stats.vitality = 8;
                 stats.luck = 5;
             }
 
-            // Setup root as Canvas and integrate UI
-            EnsureRootCanvas();
+            // Setup separate HealthBar Canvas
+            EnsureHealthBarUI();
         }
-else
+        else
         {
             RemoveUI();
         }
 
         SetLayerRecursive(gameObject, 8);
+        
+        // Final cleanup of legacy components on root
+        var rootCanvas = GetComponent<Canvas>();
+        if (rootCanvas != null)
+        {
+            if (Application.isPlaying) Destroy(rootCanvas);
+            else DestroyImmediate(rootCanvas);
+            
+            var scaler = GetComponent<UnityEngine.UI.CanvasScaler>();
+            if (scaler != null) { if (Application.isPlaying) Destroy(scaler); else DestroyImmediate(scaler); }
+            var raycaster = GetComponent<UnityEngine.UI.GraphicRaycaster>();
+            if (raycaster != null) { if (Application.isPlaying) Destroy(raycaster); else DestroyImmediate(raycaster); }
+        }
     }
 
     private bool IsEnemy(POIType type)
@@ -131,24 +146,37 @@ else
                type == POIType.BishopKnight;
     }
 
-    private void EnsureRootCanvas()
+    private void EnsureHealthBarUI()
     {
-        // 1. Ensure root has Canvas components
-        var canvas = GetComponent<Canvas>();
+        Transform canvasTransform = transform.Find("HealthBar_Canvas");
+        if (canvasTransform == null)
+        {
+            GameObject go = new GameObject("HealthBar_Canvas");
+            go.transform.SetParent(transform);
+            go.transform.localPosition = Vector3.up * 2.5f;
+            canvasTransform = go.transform;
+        }
+
+        var canvas = canvasTransform.GetComponent<Canvas>();
         if (canvas == null)
         {
-            canvas = gameObject.AddComponent<Canvas>();
+            canvas = canvasTransform.gameObject.AddComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            gameObject.AddComponent<UnityEngine.UI.CanvasScaler>();
-            gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
+            canvasTransform.gameObject.AddComponent<UnityEngine.UI.CanvasScaler>();
+            canvasTransform.gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
             
-            var rt = GetComponent<RectTransform>();
+            var rt = canvasTransform.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(1, 0.2f);
             rt.localScale = Vector3.one;
         }
 
-        // 2. Ensure UI children exist and are hidden
-        if (transform.Find("Slider") == null)
+        // Move existing UI elements into the canvas if they are still on root
+        var bg = transform.Find("Background");
+        if (bg != null) bg.SetParent(canvasTransform);
+        var slider = transform.Find("Slider");
+        if (slider != null) slider.SetParent(canvasTransform);
+
+        if (canvasTransform.Find("Slider") == null)
         {
 #if UNITY_EDITOR
             string prefabPath = "Assets/Prefabs/UI/HealthBar.prefab";
@@ -156,26 +184,20 @@ else
             if (hbPrefab != null)
             {
                 GameObject tempHB = Instantiate(hbPrefab);
-                
-                // Load overlay material
                 Material overlayMat = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/Materials/UIOverlay.mat");
 
-                // Move children to root
                 var children = new System.Collections.Generic.List<Transform>();
                 foreach (Transform child in tempHB.transform) children.Add(child);
                 
                 foreach (var child in children)
                 {
-                    child.SetParent(transform);
-                    child.localPosition = Vector3.up * 2.5f;
+                    child.SetParent(canvasTransform);
+                    child.localPosition = Vector3.zero;
                     child.localRotation = Quaternion.identity;
-                    child.gameObject.hideFlags = HideFlags.HideInHierarchy;
 
-                    // Apply overlay material to images
                     var img = child.GetComponent<UnityEngine.UI.Image>();
                     if (img != null && overlayMat != null) img.material = overlayMat;
 
-                    // Check children (like Slider Fill)
                     foreach (Transform grandChild in child.GetComponentsInChildren<Transform>(true))
                     {
                         var gcImg = grandChild.GetComponent<UnityEngine.UI.Image>();
@@ -186,23 +208,6 @@ else
                 DestroyImmediate(tempHB);
             }
 #endif
-        }
-        else
-        {
-            // Enforce hiding and material if they exist
-            var bg = transform.Find("Background");
-            var slider = transform.Find("Slider");
-            
-            if (bg != null) 
-            {
-                bg.gameObject.hideFlags = HideFlags.HideInHierarchy;
-                bg.localPosition = Vector3.up * 2.5f;
-            }
-            if (slider != null) 
-            {
-                slider.gameObject.hideFlags = HideFlags.HideInHierarchy;
-                slider.localPosition = Vector3.up * 2.5f;
-            }
         }
     }
 
@@ -215,28 +220,26 @@ else
             else DestroyImmediate(ec);
         }
 
-        // Clean up UI components
-        var raycaster = GetComponent<UnityEngine.UI.GraphicRaycaster>();
-        if (raycaster != null) DestroyImmediate(raycaster);
-        var scaler = GetComponent<UnityEngine.UI.CanvasScaler>();
-        if (scaler != null) DestroyImmediate(scaler);
-        var canvas = GetComponent<Canvas>();
-        if (canvas != null) DestroyImmediate(canvas);
+        var canvasTransform = transform.Find("HealthBar_Canvas");
+        if (canvasTransform != null)
+        {
+            if (Application.isPlaying) Destroy(canvasTransform.gameObject);
+            else DestroyImmediate(canvasTransform.gameObject);
+        }
 
-        // Clean up UI children
+        // Clean up legacy UI children
         var bg = transform.Find("Background");
-        if (bg != null) DestroyImmediate(bg.gameObject);
+        if (bg != null) { if (Application.isPlaying) Destroy(bg.gameObject); else DestroyImmediate(bg.gameObject); }
         var slider = transform.Find("Slider");
-        if (slider != null) DestroyImmediate(slider.gameObject);
+        if (slider != null) { if (Application.isPlaying) Destroy(slider.gameObject); else DestroyImmediate(slider.gameObject); }
     }
 
     private void SetLayerRecursive(GameObject obj, int layer)
     {
-        // UI layer logic
-        bool isUIElement = obj.GetComponent<Canvas>() != null || 
+        // UI layer logic - simplified as they are now in a child Canvas
+        bool isUIElement = obj.name == "HealthBar_Canvas" || 
                           obj.GetComponent<UnityEngine.UI.Image>() != null || 
-                          obj.GetComponent<UnityEngine.UI.Slider>() != null ||
-                          obj.name == "Background" || obj.name == "Slider";
+                          obj.GetComponent<UnityEngine.UI.Slider>() != null;
 
         if (isUIElement)
         {

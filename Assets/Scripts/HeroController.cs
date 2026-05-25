@@ -132,8 +132,15 @@ public class HeroController : MonoBehaviour
         if (direction != Vector3.zero)
         {
             Quaternion targetRotation = Quaternion.LookRotation(direction);
-            if (instant) transform.rotation = targetRotation;
-            else transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, 1.0f);
+            if (instant)
+            {
+                transform.rotation = targetRotation;
+            }
+            else
+            {
+                // Smooth rotation using speed 15.0f
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 15.0f);
+            }
         }
     }
 

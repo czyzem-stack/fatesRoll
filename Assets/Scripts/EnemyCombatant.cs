@@ -26,6 +26,12 @@ public class EnemyCombatant : MonoBehaviour
         animator = GetComponent<Animator>();
         if (animator == null) animator = GetComponentInParent<Animator>();
         
+        // Ensure root motion doesn't override our manual rotation
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
+        }
+
         EnsureHealthBar();
     }
 
@@ -79,26 +85,35 @@ public class EnemyCombatant : MonoBehaviour
             // Sync max value just in case stats changed
             if (healthSlider.maxValue != stats.MaxHP) healthSlider.maxValue = stats.MaxHP;
             
-            // Smoothly move the health bar or snap it? 
             // Snapping is safer for "reflecting reality" immediately.
             healthSlider.value = stats.currentHP;
         }
 
-        if (healthCanvas != null && Camera.main != null)
+        // Billboard logic: ONLY rotate if it's a child, not the root!
+        if (healthCanvas != null && healthCanvas.transform != transform && Camera.main != null)
         {
             healthCanvas.transform.rotation = Camera.main.transform.rotation;
         }
 
         if (!Application.isPlaying) return;
 
-        // Face the hero if nearby and not dead, but only if not currently locked in an attack sequence
-        if (stats != null && stats.currentHP > 0 && !isAttacking)
+        // Face the hero if nearby and not dead
+        if (stats != null && stats.currentHP > 0)
         {
             if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
             if (cachedHero != null)
             {
                 float dist = Vector3.Distance(transform.position, cachedHero.transform.position);
-                if (dist < 10.0f)
+                bool isEngaged = (cachedHero.currentEnemy == gameObject);
+
+                // If engaged in combat, face Steve aggressively.
+                // If just nearby, face him smoothly.
+                if (isEngaged)
+                {
+                    // Snappy rotation when in active combat
+                    FaceTarget(cachedHero.transform, false, 20.0f);
+                }
+                else if (dist < 10.0f && !isAttacking)
                 {
                     // Slightly slower but smoother rotation for passive tracking
                     FaceTarget(cachedHero.transform, false, 8.0f);
@@ -111,8 +126,11 @@ public class EnemyCombatant : MonoBehaviour
     {
         if (target == null) return;
         
-        Vector3 direction = (target.position - transform.position).normalized;
-        direction.y = 0;
+        // Use a position at the same height to avoid tilting
+        Vector3 targetPos = target.position;
+        targetPos.y = transform.position.y;
+        
+        Vector3 direction = (targetPos - transform.position).normalized;
         if (direction.sqrMagnitude > 0.001f)
         {
             Quaternion targetRotation = Quaternion.LookRotation(direction);
