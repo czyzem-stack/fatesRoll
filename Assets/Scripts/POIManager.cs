@@ -64,4 +64,25 @@ public class POIManager : MonoBehaviour
         int index = Random.Range(0, activePOIs.Count);
         return activePOIs[index] != null ? activePOIs[index].gameObject : null;
     }
+
+    public GameObject GetPOIByOrder(int order)
+    {
+        POINode bestMatch = null;
+        int lowestFoundOrder = int.MaxValue;
+
+        foreach (var poi in activePOIs)
+        {
+            if (poi == null) continue;
+            
+            if (poi.order == order) return poi.gameObject;
+
+            if (poi.order > order && poi.order < lowestFoundOrder)
+            {
+                lowestFoundOrder = poi.order;
+                bestMatch = poi;
+            }
+        }
+        
+        return bestMatch != null ? bestMatch.gameObject : null;
+    }
 }

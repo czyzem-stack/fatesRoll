@@ -10,9 +10,10 @@ public enum POIType
 public class POINode : MonoBehaviour
 {
     public POIType type = POIType.Orc;
+    public int order = 0;
     
     [HideInInspector]
-    public GameObject currentVisual;
+public GameObject currentVisual;
 
     void Awake()
     {

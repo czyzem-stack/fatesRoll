@@ -20,9 +20,10 @@ public class HeroController : MonoBehaviour
 
     private GameObject currentTarget;
     private float leftoverDiceValue = 0;
+    private int nextPOIOrder = 0;
 
     void Start()
-    {
+{
         agent = GetComponent<NavMeshAgent>();
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
 
@@ -192,6 +193,7 @@ public class HeroController : MonoBehaviour
                         if (POIManager.Instance != null) POIManager.Instance.ResolvePOI(target);
                     }
                     currentTarget = null;
+                    nextPOIOrder++;
                 }
             }
         }
@@ -312,10 +314,15 @@ public class HeroController : MonoBehaviour
         {
             if (POIManager.Instance != null)
             {
-                currentTarget = POIManager.Instance.GetRandomPOI();
+                currentTarget = POIManager.Instance.GetPOIByOrder(nextPOIOrder);
+                if (currentTarget != null)
+                {
+                    var poi = currentTarget.GetComponent<POINode>();
+                    if (poi != null) nextPOIOrder = poi.order;
+                }
             }
         }
-        
+
         if (currentTarget == null) return;
 
         NavMeshPath path = new NavMeshPath();

@@ -5,10 +5,18 @@ using UnityEngine.AI;
 using UnityEditor;
 #endif
 
-[ExecuteAlways]
 public class Enemy : MonoBehaviour
 {
-    [Header("Enemy Stats")]
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        CalculateDerivedStats();
+        // Don't call UpdateHealthUI here as it might try to access UI elements 
+        // that aren't properly initialized in the prefab/editor state.
+        // But we want derived stats to show in the inspector.
+    }
+#endif
+[Header("Enemy Stats")]
     public float strength = 8f;
     public float agility = 8f;
     public float vitality = 8f;
@@ -43,26 +51,45 @@ public class Enemy : MonoBehaviour
     private Canvas healthCanvas;
     private float nextPatrolTime;
 
+    private Camera mainCamera;
+
     private void Start()
     {
         Initialize();
         cachedHero = Object.FindAnyObjectByType<HeroController>();
         SetHealthBarVisible(false);
         spawnPosition = transform.position;
+        mainCamera = Camera.main;
     }
 
     private void Update()
     {
-        CalculateDerivedStats();
-
         if (isDead) return;
-
-        UpdateHealthUI();
 
         if (!Application.isPlaying) return;
 
         HandleAI();
         UpdateAnimation();
+    }
+
+    private void LateUpdate()
+    {
+        if (isDead || !Application.isPlaying) return;
+        
+        // Stabilize and billboard the health bar
+        if (healthCanvas != null && healthCanvas.enabled)
+        {
+            if (mainCamera == null) mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                // 1. Force position to be strictly above the enemy, ignoring parent rotation
+                // This stops the "shaking" caused by the enemy's Y-axis jittering
+                healthCanvas.transform.position = transform.position + Vector3.up * 3.0f;
+
+                // 2. Snap rotation to face the camera
+                healthCanvas.transform.rotation = mainCamera.transform.rotation;
+            }
+        }
     }
 
     private void UpdateAnimation()
@@ -98,7 +125,7 @@ public class Enemy : MonoBehaviour
         CalculateDerivedStats();
         currentHP = maxHP;
 
-        EnsureHealthBar();
+        UpdateHealthUI();
     }
 
     public void InitializeFromData(EnemyData data)
@@ -248,33 +275,34 @@ public class Enemy : MonoBehaviour
             if (healthSlider.maxValue != maxHP) healthSlider.maxValue = maxHP;
             healthSlider.value = currentHP;
 
-            // Restore the "green red black" look
             float hpPercent = Mathf.Clamp01(currentHP / maxHP);
             
-            // Set Background to Solid Black
-            var bg = healthSlider.transform.Find("Background")?.GetComponent<UnityEngine.UI.Image>();
-            if (bg == null) bg = healthSlider.transform.parent.Find("Background")?.GetComponent<UnityEngine.UI.Image>();
+            // Background
+            var bg = healthSlider.transform.Find("Bg")?.GetComponent<UnityEngine.UI.Image>();
+            if (bg == null) bg = healthSlider.transform.Find("Background")?.GetComponent<UnityEngine.UI.Image>();
             
             if (bg != null) 
             {
-                bg.sprite = null; // Remove any transparent sprite
-                bg.color = new Color(0, 0, 0, 1); // Solid 100% opaque black
+                // Subtle darkening of the existing fantasy background
+                bg.color = new Color(0.2f, 0.2f, 0.2f, 0.85f); 
             }
 
-            // Set Fill to Solid Green/Red Lerp
+            // Fill
             var fill = healthSlider.fillRect?.GetComponent<UnityEngine.UI.Image>();
             if (fill != null) 
             {
-                fill.sprite = null; // Remove any transparent sprite
+                // Dynamic health color (Green -> Red)
                 Color c = Color.Lerp(Color.red, Color.green, hpPercent);
-                c.a = 1.0f; // Force full opacity
+                c.a = 1.0f;
                 fill.color = c;
             }
-        }
 
-        if (healthCanvas != null && healthCanvas.transform != transform && Camera.main != null)
-        {
-            healthCanvas.transform.rotation = Camera.main.transform.rotation;
+            // Border - Leave as-is or keep bright
+            var border = healthSlider.transform.Find("Border")?.GetComponent<UnityEngine.UI.Image>();
+            if (border != null)
+            {
+                border.color = Color.white;
+            }
         }
     }
 
@@ -297,6 +325,7 @@ public class Enemy : MonoBehaviour
 
         SetHealthBarVisible(true);
         currentHP -= amount;
+        UpdateHealthUI();
         
         if (Application.isPlaying)
         {

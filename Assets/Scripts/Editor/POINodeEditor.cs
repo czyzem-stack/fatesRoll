@@ -7,18 +7,19 @@ public class POINodeEditor : Editor
     private static readonly string OrcPrefabPath = "Assets/Monsters/CommonStuffs/Prefab/Wave01/CharacterPBR/OrcPBRDefault.prefab";
     private static readonly string SkeletonPrefabPath = "Assets/Monsters/CommonStuffs/Prefab/Wave01/CharacterPBR/SkeletonPBRDefault.prefab";
     private static readonly string SlimePrefabPath = "Assets/Monsters/CommonStuffs/Prefab/Wave01/CharacterPBR/SlimePBRDefault.prefab";
-    private static readonly string HealthBarPrefabPath = "Assets/Prefabs/UI/HealthBar.prefab";
+    private static readonly string HealthBarPrefabPath = "Assets/UI/GUI Pro-FantasyRPG/Prefabs/Prefabs_Component_Slider/Slider_Border_Tapered_02_Green.prefab";
 
     public override void OnInspectorGUI()
-    {
+{
         POINode node = (POINode)target;
 
         EditorGUI.BeginChangeCheck();
         
         node.type = (POIType)EditorGUILayout.EnumPopup("Enemy Type", node.type);
+        node.order = EditorGUILayout.IntField("Visit Order", node.order);
         
         if (EditorGUI.EndChangeCheck())
-        {
+{
             EditorUtility.SetDirty(node);
             UpdateVisuals(node);
         }
@@ -80,25 +81,27 @@ public class POINodeEditor : Editor
         if (hbPrefab != null)
         {
             GameObject hb = (GameObject)PrefabUtility.InstantiatePrefab(hbPrefab, node.transform);
-            hb.transform.localPosition = Vector3.up * 2.8f; 
+            hb.transform.localPosition = Vector3.up * 3.0f; 
             
             RectTransform hbRT = hb.GetComponent<RectTransform>();
-            hbRT.sizeDelta = new Vector2(1.8f, 0.36f);
+            // Use pixel-scale dimensions to avoid offsetting children into negative space
+            hbRT.sizeDelta = new Vector2(240, 40); 
             hbRT.pivot = new Vector2(0.5f, 0.5f);
             hbRT.anchorMin = new Vector2(0.5f, 0.5f);
             hbRT.anchorMax = new Vector2(0.5f, 0.5f);
 
             Canvas hbCanvas = hb.GetComponent<Canvas>();
+            if (hbCanvas == null) hbCanvas = hb.AddComponent<Canvas>();
+            
             if (hbCanvas != null)
             {
                 hbCanvas.renderMode = RenderMode.WorldSpace;
                 hbCanvas.worldCamera = Camera.main;
             }
 
-            SetupCenteredStretching(hb.transform);
-            
+            // Standard World Space UI scale
+            hb.transform.localScale = new Vector3(0.01f, 0.01f, 0.01f);
             hb.transform.localRotation = Quaternion.identity;
-            hb.transform.localScale = Vector3.one; 
         }
 
         // 4. Ensure root has Enemy and NavMeshAgent
