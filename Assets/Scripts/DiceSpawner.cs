@@ -288,9 +288,9 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                             Debug.Log($"<b>[Combat Action]</b> Steve Attacks: Dealing {finalDamage} damage to {enemy.name}{critMsg}");
 
                             // [COMBAT CLEANUP]
-                            // 1. Force both combatants to face each other snappily
-                            hero.FaceTarget(enemy.transform, true);
-                            enemy.FaceTarget(hero.transform, true);
+                            // 1. Force both combatants to face each other snappily but smoothly
+                            hero.FaceTarget(enemy.transform, false, 30.0f);
+                            enemy.FaceTarget(hero.transform, false, 30.0f);
 
                             // 2. Short beat to prepare the lunge
                             yield return new WaitForSeconds(0.25f);

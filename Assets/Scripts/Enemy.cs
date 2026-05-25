@@ -97,14 +97,16 @@ public class Enemy : MonoBehaviour
         if (animator == null) return;
         
         float speed = 0f;
-        if (agent != null && agent.enabled)
+        if (agent != null && agent.enabled && !agent.isStopped)
         {
             speed = agent.velocity.magnitude;
-            // If the agent is moving but speed is very low, boost it slightly for the animation to trigger
-            if (speed > 0.1f && speed < 1.0f) speed = 1.0f;
+            // Use 0.2f threshold to match the animator's new stability thresholds
+            if (speed < 0.2f) speed = 0f;
+            else if (speed < 1.0f) speed = 1.0f;
         }
         
-        animator.SetFloat("Speed", speed);
+        // Use 0.1s damping to smoothly transition between idle/run and eliminate jitter
+        animator.SetFloat("Speed", speed, 0.1f, Time.deltaTime);
     }
 
     public void Initialize()
@@ -118,7 +120,7 @@ public class Enemy : MonoBehaviour
         agent.speed = patrolSpeed;
         agent.acceleration = 40.0f; // Very snappy
         agent.angularSpeed = 720.0f; // Instant turning
-        agent.stoppingDistance = 0.4f; // Must be less than the 0.5f check in HandlePatrol
+        agent.stoppingDistance = 1.4f; // Melee range to prevent circling Steve's agent
         agent.avoidancePriority = avoidancePriority;
         agent.updateRotation = true;
 
@@ -162,10 +164,26 @@ public class Enemy : MonoBehaviour
         float distToSpawn = Vector3.Distance(spawnPosition, cachedHero.transform.position);
         bool isEngaged = (cachedHero.currentEnemy == gameObject);
 
+        if (animator != null)
+        {
+            animator.SetBool("InCombat", isEngaged);
+        }
+
         if (isEngaged)
         {
-            if (agent != null && agent.enabled) agent.isStopped = true;
-            FaceTarget(cachedHero.transform, false, 20.0f);
+            if (agent != null && agent.enabled)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero; // Stop immediate to allow idle transition
+            }
+            FaceTarget(cachedHero.transform, false, 25.0f); // Snappy but smooth
+        }
+        else if (distToHero < 2.0f && !cachedHero.InCombat && !cachedHero.IsMoving)
+        {
+            // Orc catches Steve while he's idle!
+            Debug.Log($"<b>[Combat]</b> {gameObject.name} initiates combat with idle Steve!");
+            cachedHero.EnterCombat(gameObject);
+            PerformAttack(cachedHero);
         }
         else if (distToSpawn < 4.5f || distToHero < 6.0f)
         {
@@ -189,7 +207,7 @@ public class Enemy : MonoBehaviour
         if (agent == null || !agent.enabled) return;
         agent.speed = patrolSpeed;
 
-        if (!agent.pathPending && agent.remainingDistance < 0.5f)
+        if (!agent.pathPending && agent.remainingDistance < agent.stoppingDistance + 0.1f)
         {
             if (Time.time >= nextPatrolTime)
             {
@@ -357,6 +375,7 @@ public class Enemy : MonoBehaviour
         {
             animator.SetTrigger("Die");
             animator.SetBool("IsDead", true);
+            animator.SetBool("InCombat", false);
         }
         
         gameObject.tag = "Untagged";
@@ -374,6 +393,14 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private void OnDestroy()
+    {
+        if (cachedHero != null && cachedHero.currentEnemy == gameObject)
+        {
+            cachedHero.ExitCombat();
+        }
+    }
+
     private System.Collections.IEnumerator DelayedResolve(POIManager pm)
     {
         yield return new WaitForSeconds(2.0f);
@@ -384,7 +411,7 @@ public class Enemy : MonoBehaviour
     {
         if (isDead || currentHP <= 0) return;
         isAttacking = true;
-        FaceTarget(hero.transform, true);
+        FaceTarget(hero.transform, false, 30.0f); // Smooth snappy rotation
         StartCoroutine(AttackRoutine(hero));
     }
 

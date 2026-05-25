@@ -125,7 +125,7 @@ public class HeroController : MonoBehaviour
         lr.enabled = false;
     }
 
-    public void FaceTarget(Transform target, bool instant = false)
+    public void FaceTarget(Transform target, bool instant = false, float speed = 15.0f)
     {
         if (target == null) return;
         Vector3 direction = (target.position - transform.position).normalized;
@@ -139,8 +139,7 @@ public class HeroController : MonoBehaviour
             }
             else
             {
-                // Smooth rotation using speed 15.0f
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * 15.0f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * speed);
             }
         }
     }
@@ -166,6 +165,11 @@ public class HeroController : MonoBehaviour
 
         UpdatePathLines();
             
+        if (inCombat && currentEnemy != null)
+        {
+            FaceTarget(currentEnemy.transform, false, 20.0f);
+        }
+
         if (isMoving)
         {
             if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
@@ -176,7 +180,7 @@ public class HeroController : MonoBehaviour
             if (currentTarget != null)
             {
                 float dist = Vector3.Distance(transform.position, currentTarget.transform.position);
-                if (dist < 3.0f)
+                if (dist < 2.5f)
                 {
                     Debug.Log($"HeroController: Close enough to {currentTarget.name} (Dist: {dist:F2}m). Entering combat/resolution.");
                     GameObject target = currentTarget;
@@ -203,8 +207,8 @@ public class HeroController : MonoBehaviour
     {
         Debug.Log($"<b>[Combat Flow]</b> Starting Arrival Attack. Leftover steps: {diceValue:F2}");
         
-        FaceTarget(enemy.transform, true);
-        enemy.FaceTarget(this.transform, true);
+        FaceTarget(enemy.transform, false, 30.0f);
+        enemy.FaceTarget(this.transform, false, 30.0f);
 
         // Wait a beat after settle/facing
         yield return new WaitForSeconds(0.45f);

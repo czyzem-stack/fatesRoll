@@ -27,7 +27,18 @@ public class POIManager : MonoBehaviour
 
     public void ResolvePOI(GameObject poiObject)
     {
+        var hero = Object.FindAnyObjectByType<HeroController>();
         POINode node = poiObject.GetComponentInParent<POINode>();
+
+        if (hero != null && hero.currentEnemy != null)
+        {
+            var go = hero.currentEnemy;
+            if (go == poiObject || (node != null && go.transform.IsChildOf(node.transform)))
+            {
+                hero.ExitCombat();
+            }
+        }
+
         if (node != null)
         {
             UnregisterPOI(node);
