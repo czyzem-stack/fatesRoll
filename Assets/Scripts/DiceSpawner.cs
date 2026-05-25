@@ -216,10 +216,14 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                     allSettled = true;
                     foreach (var d in activeDice)
                     {
-                        if (d != null && !d.GetComponent<DieResult>().IsSettled())
+                        if (d != null)
                         {
-                            allSettled = false;
-                            break;
+                            var res = d.GetComponent<DieResult>();
+                            if (res == null || !res.IsSettled())
+                            {
+                                allSettled = false;
+                                break;
+                            }
                         }
                     }
                     if (allSettled) break;
@@ -240,9 +244,13 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
             {
                 if (d != null)
                 {
-                    int val = d.GetComponent<DieResult>().GetValue();
-                    total += val;
-                    individual.Add(val);
+                    var res = d.GetComponent<DieResult>();
+                    if (res != null)
+                    {
+                        int val = res.GetValue();
+                        total += val;
+                        individual.Add(val);
+                    }
                 }
             }
             LastRoll = total;
