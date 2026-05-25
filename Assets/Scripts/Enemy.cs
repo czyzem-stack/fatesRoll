@@ -50,6 +50,7 @@ public class Enemy : MonoBehaviour
     private Slider healthSlider;
     private Canvas healthCanvas;
     private float nextPatrolTime;
+    private bool idleAggroTriggered;
 
     private Camera mainCamera;
 
@@ -169,6 +170,12 @@ public class Enemy : MonoBehaviour
             animator.SetBool("InCombat", isEngaged);
         }
 
+        if (distToHero >= 2.5f || cachedHero.IsMoving ||
+            (cachedHero.InCombat && cachedHero.currentEnemy != gameObject))
+        {
+            idleAggroTriggered = false;
+        }
+
         if (isEngaged)
         {
             if (agent != null && agent.enabled)
@@ -178,9 +185,10 @@ public class Enemy : MonoBehaviour
             }
             FaceTarget(cachedHero.transform, false, 25.0f); // Snappy but smooth
         }
-        else if (distToHero < 2.0f && !cachedHero.InCombat && !cachedHero.IsMoving)
+        else if (distToHero < 2.0f && !cachedHero.InCombat && !cachedHero.IsMoving &&
+                 !idleAggroTriggered && !isAttacking)
         {
-            // Orc catches Steve while he's idle!
+            idleAggroTriggered = true;
             Debug.Log($"<b>[Combat]</b> {gameObject.name} initiates combat with idle Steve!");
             cachedHero.EnterCombat(gameObject);
             PerformAttack(cachedHero);

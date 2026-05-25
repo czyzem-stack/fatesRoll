@@ -74,7 +74,7 @@ public class LevelManager : MonoBehaviour
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero != null)
         {
-            var anim = hero.GetComponent<Animator>();
+            var anim = hero.GetComponentInChildren<Animator>();
             if (anim != null)
             {
                 anim.SetTrigger("LevelUp");
