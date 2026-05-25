@@ -29,24 +29,25 @@ public class QADashboard : MonoBehaviour
             UnityEngine.AI.NavMeshAgent agent = hero.GetComponent<UnityEngine.AI.NavMeshAgent>();
             float moveRemaining = (agent != null && agent.hasPath) ? agent.remainingDistance : 0;
             
-            GameObject poi = GameObject.FindWithTag("POI");
             string scaleInfo = $"Scale: {settings.stepsPerDiceValue} step/die, {settings.metersPerStep}m/step";
             
+            GameObject poi = null;
+            if (POIManager.Instance != null)
+            {
+                poi = POIManager.Instance.GetNearestPOI(hero.transform.position);
+            }
+
             if (poi != null)
             {
                 float dist = Vector3.Distance(hero.transform.position, poi.transform.position);
                 distanceText.text = $"To POI: {dist:F1}m (Move: {moveRemaining:F1}m)\n{scaleInfo}";
-
-                float avgRoll = 7.0f;
-                float metersPerRoll = avgRoll * settings.stepsPerDiceValue * settings.metersPerStep;
-                float rollsNeeded = dist / metersPerRoll;
-                stepsRemainingText.text = $"Est. Rolls: {rollsNeeded:F1}";
             }
             else
             {
                 distanceText.text = $"Move: {moveRemaining:F1}m\n{scaleInfo}";
-                stepsRemainingText.text = "No Target";
             }
+            
+            stepsRemainingText.text = "";
         }
     }
 }

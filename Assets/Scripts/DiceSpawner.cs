@@ -273,7 +273,7 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                     
                     if (hero.currentEnemy != null)
                     {
-                        var enemy = hero.currentEnemy.GetComponent<EnemyCombatant>();
+                        var enemy = hero.currentEnemy.GetComponent<Enemy>();
                         if (enemy != null)
                         {
                             string critMsg = isCrit ? " <color=red>CRITICAL HIT!</color>" : "";
@@ -291,6 +291,10 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                             var heroAnim = hero.GetComponentInChildren<Animator>();
                             if (heroAnim != null)
                             {
+                                // Partial Attack Animation (Preparation)
+                                heroAnim.CrossFade("Challenging_Battle_SwordAndShield", 0.1f);
+                                yield return new WaitForSeconds(0.6f);
+
                                 heroAnim.ResetTrigger("Attack");
                                 heroAnim.SetTrigger("Attack");
                             }
@@ -309,7 +313,7 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                             }
 
                             // Check if enemy died
-                            if (enemy.IsDead) 
+                            if (enemy.isDead) 
                             {
                                 Debug.Log($"{enemy.name} defeated!");
                                 hero.VictoryFlourish();

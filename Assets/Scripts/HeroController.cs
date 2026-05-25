@@ -44,8 +44,8 @@ public class HeroController : MonoBehaviour
         
         AutoAssignHealthUI();
 
-        agent.speed = 4.0f;
-        agent.acceleration = 24.0f;
+        agent.speed = 6.0f; // Increased speed for running
+        agent.acceleration = 30.0f;
         agent.stoppingDistance = 1.0f;
         agent.autoBraking = true;
         agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
@@ -178,19 +178,18 @@ public class HeroController : MonoBehaviour
                 if (dist < 3.0f)
                 {
                     Debug.Log($"HeroController: Close enough to {currentTarget.name} (Dist: {dist:F2}m). Entering combat/resolution.");
-                    GameObject poi = currentTarget;
+                    GameObject target = currentTarget;
                     FinalizeMovement("Proximity trigger");
                     
-                    var enemy = poi.GetComponent<EnemyCombatant>();
+                    var enemy = target.GetComponent<Enemy>();
                     if (enemy != null)
                     {
-                        EnterCombat(poi);
+                        EnterCombat(target);
                         StartCoroutine(InitialAttackCoroutine(enemy, leftoverDiceValue));
                     }
                     else
                     {
-                        var pm = POIManager.Instance;
-                        if (pm != null) pm.ResolvePOI(poi);
+                        if (POIManager.Instance != null) POIManager.Instance.ResolvePOI(target);
                     }
                     currentTarget = null;
                 }
@@ -198,7 +197,7 @@ public class HeroController : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator InitialAttackCoroutine(EnemyCombatant enemy, float diceValue)
+    private System.Collections.IEnumerator InitialAttackCoroutine(Enemy enemy, float diceValue)
     {
         Debug.Log($"<b>[Combat Flow]</b> Starting Arrival Attack. Leftover steps: {diceValue:F2}");
         
@@ -222,6 +221,13 @@ public class HeroController : MonoBehaviour
         int finalDamage = Mathf.RoundToInt(heroDamage);
         if (finalDamage == 0 && diceValue > 0.01f) finalDamage = 1;
 
+        // Partial Attack Animation (Preparation)
+        if (animator != null)
+        {
+            animator.CrossFade("Challenging_Battle_SwordAndShield", 0.1f);
+            yield return new WaitForSeconds(0.6f);
+        }
+
         if (animator != null)
         {
             animator.ResetTrigger("Attack");
@@ -236,7 +242,7 @@ public class HeroController : MonoBehaviour
             Debug.Log($"<b>[Combat Flow]</b> Steve hits {enemy.name} for {finalDamage} arrival damage.");
             enemy.TakeDamage(finalDamage);
 
-            if (enemy.IsDead)
+            if (enemy.isDead)
             {
                 VictoryFlourish();
                 yield break;
@@ -244,7 +250,7 @@ public class HeroController : MonoBehaviour
 
             yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
 
-            if (enemy != null && enemy.gameObject != null && !enemy.IsDead)
+            if (enemy != null && enemy.gameObject != null && !enemy.isDead)
             {
                 enemy.PerformAttack(this);
             }
@@ -289,20 +295,6 @@ public class HeroController : MonoBehaviour
         Debug.Log($"HeroController: Movement Finalized. Reason: {reason}");
     }
 
-    private GameObject GetNearestPOI()
-    {
-        GameObject[] pois = GameObject.FindGameObjectsWithTag("POI");
-        GameObject nearest = null;
-        float minDist = float.MaxValue;
-        foreach (var p in pois)
-        {
-            float dist = Vector3.Distance(transform.position, p.transform.position);
-            if (dist < 1.0f) continue;
-            if (dist < minDist) { minDist = dist; nearest = p; }
-        }
-        return nearest;
-    }
-
     public void MoveSteps(int diceResult)
     {
         GlobalSettings settings = GlobalSettings.Instance;
@@ -316,7 +308,14 @@ public class HeroController : MonoBehaviour
             else return;
         }
 
-        if (currentTarget == null) currentTarget = GetNearestPOI();
+        if (currentTarget == null)
+        {
+            if (POIManager.Instance != null)
+            {
+                currentTarget = POIManager.Instance.GetRandomPOI();
+            }
+        }
+        
         if (currentTarget == null) return;
 
         NavMeshPath path = new NavMeshPath();
@@ -367,7 +366,7 @@ public class HeroController : MonoBehaviour
         isMoving = false;
         if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
 
-        var ec = enemy.GetComponent<EnemyCombatant>();
+        var ec = enemy.GetComponent<Enemy>();
         if (ec != null) ec.SetHealthBarVisible(true);
 
         if (animator != null)

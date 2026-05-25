@@ -1,29 +1,8 @@
 using UnityEngine;
-using UnityEngine.AI;
 using System.Collections.Generic;
-
-public enum POIType
-{
-    Orc,
-    Skeleton,
-    Slime,
-    Cyclops,
-    Beholder,
-    BishopKnight
-}
-
-[System.Serializable]
-public struct POIDefinition
-{
-    public POIType type;
-    public GameObject prefab;
-}
 
 public class POIManager : MonoBehaviour
 {
-    [Header("Global Registry")]
-    public List<POIDefinition> poiPrefabs = new List<POIDefinition>();
-
     private static POIManager _instance;
     public static POIManager Instance
     {
@@ -34,45 +13,55 @@ public class POIManager : MonoBehaviour
         }
     }
 
-    private void Awake()
+    private List<POINode> activePOIs = new List<POINode>();
+
+    public void RegisterPOI(POINode poi)
     {
-        _instance = this;
+        if (!activePOIs.Contains(poi)) activePOIs.Add(poi);
     }
 
-    public GameObject GetPrefabForType(POIType type)
+    public void UnregisterPOI(POINode poi)
     {
-        foreach (var def in poiPrefabs)
-        {
-            if (def.type == type) return def.prefab;
-        }
-        return null;
-    }
-
-    [ContextMenu("Resolve Current POI")]
-    public void ResolveActivePOI()
-    {
-        var poi = GameObject.FindWithTag("POI");
-        if (poi != null)
-        {
-            ResolvePOI(poi);
-        }
+        activePOIs.Remove(poi);
     }
 
     public void ResolvePOI(GameObject poiObject)
     {
-        if (poiObject != null)
+        POINode node = poiObject.GetComponentInParent<POINode>();
+        if (node != null)
         {
-            // If it's a child, get the root node
-            POINode node = poiObject.GetComponentInParent<POINode>();
-            if (node != null)
-            {
-                Destroy(node.gameObject);
-            }
-            else
-            {
-                Destroy(poiObject);
-            }
+            UnregisterPOI(node);
+            Destroy(node.gameObject);
+        }
+        else
+        {
+            Destroy(poiObject);
         }
     }
 
+    public GameObject GetNearestPOI(Vector3 position)
+    {
+        POINode nearest = null;
+        float minDist = float.MaxValue;
+
+        foreach (var poi in activePOIs)
+        {
+            if (poi == null) continue;
+            float dist = Vector3.Distance(position, poi.transform.position);
+            if (dist < minDist)
+            {
+                minDist = dist;
+                nearest = poi;
+            }
+        }
+
+        return nearest != null ? nearest.gameObject : null;
     }
+
+    public GameObject GetRandomPOI()
+    {
+        if (activePOIs.Count == 0) return null;
+        int index = Random.Range(0, activePOIs.Count);
+        return activePOIs[index] != null ? activePOIs[index].gameObject : null;
+    }
+}
