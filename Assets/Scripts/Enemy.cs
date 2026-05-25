@@ -59,7 +59,6 @@ public class Enemy : MonoBehaviour
         Initialize();
         cachedHero = Object.FindAnyObjectByType<HeroController>();
         SetHealthBarVisible(false);
-        spawnPosition = transform.position;
         mainCamera = Camera.main;
     }
 
@@ -127,6 +126,7 @@ public class Enemy : MonoBehaviour
 
         CalculateDerivedStats();
         currentHP = maxHP;
+        spawnPosition = transform.position;
 
         UpdateHealthUI();
     }
@@ -201,7 +201,6 @@ public class Enemy : MonoBehaviour
                 agent.isStopped = false;
                 agent.speed = chaseSpeed;
                 agent.SetDestination(cachedHero.transform.position);
-                if (animator != null) animator.SetFloat("Speed", agent.velocity.magnitude);
             }
         }
         else if (!isAttacking)

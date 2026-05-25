@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.030` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.031` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -171,6 +171,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.031** | Sync README version and changelog to v0.0.030. |
 | **v0.0.030** | Fix idle aggro spam and level-up animator on child rig. |
 | **v0.0.029** | Sync README version and changelog for v0.0.028. |
 | **v0.0.028** | Animation fixes for orc combat, movement, and facing. |
