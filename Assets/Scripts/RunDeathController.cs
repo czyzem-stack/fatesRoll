@@ -4,18 +4,8 @@ using UnityEngine.UI;
 
 /// <summary>Fade to black on Steve's death, reset enemies to base difficulty, respawn Steve with gear and stats.</summary>
 [DefaultExecutionOrder(50)]
-public class RunDeathController : MonoBehaviour
+public class RunDeathController : GameServiceBehaviour<RunDeathController>
 {
-    private static RunDeathController _instance;
-    public static RunDeathController Instance
-    {
-        get
-        {
-            if (_instance == null)
-                _instance = Object.FindAnyObjectByType<RunDeathController>();
-            return _instance;
-        }
-    }
 
     [SerializeField] private float fadeOutSeconds = 0.55f;
     [SerializeField] private float holdBlackSeconds = 0.35f;
@@ -31,21 +21,10 @@ public class RunDeathController : MonoBehaviour
 
     public bool IsDeathInProgress => deathInProgress;
 
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        _instance = this;
-    }
-
     private void Start()
     {
         CacheSpawnFromScene();
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero != null)
             RecordHeroSpawn(hero);
     }
@@ -71,7 +50,7 @@ public class RunDeathController : MonoBehaviour
 
     private void CacheSpawnFromScene()
     {
-        var marker = Object.FindAnyObjectByType<HeroSpawnPoint>();
+        var marker = GameServices.HeroSpawn;
         if (marker == null) return;
 
         marker.SnapToPlaySpawnSurface();
@@ -127,7 +106,7 @@ public class RunDeathController : MonoBehaviour
             desired = recordedSpawnPosition;
         else
         {
-            var marker = Object.FindAnyObjectByType<HeroSpawnPoint>();
+            var marker = GameServices.HeroSpawn;
             desired = marker != null ? marker.transform.position : Vector3.zero;
         }
 
@@ -141,7 +120,7 @@ public class RunDeathController : MonoBehaviour
         if (hasRecordedSpawn)
             return recordedSpawnRotation;
 
-        var marker = Object.FindAnyObjectByType<HeroSpawnPoint>();
+        var marker = GameServices.HeroSpawn;
         if (marker != null)
             return marker.transform.rotation;
 

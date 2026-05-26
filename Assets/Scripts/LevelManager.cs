@@ -2,25 +2,8 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-public class LevelManager : MonoBehaviour
+public class LevelManager : GameServiceBehaviour<LevelManager>
 {
-    private static LevelManager _instance;
-    public static LevelManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                _instance = Object.FindAnyObjectByType<LevelManager>();
-                if (_instance == null)
-                {
-                    GameObject go = new GameObject("LevelManager");
-                    _instance = go.AddComponent<LevelManager>();
-                }
-            }
-            return _instance;
-        }
-    }
 
     [Header("UI References")]
     public Slider xpSlider;
@@ -29,16 +12,6 @@ public class LevelManager : MonoBehaviour
     private int currentLevel = 1;
     private float currentXP = 0f;
     private float xpToNextLevel;
-
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-    }
 
     private void Start()
     {
@@ -73,7 +46,7 @@ public class LevelManager : MonoBehaviour
         if (RogueLiteManager.Instance != null)
             RogueLiteManager.Instance.EnqueueLevelUp(currentLevel);
 
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero != null)
             hero.PlayLevelUpCelebration();
     }

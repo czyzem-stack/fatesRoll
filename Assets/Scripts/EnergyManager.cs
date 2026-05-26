@@ -1,25 +1,8 @@
 using UnityEngine;
 using TMPro;
 
-public class EnergyManager : MonoBehaviour
+public class EnergyManager : GameServiceBehaviour<EnergyManager>
 {
-    private static EnergyManager _instance;
-    public static EnergyManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                _instance = Object.FindAnyObjectByType<EnergyManager>();
-                if (_instance == null)
-                {
-                    GameObject go = new GameObject("EnergyManager");
-                    _instance = go.AddComponent<EnergyManager>();
-                }
-            }
-            return _instance;
-        }
-    }
 
     [Header("UI References")]
     public TextMeshProUGUI energyText;
@@ -31,16 +14,6 @@ public class EnergyManager : MonoBehaviour
     private int currentEnergy;
     private float nextRegenTime;
 
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-    }
-
     private void Start()
     {
         var settings = GlobalSettings.Instance;
@@ -51,7 +24,7 @@ public class EnergyManager : MonoBehaviour
 
     public void SpawnFloatingEnergyText(int amount)
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero != null)
         {
             GameObject go = new GameObject("FloatingText_Energy");

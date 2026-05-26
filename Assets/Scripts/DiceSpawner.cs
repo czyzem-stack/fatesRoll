@@ -6,18 +6,8 @@ using System.Collections.Generic;
 using UnityEditor;
 #endif
 
-public class DiceSpawner : MonoBehaviour
+public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
 {
-    private static DiceSpawner _instance;
-    public static DiceSpawner Instance
-    {
-        get
-        {
-            if (_instance == null)
-                _instance = Object.FindAnyObjectByType<DiceSpawner>();
-            return _instance;
-        }
-    }
 
     private const string DefaultD6PrefabPath = "Assets/Dice/Prefabs/Dice_d6.prefab";
     private const string D6ResourcesPath = "Dice/Dice_d6";
@@ -45,16 +35,11 @@ public class DiceSpawner : MonoBehaviour
     public Color autoRollActiveColor = Color.cyan;
     public Color autoRollInactiveColor = Color.white;
 
-    private void Awake()
+    protected override void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        _instance = this;
+        base.Awake();
         EnsureReferences();
+        cachedHero = GameServices.Hero;
     }
 
     public void CancelActiveRoll()
@@ -135,7 +120,7 @@ public class DiceSpawner : MonoBehaviour
         if (isRolling) return false;
         
         if (cachedHero == null)
-            cachedHero = Object.FindAnyObjectByType<HeroController>();
+            cachedHero = GameServices.Hero;
         if (cachedHero != null && cachedHero.IsMoving) return false;
 
         var settings = GlobalSettings.Instance;
@@ -196,7 +181,7 @@ public class DiceSpawner : MonoBehaviour
                 EnergyManager.Instance.Deplete(settings.energyDepletionPerRoll);
 
             if (cachedHero == null)
-                cachedHero = Object.FindAnyObjectByType<HeroController>();
+                cachedHero = GameServices.Hero;
             var hero = cachedHero;
             if (hero != null && !hero.InCombat)
             {

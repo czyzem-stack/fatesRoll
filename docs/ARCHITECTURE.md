@@ -139,15 +139,21 @@ graph LR
 
 ## 3. Singletons and scene objects
 
-Lazy singletons via `FindAnyObjectByType` (created at runtime if missing for some types).
+Gameplay services use **`GameServices`** (`DefaultExecutionOrder -10000`) plus **`GameServiceBehaviour<T>`** — no `FindAnyObjectByType` in `Instance` getters.
 
 ```mermaid
 flowchart TD
+    subgraph Bootstrap
+        GSvc[GameServices Awake]
+        GSvc --> Reg[Register managers from Inspector / children]
+        Reg --> Dict[Type registry]
+    end
+
     subgraph Access pattern
-        A[Caller] --> B{Instance null?}
-        B -->|yes| C[FindAnyObjectByType]
-        B -->|no| D[Return cached _instance]
-        C --> E[Optional: new GameObject + AddComponent]
+        A[Caller] --> B[GameServiceBehaviour T.Instance]
+        B --> C{static _instance?}
+        C -->|yes| D[Return _instance]
+        C -->|no| E[GameServices.Get T]
     end
 
     subgraph Managers
@@ -159,29 +165,22 @@ flowchart TD
         LM2[LootManager]
     end
 
-    subgraph Scene actors
-        HC[HeroController on Steve]
-        DS[DiceSpawner in scene]
-        PN1[POINode + Enemy ...]
-        PN2[POINode + Enemy ...]
-    end
-
-    GS --- Access pattern
-    EM --- Access pattern
-    PM --- Access pattern
-    LM --- Access pattern
+    Dict --> E
 ```
+
+**Scene setup:** **FatesRoll → Setup → Add Game Services Bootstrap** groups managers under a `GameServices` object (optional **Persist Across Scenes**). Steve registers in `HeroController.Awake` — use `GameServices.Hero` or `GameServices.HeroController`. Strict lookup: `GameServices.Get<T>()` throws if missing; `TryGet<T>` and `Foo.Instance` stay null-safe.
 
 | Component | Pattern | Notes |
 |-----------|---------|--------|
-| `GlobalSettings` | Singleton + `DontDestroyOnLoad` | Movement, energy, combat delays, XP curve |
-| `EnergyManager` | Singleton | Current energy, regen timer, HUD text |
-| `POIManager` | Singleton | Registry of active `POINode`s |
-| `LevelManager` | Singleton | XP bar, level-up celebration trigger |
-| `RogueLiteManager` | Scene component (recommended) | Post–level-up reward popup (A/B stat picks) |
-| `LootManager` | Singleton | Coin drops; applies RogueLite coin bonus |
-| `HeroController` | Scene component | One hero (Steve) |
-| `DiceSpawner` | Scene component | Roll orchestration |
+| `GameServices` | Bootstrap registry | Inspector refs + optional `GetComponentInChildren` on bootstrap root only |
+| `GlobalSettings` | `GameServiceBehaviour` + `DontDestroyOnLoad` | Movement, energy, combat delays, XP curve |
+| `EnergyManager` | `GameServiceBehaviour` | Current energy, regen timer, HUD text |
+| `POIManager` | `GameServiceBehaviour` | Registry of active `POINode`s |
+| `LevelManager` | `GameServiceBehaviour` | XP bar, level-up celebration trigger |
+| `RogueLiteManager` | `GameServiceBehaviour` | Post–level-up reward popup (A/B stat picks) |
+| `LootManager` | `GameServiceBehaviour` | Coin drops; applies RogueLite coin bonus |
+| `HeroController` | Scene component | One hero (Steve); `GameServices.Hero` |
+| `DiceSpawner` | `GameServiceBehaviour` | Roll orchestration |
 
 ---
 
@@ -639,6 +638,8 @@ Files:
 
 | Script | Responsibility |
 |--------|----------------|
+| `GameServices` | Early bootstrap registry; `Hero`, `Get<T>()`; Inspector wiring |
+| `GameServiceBehaviour<T>` | Base for managers — registers in Awake, no scene search in getters |
 | `DiceSpawner` | Input, roll physics, energy, branch move vs combat |
 | `DieResult` | Dice face value + settled detection |
 | `HeroController` | NavMesh move, POI target, arrival combat, hero HP HUD |

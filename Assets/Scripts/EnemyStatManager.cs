@@ -3,17 +3,8 @@ using UnityEngine;
 /// <summary>
 /// Scales enemy primary stats from Steve's current build. Used for spawn slots and optional FTUE tuning.
 /// </summary>
-public class EnemyStatManager : MonoBehaviour
+public class EnemyStatManager : GameServiceBehaviour<EnemyStatManager>
 {
-    private static EnemyStatManager _instance;
-    public static EnemyStatManager Instance
-    {
-        get
-        {
-            if (_instance == null) _instance = Object.FindAnyObjectByType<EnemyStatManager>();
-            return _instance;
-        }
-    }
 
     [Header("Difficulty")]
     [Tooltip("100 = enemy primaries match Steve's effective stats. 0–200 for easier/harder infinite scaling.")]
@@ -32,16 +23,6 @@ public class EnemyStatManager : MonoBehaviour
     private float randomKillBonus;
 
     public float DifficultyPercent => difficultyPercent + randomKillBonus;
-
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-    }
 
     public void NotifyRandomPoolKill()
     {
@@ -93,7 +74,7 @@ public class EnemyStatManager : MonoBehaviour
     private static bool TryGetSteveStats(out float str, out float agi, out float vit, out float luck)
     {
         str = agi = vit = luck = 0f;
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero == null) return false;
 
         var stats = hero.GetComponent<PlayerStats>();

@@ -26,7 +26,7 @@ public class DieResult : MonoBehaviour
         // Safety: If die falls through the floor, warp it back to Steve's feet or a safe height
         if (transform.position.y < -5.0f)
         {
-            var hero = Object.FindAnyObjectByType<HeroController>();
+            var hero = GameServices.Hero;
             Vector3 safePos = hero != null ? hero.transform.position + Vector3.up * 2.0f : new Vector3(transform.position.x, 2.0f, transform.position.z);
             transform.position = safePos;
             if (rb != null)

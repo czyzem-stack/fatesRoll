@@ -11,25 +11,8 @@ using UnityEditor;
 /// Celebration loot: firework burst around the enemy, coins linger on the ground, then Steve collects them.
 /// </summary>
 [AddComponentMenu("FatesRoll/Loot Manager")]
-public class LootManager : MonoBehaviour
+public class LootManager : GameServiceBehaviour<LootManager>
 {
-    private static LootManager _instance;
-    public static LootManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                _instance = Object.FindAnyObjectByType<LootManager>();
-                if (_instance == null)
-                {
-                    GameObject go = new GameObject("LootManager");
-                    _instance = go.AddComponent<LootManager>();
-                }
-            }
-            return _instance;
-        }
-    }
 
     [Header("Coin drop count")]
     [Tooltip("Fewest coins spawned when an enemy dies.")]
@@ -105,14 +88,9 @@ public class LootManager : MonoBehaviour
 #endif
     }
 
-    private void Awake()
+    protected override void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
+        base.Awake();
         EnsureCoinPrefabAssigned();
     }
 
@@ -129,7 +107,7 @@ public class LootManager : MonoBehaviour
     private void Start()
     {
         currentGold = GlobalSettings.GetStartingCoinBalance();
-        cachedHero = Object.FindAnyObjectByType<HeroController>();
+        cachedHero = GameServices.Hero;
         UpdateGoldUI();
     }
 
@@ -144,7 +122,7 @@ public class LootManager : MonoBehaviour
         }
 
         if (cachedHero == null)
-            cachedHero = Object.FindAnyObjectByType<HeroController>();
+            cachedHero = GameServices.Hero;
 
         Vector3 burstCenter = enemy.transform.position + Vector3.up * spawnHeightOffset;
         StartCoroutine(CelebrationLootRoutine(burstCenter));
@@ -288,7 +266,7 @@ public class LootManager : MonoBehaviour
     public void SpawnGoldFloatingText(int amount)
     {
         if (cachedHero == null)
-            cachedHero = Object.FindAnyObjectByType<HeroController>();
+            cachedHero = GameServices.Hero;
         if (cachedHero == null) return;
 
         GameObject go = new GameObject("FloatingText_Gold");

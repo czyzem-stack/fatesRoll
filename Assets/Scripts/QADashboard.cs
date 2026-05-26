@@ -12,8 +12,8 @@ public class QADashboard : MonoBehaviour
 
     void Start()
     {
-        hero = Object.FindAnyObjectByType<HeroController>();
-        spawner = Object.FindAnyObjectByType<DiceSpawner>();
+        hero = GameServices.Hero;
+        spawner = DiceSpawner.Instance;
     }
 
     void Update()

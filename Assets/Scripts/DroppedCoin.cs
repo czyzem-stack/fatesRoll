@@ -123,13 +123,13 @@ public class DroppedCoin : MonoBehaviour
         phase = Phase.Collect;
         collectRamp = 0f;
         if (hero == null)
-            hero = Object.FindAnyObjectByType<HeroController>();
+            hero = GameServices.Hero;
     }
 
     private void UpdateMagnet()
     {
         if (hero == null)
-            hero = Object.FindAnyObjectByType<HeroController>();
+            hero = GameServices.Hero;
 
         if (hero == null)
         {

@@ -69,7 +69,7 @@ public class Enemy : MonoBehaviour
     private void Start()
     {
         Initialize();
-        cachedHero = Object.FindAnyObjectByType<HeroController>();
+        cachedHero = GameServices.Hero;
         if (IsTreasureChest)
             ConfigureAsTreasureChest();
         SetHealthBarVisible(false);
@@ -229,7 +229,7 @@ public class Enemy : MonoBehaviour
         currentHP = maxHP;
         SetHealthBarVisible(true);
         UnlockCombatNavigation();
-        cachedHero = Object.FindAnyObjectByType<HeroController>();
+        cachedHero = GameServices.Hero;
     }
 
     /// <summary>Re-enable a pooled POI enemy after the POI was deactivated.</summary>
@@ -244,7 +244,7 @@ public class Enemy : MonoBehaviour
 
         Initialize();
         SetHealthBarVisible(true);
-        cachedHero = Object.FindAnyObjectByType<HeroController>();
+        cachedHero = GameServices.Hero;
     }
 
     public void InitializeFromData(EnemyData data)
@@ -412,7 +412,7 @@ public class Enemy : MonoBehaviour
 
     private void HandleAI()
     {
-        if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
+        if (cachedHero == null) cachedHero = GameServices.Hero;
         if (cachedHero == null) return;
 
         bool isEngaged = IsFightingHero(cachedHero);
@@ -615,7 +615,7 @@ public class Enemy : MonoBehaviour
             EquipmentLootManager.Instance.EnqueueChestReward(poi);
 
         if (cachedHero == null)
-            cachedHero = Object.FindAnyObjectByType<HeroController>();
+            cachedHero = GameServices.Hero;
 
         if (cachedHero != null)
         {

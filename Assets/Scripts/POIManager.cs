@@ -3,33 +3,14 @@ using System.Collections.Generic;
 
 /// <summary>Visit-order POIs only. When all are consumed, enables SpawnManager (SpawnNode markers).</summary>
 [DefaultExecutionOrder(-50)]
-public class POIManager : MonoBehaviour
+public class POIManager : GameServiceBehaviour<POIManager>
 {
-    private static POIManager _instance;
-    public static POIManager Instance
-    {
-        get
-        {
-            if (_instance == null) _instance = Object.FindAnyObjectByType<POIManager>();
-            return _instance;
-        }
-    }
 
     private readonly List<POINode> activeVisitPOIs = new List<POINode>();
     private readonly List<POINode> allVisitPOIs = new List<POINode>();
 
     public bool HasInitialized { get; private set; }
     public int ActiveVisitCount => activeVisitPOIs.Count;
-
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-    }
 
     private void Start()
     {
@@ -70,7 +51,7 @@ public class POIManager : MonoBehaviour
 
     public void ResolveVisitPOI(GameObject poiObject)
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         POINode node = poiObject != null ? poiObject.GetComponentInParent<POINode>() : null;
 
         if (hero != null && hero.currentEnemy != null)

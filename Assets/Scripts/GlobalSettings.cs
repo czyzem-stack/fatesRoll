@@ -5,26 +5,8 @@ using UnityEngine;
 /// Hero combat stats: <see cref="PlayerStats"/> on Steve.
 /// Enemy combat stats: <see cref="Enemy"/> on each monster.
 /// </summary>
-public class GlobalSettings : MonoBehaviour
+public class GlobalSettings : GameServiceBehaviour<GlobalSettings>
 {
-    private static GlobalSettings _instance;
-    public static GlobalSettings Instance
-    {
-        get
-        {
-            if (_instance == null)
-            {
-                _instance = Object.FindAnyObjectByType<GlobalSettings>();
-                if (_instance == null)
-                {
-                    GameObject go = new GameObject("GlobalSettings");
-                    _instance = go.AddComponent<GlobalSettings>();
-                    DontDestroyOnLoad(go);
-                }
-            }
-            return _instance;
-        }
-    }
 
     [Header("Movement")]
     [Tooltip("How many steps Steve takes per dice number (e.g. if 1:1, roll of 5 = 5 steps)")]
@@ -112,14 +94,23 @@ public class GlobalSettings : MonoBehaviour
             Debug.LogWarning(message);
     }
 
-    private void Awake()
+    protected override void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
+        base.Awake();
+        if (Instance != this)
             return;
-        }
-        _instance = this;
-        DontDestroyOnLoad(gameObject);
+
+        ApplyPersistence();
+    }
+
+    private void ApplyPersistence()
+    {
+        // Persisted by GameServices when nested under the bootstrap root.
+        if (GameServices.Current != null &&
+            (transform == GameServices.Current.transform ||
+             transform.IsChildOf(GameServices.Current.transform)))
+            return;
+
+        PersistenceUtility.DontDestroyOnLoadRoot(gameObject);
     }
 }

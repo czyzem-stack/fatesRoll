@@ -8,23 +8,13 @@ using UnityEngine.UI;
 /// Level-up roguelite rewards: after Steve's celebration, shows a popup with two random upgrade choices.
 /// </summary>
 [AddComponentMenu("FatesRoll/Rogue Lite Manager")]
-public class RogueLiteManager : MonoBehaviour
+public class RogueLiteManager : GameServiceBehaviour<RogueLiteManager>
 {
     private const string PopupPrefabPath =
         "Assets/UI/GUI Pro-FantasyRPG/Prefabs/Prefabs_Component_Popups/Popup_01_Basic_Demo.prefab";
     private const string ButtonPrefabFolder =
         "Assets/UI/GUI Pro-FantasyRPG/Prefabs/Prefabs_Component_Buttons/Button_Rectangle_01_Convex_";
 
-    private static RogueLiteManager _instance;
-    public static RogueLiteManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-                _instance = Object.FindAnyObjectByType<RogueLiteManager>();
-            return _instance;
-        }
-    }
 
     [Header("Popup copy")]
     [SerializeField] private string titleFormat = "Congratulations, you have reached Level {0}";
@@ -126,16 +116,6 @@ public class RogueLiteManager : MonoBehaviour
     public float EnergyRegenTimeReduction => energyRegenTimeReduction;
     public int BonusCoinsPerEnemyKill => bonusCoinsPerEnemyKill;
 
-    private void Awake()
-    {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-    }
-
     public void EnqueueLevelUp(int newLevel)
     {
         pendingLevels.Enqueue(newLevel);
@@ -223,7 +203,7 @@ public class RogueLiteManager : MonoBehaviour
 
     private static void ApplyStrength(float amount)
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero == null) return;
         var stats = hero.GetComponent<PlayerStats>();
         if (stats == null) return;
@@ -235,7 +215,7 @@ public class RogueLiteManager : MonoBehaviour
 
     private static void ApplyAgility(float amount)
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero == null) return;
         var stats = hero.GetComponent<PlayerStats>();
         if (stats == null) return;
@@ -247,7 +227,7 @@ public class RogueLiteManager : MonoBehaviour
 
     private static void ApplyVitality(float amount)
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero == null) return;
         var stats = hero.GetComponent<PlayerStats>();
         if (stats == null) return;
@@ -265,7 +245,7 @@ public class RogueLiteManager : MonoBehaviour
 
     private static void ApplyLuck(float amount)
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero == null) return;
         var stats = hero.GetComponent<PlayerStats>();
         if (stats == null) return;

@@ -7,17 +7,8 @@ using System.Linq;
 /// Steve targets spawn nodes only after all visit POIs are consumed.
 /// </summary>
 [DefaultExecutionOrder(-40)]
-public class SpawnManager : MonoBehaviour
+public class SpawnManager : GameServiceBehaviour<SpawnManager>
 {
-    private static SpawnManager _instance;
-    public static SpawnManager Instance
-    {
-        get
-        {
-            if (_instance == null) _instance = Object.FindAnyObjectByType<SpawnManager>();
-            return _instance;
-        }
-    }
 
     [SerializeField] private POIManager poiManager;
     [SerializeField] private MonsterPrefabCatalog monsterCatalog;
@@ -44,17 +35,13 @@ public class SpawnManager : MonoBehaviour
     public bool IsRandomVisitTargetingEnabled => randomVisitTargetingEnabled;
     public MonsterPrefabCatalog MonsterCatalog => monsterCatalog;
 
-    private void Awake()
+    protected override void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-        _instance = this;
-
-        if (poiManager == null) poiManager = Object.FindAnyObjectByType<POIManager>();
-        if (statManager == null) statManager = Object.FindAnyObjectByType<EnemyStatManager>();
+        base.Awake();
+        if (poiManager == null)
+            poiManager = POIManager.Instance;
+        if (statManager == null)
+            statManager = EnemyStatManager.Instance;
     }
 
     private void Start()

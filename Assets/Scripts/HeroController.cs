@@ -128,6 +128,16 @@ public class HeroController : MonoBehaviour
             transform, anim, ref visualYawFixApplied, extraVisualYawDegrees);
     }
 
+    private void Awake()
+    {
+        GameServices.RegisterHero(this);
+    }
+
+    private void OnDestroy()
+    {
+        GameServices.UnregisterHero(this);
+    }
+
     private void Start()
     {
         agent = GetComponent<NavMeshAgent>();

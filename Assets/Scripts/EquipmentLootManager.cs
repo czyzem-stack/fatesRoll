@@ -11,7 +11,7 @@ using UnityEditor;
 /// Treasure chest rewards: rolled equipment with two-of-four stat bonuses and A/B popup picks.
 /// </summary>
 [AddComponentMenu("FatesRoll/Equipment Loot Manager")]
-public class EquipmentLootManager : MonoBehaviour
+public class EquipmentLootManager : GameServiceBehaviour<EquipmentLootManager>
 {
     private const string PopupPrefabPath =
         "Assets/UI/GUI Pro-FantasyRPG/Prefabs/Prefabs_Component_Popups/Popup_01_Basic_Demo.prefab";
@@ -20,16 +20,6 @@ public class EquipmentLootManager : MonoBehaviour
     private const string DefaultCatalogPath = "Assets/Data/Equipment/EquipmentCatalog.asset";
     private const string CatalogResourcesPath = "Equipment/EquipmentCatalog";
 
-    private static EquipmentLootManager _instance;
-    public static EquipmentLootManager Instance
-    {
-        get
-        {
-            if (_instance == null)
-                _instance = Object.FindAnyObjectByType<EquipmentLootManager>();
-            return _instance;
-        }
-    }
 
     [Header("Catalog")]
     [SerializeField] private EquipmentCatalog catalog;
@@ -88,15 +78,9 @@ public class EquipmentLootManager : MonoBehaviour
         public EquipmentItemDefinition forcedB;
     }
 
-    private void Awake()
+    protected override void Awake()
     {
-        if (_instance != null && _instance != this)
-        {
-            Destroy(gameObject);
-            return;
-        }
-
-        _instance = this;
+        base.Awake();
         EnsureReferences();
     }
 
@@ -207,7 +191,7 @@ public class EquipmentLootManager : MonoBehaviour
 
     private static HeroEquipment FindHeroEquipment()
     {
-        var hero = Object.FindAnyObjectByType<HeroController>();
+        var hero = GameServices.Hero;
         if (hero == null)
             return null;
         var equip = hero.GetComponent<HeroEquipment>();
