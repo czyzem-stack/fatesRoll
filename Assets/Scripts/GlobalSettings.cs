@@ -1,5 +1,10 @@
 using UnityEngine;
 
+/// <summary>
+/// Global tuning for movement, energy, combat spacing/timing, and XP.
+/// Hero combat stats: <see cref="PlayerStats"/> on Steve.
+/// Enemy combat stats: <see cref="Enemy"/> on each monster.
+/// </summary>
 public class GlobalSettings : MonoBehaviour
 {
     private static GlobalSettings _instance;
@@ -21,18 +26,18 @@ public class GlobalSettings : MonoBehaviour
         }
     }
 
-    [Header("Movement Settings")]
+    [Header("Movement")]
     [Tooltip("How many steps Steve takes per dice number (e.g. if 1:1, roll of 5 = 5 steps)")]
     public float stepsPerDiceValue = 1.0f;
-    
+
     [Tooltip("Distance in meters for a single 'step'")]
     public float metersPerStep = 3.0f;
 
     [Tooltip("Steve's walk speed when moving along the dice path")]
     public float heroTravelSpeed = 6f;
 
-    [Header("Energy Settings")]
-public int energyDepletionPerRoll = 3;
+    [Header("Energy")]
+    public int energyDepletionPerRoll = 3;
     public int startingEnergy = 60;
     public int maxEnergy = 60;
     public float energyRegenInterval = 15f;
@@ -40,12 +45,7 @@ public int energyDepletionPerRoll = 3;
     public float energyDisplayTotalDuration = 15f;
     public float energyDisplayNextDuration = 3f;
 
-    [Header("Combat Settings")]
-    public int heroMaxHP = 20;
-    public int orcStartHP = 10;
-    public int combatDamageMultiplier = 2;
-    public float leftoverStepDamageMultiplier = 50.0f;
-
+    [Header("Combat — spacing")]
     [Tooltip("Max horizontal distance to start or continue melee (separate from enemy patrol aggro zone).")]
     public float meleeEngageRadius = 3.25f;
 
@@ -55,7 +55,7 @@ public int energyDepletionPerRoll = 3;
     [Tooltip("How close enemies move toward Steve when chasing (meters, horizontal).")]
     public float enemyMeleeStandoff = 1.75f;
 
-    [Header("Combat Timing (seconds)")]
+    [Header("Combat — timing (seconds)")]
     public float combatDiceReadDelay = 0.2f;
     public float travelDiceReadDelay = 0.85f;
     public float combatFaceDelay = 0.06f;
@@ -64,11 +64,15 @@ public int energyDepletionPerRoll = 3;
     public float enemyAttackWindUp = 0.14f;
     public float enemyAttackHitDelay = 0.26f;
 
-    [Header("XP & Leveling Settings")]
+    [Header("XP & leveling")]
     public float baseXPForLevel1 = 50f;
     public float xpExponentialMultiplier = 1.2f;
 
-    [Header("QA Settings")]
+    [Header("Debug")]
+    [Tooltip("Log combat events to the Console (filter: Combat).")]
+    public bool combatLogEnabled = true;
+
+    [Tooltip("Draw Steve's dice path and POI path lines.")]
     public bool showPath = true;
 
     private void Awake()

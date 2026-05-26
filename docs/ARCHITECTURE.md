@@ -487,11 +487,18 @@ Shared RPG formulas on **hero** (`PlayerStats`) and **enemy** (`Enemy`).
 
 | Source | Formula |
 |--------|---------|
-| Arrival hit | `leftoverDice × leftoverStepDamageMultiplier + AttackDamage × 0.5` (+ crit) |
-| Combat roll | `AttackDamage × (roll / 7)` (+ crit) |
-| Enemy hit | `attackDamage` (+ crit); hero dodges via `PlayerStats` |
+| Arrival hit | `AttackDamage × (lastRoll / 7)` (+ crit) via `HeroController.CalculateRollDamage` |
+| Combat roll | Same as arrival hit while `InCombat` |
+| Enemy hit | `Enemy.attackDamage` (+ crit); hero dodges via `PlayerStats` |
 
-`GlobalSettings.heroMaxHP`, `orcStartHP`, `combatDamageMultiplier` are **legacy/unused** — tune `PlayerStats` / `Enemy` instead.
+**Where to tune**
+
+| What | Component |
+|------|-----------|
+| Steve HP, damage, crit, dodge | `PlayerStats` on Steve |
+| Enemy HP, damage, patrol | `Enemy` on each monster (or `EnemyData` prefab) |
+| Melee range, standoff, combat delays | `GlobalSettings` |
+| Combat console spam | `GlobalSettings.combatLogEnabled` |
 
 ---
 

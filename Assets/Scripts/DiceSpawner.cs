@@ -271,7 +271,7 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                 {
                     bool isCrit;
                     int finalDamage = hero.CalculateRollDamage(total, out isCrit);
-                    Debug.Log($"<b>[Combat]</b> Dice combat turn | roll {total} → {finalDamage} damage{(isCrit ? " (CRIT)" : "")}");
+                    CombatLog.Info($"Dice combat turn | roll {total} → {finalDamage} damage{(isCrit ? " (CRIT)" : "")}");
 
                     yield return hero.HeroAttackRoutine(combatEnemy, finalDamage);
 

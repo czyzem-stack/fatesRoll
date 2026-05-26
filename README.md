@@ -86,7 +86,8 @@ Roll (energy) → dice settle → XP → walk toward POI (by order) → combat a
 | Combat | `HeroController`, `Enemy` | Arrival hit + in-combat rolls; world-space HP bar |
 | Stats | `PlayerStats`, `EnemyData` | RPG formulas; SO exists (runtime wiring TBD) |
 | XP / level | `LevelManager` | XP from roll total; level-up animation |
-| Tuning | `GlobalSettings` | Movement, energy, combat delay, XP curve |
+| Tuning | `GlobalSettings` | Movement, energy, melee spacing/timing, XP, debug flags |
+| Steve / enemy stats | `PlayerStats`, `Enemy` | HP, damage, crit, dodge (not on GlobalSettings) |
 | QA | `QADashboard`, `QAVersionDisplay` | Roll/distance debug; build version + git hash |
 
 ---

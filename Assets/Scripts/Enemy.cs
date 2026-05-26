@@ -483,7 +483,6 @@ public class Enemy : MonoBehaviour
         currentHP -= amount;
         UpdateHealthUI();
         CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
-        Debug.Log($"<b>[Combat]</b> {gameObject.name} HP {hpBefore:F0} → {currentHP:F0}");
         
         if (Application.isPlaying)
         {
