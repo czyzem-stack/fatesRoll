@@ -46,6 +46,15 @@ public int energyDepletionPerRoll = 3;
     public int combatDamageMultiplier = 2;
     public float leftoverStepDamageMultiplier = 50.0f;
 
+    [Tooltip("Max horizontal distance to start or continue melee (separate from enemy patrol aggro zone).")]
+    public float meleeEngageRadius = 3.25f;
+
+    [Tooltip("How close Steve's path goal gets to the enemy center (meters, horizontal).")]
+    public float heroMeleeStandoff = 2.0f;
+
+    [Tooltip("How close enemies move toward Steve when chasing (meters, horizontal).")]
+    public float enemyMeleeStandoff = 1.75f;
+
     [Header("Combat Timing (seconds)")]
     public float combatDiceReadDelay = 0.2f;
     public float travelDiceReadDelay = 0.85f;

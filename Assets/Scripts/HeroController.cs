@@ -168,16 +168,28 @@ public class HeroController : MonoBehaviour
         if (animator != null)
         {
             if (animator.applyRootMotion) animator.applyRootMotion = false;
-            if (isCelebrating)
+            if (isCelebrating || IsEngageBusy || (inCombat && !isMoving))
             {
-                animator.SetFloat("Speed", 0f);
+                animator.SetFloat("Speed", 0f, 0.15f, Time.deltaTime);
+            }
+            else if (isMoving)
+            {
+                float animatorSpeed = Mathf.Max(agent.velocity.magnitude, 2.0f);
+                animator.SetFloat("Speed", animatorSpeed, 0.15f, Time.deltaTime);
             }
             else
             {
-                float currentSpeed = agent.velocity.magnitude;
-                float animatorSpeed = isMoving ? Mathf.Max(currentSpeed, 2.0f) : currentSpeed;
-                if (animatorSpeed < 0.05f) animatorSpeed = 0f;
-                animator.SetFloat("Speed", animatorSpeed);
+                float animatorSpeed = agent.velocity.magnitude < 0.35f ? 0f : agent.velocity.magnitude;
+                animator.SetFloat("Speed", animatorSpeed, 0.15f, Time.deltaTime);
+            }
+        }
+
+        if ((inCombat && !isMoving) || IsEngageBusy)
+        {
+            if (agent.isOnNavMesh)
+            {
+                agent.isStopped = true;
+                agent.velocity = Vector3.zero;
             }
         }
 
@@ -235,7 +247,25 @@ public class HeroController : MonoBehaviour
     private float DistanceToEnemy(Enemy enemy)
     {
         if (enemy == null) return float.MaxValue;
-        return Vector3.Distance(transform.position, enemy.GetEngagePosition());
+        Vector3 a = transform.position;
+        Vector3 b = enemy.GetEngagePosition();
+        a.y = 0f;
+        b.y = 0f;
+        return Vector3.Distance(a, b);
+    }
+
+    private void SnapToMeleeRange(Enemy enemy)
+    {
+        if (enemy == null || agent == null || !agent.isOnNavMesh)
+            return;
+
+        float standoff = GlobalSettings.Instance.heroMeleeStandoff;
+        if (DistanceToEnemy(enemy) <= standoff + 0.6f)
+            return;
+
+        Vector3 approach = enemy.GetMeleeApproachPoint(transform.position);
+        if (NavMesh.SamplePosition(approach, out NavMeshHit hit, 2f, NavMesh.AllAreas))
+            agent.Warp(hit.position);
     }
 
     public void RecordRoll(int rollTotal)
@@ -303,6 +333,8 @@ public class HeroController : MonoBehaviour
         currentTarget = null;
         AdvancePastEnemyPOI(enemy);
 
+        SnapToMeleeRange(enemy);
+
         CombatLog.Info($"Steve reached fight range ({dist:F1}m) — attacks first");
         bool isCrit;
         int damage = CalculateRollDamage(lastRollValue, out isCrit);
@@ -320,6 +352,8 @@ public class HeroController : MonoBehaviour
             CombatLog.Info("Enemy aggro ignored — Steve out of fight range");
             return;
         }
+
+        SnapToMeleeRange(enemy);
 
         CombatLog.Info("Enemy reached Steve first — enemy attacks");
         EnterCombat(enemy.gameObject);
@@ -413,7 +447,9 @@ public class HeroController : MonoBehaviour
         if (show && currentTarget != null)
         {
             Enemy pathEnemy = GetEnemyFromTarget(currentTarget);
-            Vector3 pathGoal = pathEnemy != null ? pathEnemy.GetEngagePosition() : currentTarget.transform.position;
+            Vector3 pathGoal = pathEnemy != null
+                ? pathEnemy.GetMeleeApproachPoint(transform.position)
+                : currentTarget.transform.position;
             NavMeshPath path = new NavMeshPath();
             if (NavMesh.CalculatePath(transform.position, pathGoal, NavMesh.AllAreas, path))
             {
@@ -465,7 +501,9 @@ public class HeroController : MonoBehaviour
         if (currentTarget == null) return;
 
         Enemy enemy = GetEnemyFromTarget(currentTarget);
-        Vector3 pathGoal = enemy != null ? enemy.GetEngagePosition() : currentTarget.transform.position;
+        Vector3 pathGoal = enemy != null
+            ? enemy.GetMeleeApproachPoint(transform.position)
+            : currentTarget.transform.position;
 
         NavMeshPath path = new NavMeshPath();
         if (!NavMesh.CalculatePath(transform.position, pathGoal, NavMesh.AllAreas, path) ||
@@ -487,7 +525,7 @@ public class HeroController : MonoBehaviour
 
         approachingEnemy = enemy;
         agent.speed = settings.heroTravelSpeed;
-        agent.stoppingDistance = enemy != null ? 0.35f : 1.0f;
+        agent.stoppingDistance = enemy != null ? 0.05f : 1.0f;
         agent.isStopped = false;
         agent.updateRotation = true;
 
@@ -542,7 +580,17 @@ public class HeroController : MonoBehaviour
         if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
     }
 
-    public void ExitCombat() { inCombat = false; currentEnemy = null; approachingEnemy = null; }
+    public void ExitCombat()
+    {
+        inCombat = false;
+        currentEnemy = null;
+        approachingEnemy = null;
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.stoppingDistance = 1.0f;
+            agent.updateRotation = true;
+        }
+    }
 
     public bool TakeDamage(int amount, string attackerName = "Enemy", bool attackerCrit = false)
     {

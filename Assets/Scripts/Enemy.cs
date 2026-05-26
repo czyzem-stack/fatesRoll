@@ -97,18 +97,22 @@ public class Enemy : MonoBehaviour
     private void UpdateAnimation()
     {
         if (animator == null) return;
-        
+
+        if (navHeld || isAttacking || (cachedHero != null && IsFightingHero(cachedHero)))
+        {
+            animator.SetFloat("Speed", 0f, 0.15f, Time.deltaTime);
+            return;
+        }
+
         float speed = 0f;
         if (agent != null && agent.enabled && !agent.isStopped)
         {
             speed = agent.velocity.magnitude;
-            // Use 0.2f threshold to match the animator's new stability thresholds
-            if (speed < 0.2f) speed = 0f;
-            else if (speed < 1.0f) speed = 1.0f;
+            if (speed < 0.35f) speed = 0f;
+            else if (speed < 1.2f) speed = 1.0f;
         }
-        
-        // Use 0.1s damping to smoothly transition between idle/run and eliminate jitter
-        animator.SetFloat("Speed", speed, 0.1f, Time.deltaTime);
+
+        animator.SetFloat("Speed", speed, 0.15f, Time.deltaTime);
     }
 
     public void Initialize()
@@ -122,7 +126,7 @@ public class Enemy : MonoBehaviour
         agent.speed = patrolSpeed;
         agent.acceleration = 40.0f; // Very snappy
         agent.angularSpeed = 720.0f; // Instant turning
-        agent.stoppingDistance = 1.4f; // Melee range to prevent circling Steve's agent
+        agent.stoppingDistance = 0.15f;
         agent.avoidancePriority = avoidancePriority;
         agent.updateRotation = true;
 
@@ -162,20 +166,56 @@ public class Enemy : MonoBehaviour
     public bool IsHeroInPatrolZone(HeroController hero)
     {
         if (hero == null) return false;
-        return Vector3.Distance(spawnPosition, hero.transform.position) <= patrolRadius;
+        Vector3 a = spawnPosition;
+        Vector3 b = hero.transform.position;
+        a.y = 0f;
+        b.y = 0f;
+        return Vector3.Distance(a, b) <= patrolRadius;
     }
 
-    /// <summary>Steve is close enough to fight — uses the same radius as patrol.</summary>
+    /// <summary>Steve is close enough for melee (tighter than patrol aggro zone).</summary>
     public bool IsWithinEngageRange(HeroController hero)
     {
         if (hero == null) return false;
-        return Vector3.Distance(GetEngagePosition(), hero.transform.position) <= patrolRadius;
+        float limit = GlobalSettings.Instance.meleeEngageRadius;
+        if (engageTriggered || IsFightingHero(hero))
+            limit += 0.5f;
+        return HorizontalDistanceTo(hero.transform.position) <= limit;
+    }
+
+    /// <summary>Nav destination for Steve to stand toe-to-toe with this enemy.</summary>
+    public Vector3 GetMeleeApproachPoint(Vector3 heroPosition)
+    {
+        float standoff = GlobalSettings.Instance.heroMeleeStandoff;
+        Vector3 toHero = heroPosition - transform.position;
+        toHero.y = 0f;
+        if (toHero.sqrMagnitude < 0.01f)
+            toHero = Vector3.forward;
+        toHero.Normalize();
+
+        Vector3 point = transform.position + toHero * standoff;
+        if (UnityEngine.AI.NavMesh.SamplePosition(point, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
+            return hit.position;
+        return point;
+    }
+
+    public bool IsFightingHero(HeroController hero)
+    {
+        return hero != null && hero.InCombat && hero.currentEnemy == gameObject;
     }
 
     public Vector3 GetEngagePosition()
     {
-        var childAnim = GetComponentInChildren<Animator>();
-        return childAnim != null ? childAnim.transform.position : transform.position;
+        return transform.position;
+    }
+
+    private float HorizontalDistanceTo(Vector3 worldPos)
+    {
+        Vector3 a = transform.position;
+        Vector3 b = worldPos;
+        a.y = 0f;
+        b.y = 0f;
+        return Vector3.Distance(a, b);
     }
 
     private void HoldPosition()
@@ -186,6 +226,7 @@ public class Enemy : MonoBehaviour
         agent.isStopped = true;
         agent.updateRotation = false;
         agent.ResetPath();
+        agent.velocity = Vector3.zero;
     }
 
     private void ReleaseNavHold()
@@ -197,23 +238,22 @@ public class Enemy : MonoBehaviour
     {
         if (agent != null && agent.enabled)
         {
-            if (!navHeld)
-            {
-                agent.isStopped = true;
-                agent.updateRotation = false;
-                agent.ResetPath();
-                navHeld = true;
-            }
+            navHeld = true;
+            agent.isStopped = true;
+            agent.updateRotation = false;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
         }
-        FaceTarget(cachedHero.transform, false, 25.0f);
+        if (cachedHero != null)
+            FaceTarget(cachedHero.transform, false, 18.0f);
     }
 
     private void ChaseHero()
     {
         if (agent == null || !agent.enabled || cachedHero == null) return;
 
-        Vector3 dest = cachedHero.transform.position;
-        if (navHeld && agent.hasPath && Vector3.Distance(dest, lastChaseDestination) < 0.75f)
+        Vector3 dest = GetMeleeChasePoint(cachedHero.transform.position);
+        if (navHeld && agent.hasPath && Vector3.Distance(dest, lastChaseDestination) < 0.5f)
             return;
 
         ReleaseNavHold();
@@ -224,14 +264,28 @@ public class Enemy : MonoBehaviour
         agent.SetDestination(dest);
     }
 
+    private Vector3 GetMeleeChasePoint(Vector3 heroPosition)
+    {
+        float standoff = GlobalSettings.Instance.enemyMeleeStandoff;
+        Vector3 toEnemy = transform.position - heroPosition;
+        toEnemy.y = 0f;
+        if (toEnemy.sqrMagnitude < 0.01f)
+            toEnemy = Vector3.forward;
+        toEnemy.Normalize();
+
+        Vector3 point = heroPosition + toEnemy * standoff;
+        if (UnityEngine.AI.NavMesh.SamplePosition(point, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
+            return hit.position;
+        return point;
+    }
+
     private void HandleAI()
     {
         if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
         if (cachedHero == null) return;
 
-        float distToHero = Vector3.Distance(GetEngagePosition(), cachedHero.transform.position);
         bool inFightRange = IsWithinEngageRange(cachedHero);
-        bool isEngaged = cachedHero.InCombat && cachedHero.currentEnemy == gameObject && inFightRange;
+        bool isEngaged = IsFightingHero(cachedHero);
 
         if (animator != null)
         {
