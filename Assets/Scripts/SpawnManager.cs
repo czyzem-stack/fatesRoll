@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
@@ -47,6 +48,22 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
 
     private void Start()
     {
+        StartCoroutine(InitializeSpawnNodesNextFrame());
+    }
+
+    private IEnumerator InitializeSpawnNodesNextFrame()
+    {
+        yield return null;
+
+        if (poiManager == null)
+            poiManager = POIManager.Instance;
+
+        if (poiManager != null)
+        {
+            while (!poiManager.HasInitialized)
+                yield return null;
+        }
+
         InitializeSpawnNodes();
     }
 

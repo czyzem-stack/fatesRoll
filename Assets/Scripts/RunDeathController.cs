@@ -24,6 +24,12 @@ public class RunDeathController : GameServiceBehaviour<RunDeathController>
 
     private void Start()
     {
+        StartCoroutine(CacheSpawnNextFrame());
+    }
+
+    private IEnumerator CacheSpawnNextFrame()
+    {
+        yield return null;
         CacheSpawnFromScene();
         var hero = GameServices.Hero;
         if (hero != null)

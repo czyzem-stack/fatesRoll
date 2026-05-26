@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -15,13 +16,31 @@ public class GameServices : MonoBehaviour
     public static GameServices Current { get; private set; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void ResetStaticsOnDomainReload()
+    private static void ResetStaticsOnSubsystemRegistration()
+    {
+        ResetDomainStatics();
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void ResetStaticsBeforeSceneLoad()
+    {
+        ResetDomainStatics();
+    }
+
+    private static void ResetDomainStatics()
     {
         Current = null;
     }
 
     [Tooltip("Survive scene loads and absorb bootstrap objects from newly loaded scenes.")]
     [SerializeField] private bool persistAcrossScenes = true;
+
+    [Header("Startup")]
+    [Tooltip("Defer child discovery and validation until after the first frame (reduces Awake spike).")]
+    [SerializeField] private bool deferHeavyBootstrap = true;
+
+    [Tooltip("Optional cap while testing first-frame hitches (0 = leave Unity default).")]
+    [SerializeField] private int targetFrameRateOnStart;
 
     [Tooltip("When references are empty, discover services under this object only (not a full-scene search).")]
     [SerializeField] private bool discoverOnChildren = true;
@@ -102,12 +121,26 @@ public class GameServices : MonoBehaviour
             PersistenceUtility.DontDestroyOnLoadRoot(gameObject);
 
         SceneManager.sceneLoaded += OnSceneLoaded;
-        ResolveReferences();
-        PublishInspectorReferences();
+
+        if (deferHeavyBootstrap)
+            StartCoroutine(DeferredBootstrapRoutine());
+        else
+            FinishBootstrap();
     }
 
-    private void Start()
+    private IEnumerator DeferredBootstrapRoutine()
     {
+        yield return null;
+        FinishBootstrap();
+    }
+
+    private void FinishBootstrap()
+    {
+        if (targetFrameRateOnStart > 0)
+            Application.targetFrameRate = targetFrameRateOnStart;
+
+        ResolveReferences();
+        PublishInspectorReferences();
         ValidateRequiredServices();
     }
 

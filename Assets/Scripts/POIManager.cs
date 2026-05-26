@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using System.Collections.Generic;
 
@@ -15,6 +16,12 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
     private void Start()
     {
+        StartCoroutine(InitializeVisitPOIsNextFrame());
+    }
+
+    private IEnumerator InitializeVisitPOIsNextFrame()
+    {
+        yield return null;
         InitializeVisitPOIs();
     }
 

@@ -170,6 +170,10 @@ flowchart TD
 
 **Scene setup:** **FatesRoll → Setup → Add Game Services Bootstrap** groups managers under a `GameServices` object (optional **Persist Across Scenes**). Steve calls `GameServices.RegisterHero(this)` in `HeroController.Awake` (and again in `Start` if bootstrap order was late). Access Steve via `GameServices.Hero` or `GameServices.HeroController`. Check bootstrap with `GameServices.IsInitialized`. Strict lookup: `GameServices.Get<T>()` throws if missing; `TryGet<T>`, `HasInstance`, and `Foo.Instance` stay null-safe.
 
+**Domain reload:** `GameServices` clears `Current` on `SubsystemRegistration` and `BeforeSceneLoad` (no stale GC handles after script recompile).
+
+**Startup cost:** `GameServices` Awake only sets `Current` and DDOL; child discovery runs next frame (`deferHeavyBootstrap`). `POIManager` / `SpawnManager` scene scans (`FindObjectsByType`) also run after one frame; spawn init waits for POI init. Optional `targetFrameRateOnStart` on bootstrap for profiling.
+
 | Component | Pattern | Notes |
 |-----------|---------|--------|
 | `GameServices` | Bootstrap registry | Inspector refs + optional `GetComponentInChildren` on bootstrap root only |
