@@ -1,5 +1,3 @@
 #!/bin/sh
-# Auto-update README changelog from commit message (enable: git config core.hooksPath .githooks)
-root=$(git rev-parse --show-toplevel)
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$root/scripts/update-readme.ps1" -CommitMessageFile "$1"
-git add "$root/README.md"
+# README changelog is updated in pre-commit (after version bump). Hook kept for compatibility.
+exit 0

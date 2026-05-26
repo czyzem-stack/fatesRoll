@@ -1,5 +1,10 @@
 #!/bin/sh
-# Auto-bump version before each commit; README updates in commit-msg (enable: git config core.hooksPath .githooks)
+# Auto-bump version and sync README before each commit (enable: git config core.hooksPath .githooks)
 root=$(git rev-parse --show-toplevel)
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$root/scripts/bump-version.ps1"
 git add "$root/VERSION" "$root/ProjectSettings/ProjectSettings.asset"
+msg="$root/.git/COMMIT_EDITMSG"
+if [ -f "$msg" ]; then
+  powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$root/scripts/update-readme.ps1" -CommitMessageFile "$msg"
+  git add "$root/README.md"
+fi
