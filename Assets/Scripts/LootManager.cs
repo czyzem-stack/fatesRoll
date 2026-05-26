@@ -152,7 +152,8 @@ public class LootManager : MonoBehaviour
 
     private IEnumerator CelebrationLootRoutine(Vector3 burstCenter)
     {
-        int count = Random.Range(minCoins, maxCoins + 1);
+        int bonus = RogueLiteManager.Instance != null ? RogueLiteManager.Instance.BonusCoinsPerEnemyKill : 0;
+        int count = Random.Range(minCoins, maxCoins + 1) + bonus;
         pendingBatchCoins = count;
         pendingBatchGold = count * goldPerCoin;
         collectPhaseActive = false;

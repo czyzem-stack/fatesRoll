@@ -45,7 +45,7 @@ public class EnergyManager : MonoBehaviour
     {
         var settings = GlobalSettings.Instance;
         currentEnergy = settings != null ? settings.startingEnergy : 60;
-        nextRegenTime = Time.time + (settings != null ? settings.energyRegenInterval : 15f);
+        nextRegenTime = Time.time + GetEffectiveRegenInterval();
         UpdateUI();
     }
 
@@ -75,7 +75,7 @@ public class EnergyManager : MonoBehaviour
         if (Time.time >= nextRegenTime)
         {
             AddEnergy(GlobalSettings.Instance.energyRegenAmount);
-            nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+            nextRegenTime = Time.time + GetEffectiveRegenInterval();
         }
     }
 
@@ -116,7 +116,7 @@ public class EnergyManager : MonoBehaviour
         
         if (wasAtMax && currentEnergy < GlobalSettings.Instance.maxEnergy)
         {
-            nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+            nextRegenTime = Time.time + GetEffectiveRegenInterval();
         }
 
         UpdateUI();
@@ -135,13 +135,22 @@ public class EnergyManager : MonoBehaviour
     public void RestoreFull()
     {
         currentEnergy = GlobalSettings.Instance.maxEnergy;
-        nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+        nextRegenTime = Time.time + GetEffectiveRegenInterval();
         UpdateDisplay();
     }
 
     private void UpdateUI()
     {
         UpdateDisplay();
+    }
+
+    private static float GetEffectiveRegenInterval()
+    {
+        if (RogueLiteManager.Instance != null)
+            return RogueLiteManager.Instance.GetEffectiveEnergyRegenInterval();
+
+        var settings = GlobalSettings.Instance;
+        return settings != null ? settings.energyRegenInterval : 15f;
     }
 
     [ContextMenu("Auto-Assign UI")]

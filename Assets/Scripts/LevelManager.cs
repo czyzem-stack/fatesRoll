@@ -70,12 +70,15 @@ public class LevelManager : MonoBehaviour
         
         GlobalSettings.LogGameplay($"LevelManager: LEVELED UP! Now Level {currentLevel}");
 
+        if (RogueLiteManager.Instance != null)
+            RogueLiteManager.Instance.EnqueueLevelUp(currentLevel);
+
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero != null)
-        {
             hero.PlayLevelUpCelebration();
-        }
     }
+
+    public int CurrentLevel => currentLevel;
 
     private void CalculateXPRequirement()
     {

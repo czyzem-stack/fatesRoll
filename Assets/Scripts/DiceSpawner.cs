@@ -277,7 +277,10 @@ public class DiceSpawner : MonoBehaviour
                             levelsGained = LevelManager.Instance.AddXP(total * 2);
 
                         if (levelsGained > 0)
-                            yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
+                        {
+                            while (hero.IsCelebrating)
+                                yield return null;
+                        }
                         else
                         {
                             hero.VictoryFlourish();
@@ -324,7 +327,10 @@ public class DiceSpawner : MonoBehaviour
                 {
                     int levelsGained = LevelManager.Instance.AddXP(total);
                     if (levelsGained > 0)
-                        yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
+                    {
+                        while (hero.IsCelebrating)
+                            yield return null;
+                    }
                 }
             }
             else

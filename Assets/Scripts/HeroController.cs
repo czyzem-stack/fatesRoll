@@ -104,7 +104,7 @@ public class HeroController : MonoBehaviour
         UpdateHealthUI();
     }
 
-    private void UpdateHealthUI()
+    public void UpdateHealthUI()
     {
         if (healthSlider != null && stats != null)
         {
@@ -690,6 +690,10 @@ public class HeroController : MonoBehaviour
     private System.Collections.IEnumerator LevelUpCelebrationRoutine()
     {
         yield return new WaitForSeconds(LevelUpCelebrationSeconds);
+
+        if (RogueLiteManager.Instance != null)
+            yield return RogueLiteManager.Instance.RunPostCelebrationRewards();
+
         isCelebrating = false;
         celebrationRoutine = null;
     }

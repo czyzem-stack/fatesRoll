@@ -1,6 +1,6 @@
 # FatesRoll — Architecture
 
-Technical reference for **v0.0.025** (`main`, play scene `Assets/Scenes/main.unity`).
+Technical reference for the **main** play scene (`Assets/Scenes/main.unity`). Build flow: `title.unity` (loading / tap to start) → `main.unity`.
 
 ---
 
@@ -18,8 +18,9 @@ Technical reference for **v0.0.025** (`main`, play scene `Assets/Scenes/main.uni
 10. [Editor vs runtime (POI setup)](#10-editor-vs-runtime-poi-setup)
 11. [Stats and damage formulas](#11-stats-and-damage-formulas)
 12. [UI and health bars](#12-ui-and-health-bars)
-13. [Repo, version, and README automation](#13-repo-version-and-readme-automation)
-14. [Script index](#14-script-index)
+13. [Title scene and level-up rewards](#13-title-scene-and-level-up-rewards)
+14. [Repo, version, and README automation](#14-repo-version-and-readme-automation)
+15. [Script index](#15-script-index)
 
 ---
 
@@ -39,6 +40,8 @@ flowchart TB
         HC[HeroController]
         EM[EnergyManager]
         LM[LevelManager]
+        RL[RogueLiteManager]
+        LM2[LootManager]
     end
 
     subgraph POI["Points of interest"]
@@ -64,6 +67,11 @@ flowchart TB
     DS --> GS
     DS --> HC
     DS --> LM
+    LM --> RL
+    LM --> HC
+    RL --> PS
+    RL --> EM
+    RL --> LM2
     DS --> EN
 
     HC --> PM
@@ -111,6 +119,11 @@ graph LR
 
     LevelManager --> HeroController
     LevelManager --> GlobalSettings
+    LevelManager --> RogueLiteManager
+
+    RogueLiteManager --> PlayerStats
+    RogueLiteManager --> EnergyManager
+    RogueLiteManager --> LootManager
 
     EnergyManager --> GlobalSettings
     EnergyManager --> HeroController
@@ -142,6 +155,8 @@ flowchart TD
         EM[EnergyManager]
         PM[POIManager]
         LM[LevelManager]
+        RL[RogueLiteManager]
+        LM2[LootManager]
     end
 
     subgraph Scene actors
@@ -162,7 +177,9 @@ flowchart TD
 | `GlobalSettings` | Singleton + `DontDestroyOnLoad` | Movement, energy, combat delays, XP curve |
 | `EnergyManager` | Singleton | Current energy, regen timer, HUD text |
 | `POIManager` | Singleton | Registry of active `POINode`s |
-| `LevelManager` | Singleton | XP bar, level-up |
+| `LevelManager` | Singleton | XP bar, level-up celebration trigger |
+| `RogueLiteManager` | Scene component (recommended) | Post–level-up reward popup (A/B stat picks) |
+| `LootManager` | Singleton | Coin drops; applies RogueLite coin bonus |
 | `HeroController` | Scene component | One hero (Steve) |
 | `DiceSpawner` | Scene component | Roll orchestration |
 
@@ -199,6 +216,9 @@ sequenceDiagram
     end
 
     DS->>LM: AddXP(total) unless early exit on kill
+    LM->>HC: PlayLevelUpCelebration (if leveled)
+    HC->>RL: RunPostCelebrationRewards (after anim)
+    Note over RL: Popup: pick Strength / Agility / Vitality / Luck / Energy / Coins
 ```
 
 ---
@@ -238,7 +258,10 @@ flowchart TD
     CombatPath --> XP
     Retaliate --> XP
     XP2 --> Finally
-    XP --> Finally[finally: isRolling = false]
+    XP --> LevelUp{levels gained?}
+    LevelUp -->|yes| WaitCelebration[wait while hero.IsCelebrating]
+    LevelUp -->|no| Finally
+    WaitCelebration --> Finally[finally: isRolling = false]
 ```
 
 **`CanRoll()` gates**
@@ -529,7 +552,62 @@ flowchart LR
 
 ---
 
-## 13. Repo, version, and README automation
+## 13. Title scene and level-up rewards
+
+### 13.1 Title → main
+
+| Scene | Role |
+|-------|------|
+| `Assets/Scenes/title.unity` | Build index **0** — loading bar, tap to start, preloads `main` |
+| `Assets/Scenes/main.unity` | Build index **1** — gameplay |
+
+`TitleFlowController` drives loading UI, async preload (`allowSceneActivation = false`), then activates `main` on tap. Editor: **FatesRoll → Scenes** menus (`Setup Title Loading Scene`, play-mode start from title).
+
+### 13.2 Level-up roguelite popup
+
+After Steve’s level-up animation (`HeroController.LevelUpCelebrationSeconds`, default **2.7s**), `RogueLiteManager` shows a centered `Popup_01_Basic_Demo` panel (dimmed fullscreen overlay) with **two random different** upgrade buttons.
+
+```mermaid
+sequenceDiagram
+    participant LM as LevelManager
+    participant HC as HeroController
+    participant RL as RogueLiteManager
+    participant PS as PlayerStats
+    participant EM as EnergyManager
+    participant Loot as LootManager
+
+    LM->>LM: LevelUp → EnqueueLevelUp(level)
+    LM->>HC: PlayLevelUpCelebration
+    HC->>HC: Wait celebration duration
+    HC->>RL: RunPostCelebrationRewards
+    RL->>RL: timeScale = 0, show popup
+    Note over RL: Title + flavor text; 2 colored buttons
+    RL->>PS: Apply Strength / Agility / Vitality / Luck
+    RL->>EM: energyRegenTimeReduction += pick
+    RL->>Loot: bonusCoinsPerEnemyKill += pick
+    RL->>RL: Hide popup, restore timeScale
+```
+
+**Per-stat Inspector fields** (`RogueLiteManager`, each of six stats):
+
+| Field | Meaning |
+|-------|---------|
+| Upgrade Amount | Flat bonus (e.g. +1 STR, −1s regen interval, +1 coin per kill) |
+| Offer Chance % | Weight in random pool (20 on all six ≈ equal odds) |
+| Upgrade Scaler | Repeat picks: `amount × scaler^timesAlreadyChosen` (default **1** = flat) |
+| Button Color | `Button_Rectangle_01_Convex_*` prefab color |
+
+**Popup typography** (same component): title/body/button font sizes, panel scale, choice button scale.
+
+**Setup:** **FatesRoll → Roguelite → Add RogueLiteManager To Scene** (under `Managers`), save `main.unity`.
+
+**Energy regen:** `EnergyManager` uses `RogueLiteManager.GetEffectiveEnergyRegenInterval()` (`base interval − total reduction`).
+
+**Coins:** `LootManager` adds `RogueLiteManager.BonusCoinsPerEnemyKill` to per-enemy drop count.
+
+---
+
+## 14. Repo, version, and README automation
 
 ```mermaid
 flowchart LR
@@ -557,7 +635,7 @@ Files:
 
 ---
 
-## 14. Script index
+## 15. Script index
 
 | Script | Responsibility |
 |--------|----------------|
@@ -572,7 +650,12 @@ Files:
 | `POINodeEditor` | Editor prefab + health bar setup |
 | `GlobalSettings` | Tunable singleton |
 | `EnergyManager` | Energy pool + UI |
-| `LevelManager` | XP + level UI |
+| `LevelManager` | XP + level UI; queues `RogueLiteManager` on level-up |
+| `RogueLiteManager` | Level-up reward popup, stat upgrades, energy/coin modifiers |
+| `RogueLiteStatConfig` | Serializable per-stat tuning (amount, chance %, scaler, button color) |
+| `TitleFlowController` | Title scene: loading → tap → load `main` |
+| `TitleSceneSetup` | Editor: create/consolidate title scene, build order, play-mode start |
+| `LootManager` | Enemy coin celebration drops + gold HUD |
 | `FloatingText` | World TMP popups |
 | `QADashboard` | Debug HUD for roll/distance |
 | `QAVersionDisplay` / `GitVersionProvider` | Build version overlay |
