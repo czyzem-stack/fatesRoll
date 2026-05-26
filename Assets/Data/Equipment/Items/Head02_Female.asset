@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b799e3af5cd424a904a51a6faea4e0, type: 3}
+  m_Name: Head02_Female
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
+  itemId: Head02_Female
+  displayName: Head02 Female
+  slot: 2
+  chestCategory: 1
+  visualPrefab: {fileID: 3239309924598628423, guid: 4ed72f84ef2394b45a6b28f5eec35861, type: 3}
+  rigChildName: 
+  useRigChildToggle: 0

@@ -633,7 +633,7 @@ public class RogueLiteManager : MonoBehaviour
 
     private static Canvas FindMainUiCanvas()
     {
-        Canvas[] canvases = Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+        Canvas[] canvases = Object.FindObjectsByType<Canvas>();
         foreach (var canvas in canvases)
         {
             if (canvas != null && canvas.gameObject.name.Contains("MainUI", System.StringComparison.OrdinalIgnoreCase))

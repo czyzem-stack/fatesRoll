@@ -4,7 +4,8 @@ public enum POIType
 {
     Orc,
     Skeleton,
-    Slime
+    Slime,
+    TreasureChest
 }
 
 public class POINode : MonoBehaviour
@@ -18,6 +19,19 @@ public class POINode : MonoBehaviour
     [Tooltip("Optional tuning asset; overrides default Enemy stats when set.")]
     public EnemyData enemyData;
 
+    [Header("Treasure chest")]
+    [Tooltip("When true (or type is TreasureChest), defeat opens equipment loot instead of coin celebration.")]
+    public bool isTreasureChest;
+
+    [Tooltip("-1 = random weapon vs armor roll. 0+ marks this POI for FTUE sequencing in EquipmentLootManager.")]
+    public int ftueLootIndex = -1;
+
+    [Tooltip("Optional forced A/B picks for tutorial chests (leave empty for random).")]
+    public EquipmentItemDefinition ftueForcedOptionA;
+    public EquipmentItemDefinition ftueForcedOptionB;
+
+    public bool IsTreasureChest => isTreasureChest || type == POIType.TreasureChest;
+
     void Awake()
     {
         gameObject.tag = "POI";
@@ -29,6 +43,9 @@ public class POINode : MonoBehaviour
         {
             POIManager.Instance.RegisterPOI(this);
         }
+
+        if (IsTreasureChest && currentVisual != null)
+            PoiVisualPlacer.PlaceTreasureChestVisual(transform, currentVisual);
 
         // Visuals should already be present from Editor or Spawn
         InitializeEnemy();

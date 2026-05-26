@@ -24,6 +24,12 @@ public class PlayerStats : MonoBehaviour
     [Header("Current State")]
     public float currentHP;
 
+    [Header("Equipment bonuses (applied by HeroEquipment)")]
+    [SerializeField] private float equipmentStrength;
+    [SerializeField] private float equipmentAgility;
+    [SerializeField] private float equipmentVitality;
+    [SerializeField] private float equipmentLuck;
+
     // Derived Stats (Secondary)
     [Header("Derived Stats (Read-Only)")]
     [SerializeField] private float maxHP;
@@ -74,31 +80,38 @@ public class PlayerStats : MonoBehaviour
     /// Calculates all secondary stats based on the core primary stats.
     /// This clearly shows how secondary stats are derived from core base stats.
     /// </summary>
+    public void SetEquipmentBonuses(float str, float agi, float vit, float luckBonus)
+    {
+        equipmentStrength = str;
+        equipmentAgility = agi;
+        equipmentVitality = vit;
+        equipmentLuck = luckBonus;
+    }
+
     public void CalculateAllDerivedStats()
     {
+        float effStr = strength + equipmentStrength;
+        float effAgi = agility + equipmentAgility;
+        float effVit = vitality + equipmentVitality;
+        float effLuck = luck + equipmentLuck;
+
         // Max HP = Vitality * 10 + 100
-        // Vitality controls health and endurance
-        maxHP = vitality * 10f + 100f;
+        maxHP = effVit * 10f + 100f;
 
         // Attack Damage = Strength * 4 + 20
-        // Strength increases physical power
-        attackDamage = strength * 4f + 20f;
+        attackDamage = effStr * 4f + 20f;
 
         // Attack Speed = 1.0 + (Agility * 0.03)
-        // Agility improves speed and reflexes
-        attackSpeed = 1.0f + (agility * 0.03f);
+        attackSpeed = 1.0f + (effAgi * 0.03f);
 
         // Crit Chance (%) = Luck * 0.8
-        // Luck affects critical hit probability
-        critChance = luck * 0.8f;
+        critChance = effLuck * 0.8f;
 
         // Crit Damage (%) = 50 + (Luck * 1.5)
-        // Luck also makes those critical strikes more powerful
         critDamage = 50f + (luck * 1.5f);
 
         // Dodge Chance (%) = Agility * 0.6
-        // Agility improves evasion
-        dodgeChance = agility * 0.6f;
+        dodgeChance = effAgi * 0.6f;
 
         // Ensure current HP doesn't exceed new Max HP
         if (currentHP > maxHP) currentHP = maxHP;

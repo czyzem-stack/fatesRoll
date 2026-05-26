@@ -11,9 +11,17 @@ public class HeroController : MonoBehaviour
 
     private bool isCelebrating = false;
     public bool IsCelebrating => isCelebrating;
+    public bool IsBlockedForDice =>
+        isCelebrating ||
+        (RogueLiteManager.Instance != null && RogueLiteManager.Instance.IsRewardFlowActive) ||
+        (EquipmentLootManager.Instance != null && EquipmentLootManager.Instance.IsRewardFlowActive);
     public float LevelUpCelebrationSeconds => 2.7f;
 
     private Coroutine celebrationRoutine;
+    private bool visualYawFixApplied;
+
+    [Tooltip("Extra Y rotation on the MC02 visual after auto-align (tune if still sideways).")]
+    [SerializeField] private float extraVisualYawDegrees;
 
     private PlayerStats stats;
     private bool inCombat = false;
@@ -34,6 +42,19 @@ public class HeroController : MonoBehaviour
 
     public bool IsEngageBusy => engageRoutine != null;
 
+    /// <summary>Align MC02 mesh forward with NavMeshAgent facing (call after rig swap).</summary>
+    public void ApplyVisualLocomotionAlignment()
+    {
+        if (animator == null)
+            animator = GetComponentInChildren<Animator>();
+        if (animator == null)
+            return;
+
+        visualYawFixApplied = false;
+        HeroLocomotionUtility.AlignVisualToAgentForward(
+            transform, animator, ref visualYawFixApplied, extraVisualYawDegrees);
+    }
+
     void Start()
     {
         agent = GetComponent<NavMeshAgent>();
@@ -50,10 +71,23 @@ public class HeroController : MonoBehaviour
         }
 
         animator = GetComponentInChildren<Animator>();
-        if (animator != null) animator.applyRootMotion = false;
 
         stats = GetComponent<PlayerStats>();
         if (stats == null) stats = gameObject.AddComponent<PlayerStats>();
+
+        if (GetComponent<HeroEquipment>() == null)
+            gameObject.AddComponent<HeroEquipment>();
+
+        var weaponStance = GetComponent<HeroWeaponStance>();
+        if (weaponStance == null)
+            weaponStance = gameObject.AddComponent<HeroWeaponStance>();
+        weaponStance.Initialize();
+
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
+            ApplyVisualLocomotionAlignment();
+        }
         
         AutoAssignHealthUI();
 
@@ -173,17 +207,17 @@ public class HeroController : MonoBehaviour
             if (animator.applyRootMotion) animator.applyRootMotion = false;
             if (isCelebrating || IsEngageBusy || (inCombat && !isMoving))
             {
-                animator.SetFloat("Speed", 0f, 0.15f, Time.deltaTime);
+                HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f, 0.15f, Time.deltaTime);
             }
             else if (isMoving)
             {
                 float animatorSpeed = Mathf.Max(agent.velocity.magnitude, 2.0f);
-                animator.SetFloat("Speed", animatorSpeed, 0.15f, Time.deltaTime);
+                HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, animatorSpeed, 0.15f, Time.deltaTime);
             }
             else
             {
                 float animatorSpeed = agent.velocity.magnitude < 0.35f ? 0f : agent.velocity.magnitude;
-                animator.SetFloat("Speed", animatorSpeed, 0.15f, Time.deltaTime);
+                HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, animatorSpeed, 0.15f, Time.deltaTime);
             }
         }
 
@@ -401,8 +435,8 @@ public class HeroController : MonoBehaviour
 
         if (animator != null)
         {
-            animator.ResetTrigger("Attack");
-            animator.SetTrigger("Attack");
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
         }
 
         yield return new WaitForSeconds(settings != null ? settings.combatHeroHitDelay : 0.22f);
@@ -604,7 +638,9 @@ public class HeroController : MonoBehaviour
 
         if (animator != null)
         {
-            animator.ResetTrigger("Throw"); animator.ResetTrigger("Attack"); animator.ResetTrigger("GetHit");
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Throw);
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.GetHit);
         }
 
     }
@@ -642,14 +678,15 @@ public class HeroController : MonoBehaviour
             if (stats.currentHP <= 0)
             {
                 CombatLog.Death("Steve");
-                if (animator != null) animator.SetTrigger("Die");
+                HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Die);
             }
-            else if (animator != null) animator.SetTrigger("GetHit");
+            else
+                HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.GetHit);
         }
         return tookDamage;
     }
 
-    public void VictoryFlourish() { if (animator != null) animator.SetTrigger("Victory"); }
+    public void VictoryFlourish() { HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Victory); }
 
     public void PlayLevelUpCelebration()
     {
@@ -678,9 +715,9 @@ public class HeroController : MonoBehaviour
 
         if (animator != null)
         {
-            animator.SetFloat("Speed", 0f);
-            animator.ResetTrigger("LevelUp");
-            animator.SetTrigger("LevelUp");
+            HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f);
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
         }
 
         if (celebrationRoutine != null) StopCoroutine(celebrationRoutine);
@@ -693,6 +730,42 @@ public class HeroController : MonoBehaviour
 
         if (RogueLiteManager.Instance != null)
             yield return RogueLiteManager.Instance.RunPostCelebrationRewards();
+
+        isCelebrating = false;
+        celebrationRoutine = null;
+    }
+
+    public void PlayChestRewardCelebration()
+    {
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+
+        isCelebrating = true;
+        isMoving = false;
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+
+        if (animator != null)
+        {
+            HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f);
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
+        }
+
+        if (celebrationRoutine != null) StopCoroutine(celebrationRoutine);
+        celebrationRoutine = StartCoroutine(ChestRewardCelebrationRoutine());
+    }
+
+    private IEnumerator ChestRewardCelebrationRoutine()
+    {
+        yield return new WaitForSeconds(LevelUpCelebrationSeconds);
+
+        if (EquipmentLootManager.Instance != null)
+            yield return EquipmentLootManager.Instance.RunChestRewards();
 
         isCelebrating = false;
         celebrationRoutine = null;

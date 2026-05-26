@@ -2,9 +2,15 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using System.Collections;
 using System.Collections.Generic;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 public class DiceSpawner : MonoBehaviour
 {
+    private const string DefaultD6PrefabPath = "Assets/Dice/Prefabs/Dice_d6.prefab";
+    private const string D6ResourcesPath = "Dice/Dice_d6";
+
     public GameObject d6Prefab;
     public Transform spawnPoint;
     [Tooltip("Impulse scale for dice throw (horizontal component).")]
@@ -26,6 +32,32 @@ public class DiceSpawner : MonoBehaviour
     public TMPro.TextMeshProUGUI autoRollText;
     public Color autoRollActiveColor = Color.cyan;
     public Color autoRollInactiveColor = Color.white;
+
+    private void Awake()
+    {
+        EnsureReferences();
+    }
+
+    /// <summary>Assigns default d6 prefab and spawn point when Inspector references are missing.</summary>
+    public void EnsureReferences()
+    {
+        if (spawnPoint == null)
+            spawnPoint = transform;
+
+        if (d6Prefab != null)
+            return;
+
+#if UNITY_EDITOR
+        d6Prefab = AssetDatabase.LoadAssetAtPath<GameObject>(DefaultD6PrefabPath);
+#endif
+        if (d6Prefab == null)
+            d6Prefab = Resources.Load<GameObject>(D6ResourcesPath);
+
+        if (d6Prefab == null)
+            GlobalSettings.LogGameplayWarning(
+                "DiceSpawner: d6Prefab is not assigned. Use FatesRoll → Dice → Fix Dice Spawner In Scene, " +
+                $"or assign {DefaultD6PrefabPath}.");
+    }
 
     public void ToggleAutoRoll()
     {
@@ -126,7 +158,7 @@ public class DiceSpawner : MonoBehaviour
                     // During combat, Steve is already in a battle stance; we just spawn the dice.
                     if (!hero.InCombat)
                     {
-                        anim.SetTrigger("Throw");
+                        HeroAnimatorParams.SetTriggerSafe(anim, HeroAnimatorParams.Throw);
                         // Wait for the animation to reach the "throw" point
                         yield return new WaitForSeconds(0.2f);
                     }
@@ -141,9 +173,13 @@ public class DiceSpawner : MonoBehaviour
             }
             activeDice.Clear();
 
-            if (d6Prefab == null || spawnPoint == null) 
+            EnsureReferences();
+
+            if (d6Prefab == null)
             {
-                Debug.LogError("DiceSpawner: Prefab or SpawnPoint is NULL!");
+                Debug.LogError(
+                    $"DiceSpawner: d6Prefab is missing. Assign {DefaultD6PrefabPath} on DiceSpawner, " +
+                    "or run FatesRoll → Dice → Fix Dice Spawner In Scene.");
                 yield break;
             }
 
@@ -278,7 +314,7 @@ public class DiceSpawner : MonoBehaviour
 
                         if (levelsGained > 0)
                         {
-                            while (hero.IsCelebrating)
+                            while (hero.IsBlockedForDice)
                                 yield return null;
                         }
                         else
@@ -328,7 +364,7 @@ public class DiceSpawner : MonoBehaviour
                     int levelsGained = LevelManager.Instance.AddXP(total);
                     if (levelsGained > 0)
                     {
-                        while (hero.IsCelebrating)
+                        while (hero.IsBlockedForDice)
                             yield return null;
                     }
                 }

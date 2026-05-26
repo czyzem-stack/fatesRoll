@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b799e3af5cd424a904a51a6faea4e0, type: 3}
+  m_Name: Wand03
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
+  itemId: Wand03
+  displayName: Wand03
+  slot: 0
+  chestCategory: 0
+  visualPrefab: {fileID: 7112451126930258141, guid: af3e1859fd1294d4f95d562b68ebf2a8, type: 3}
+  rigChildName: 
+  useRigChildToggle: 0

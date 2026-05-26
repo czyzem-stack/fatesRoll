@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b799e3af5cd424a904a51a6faea4e0, type: 3}
+  m_Name: Head04_Red
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
+  itemId: Head04_Red
+  displayName: Head04 Red
+  slot: 2
+  chestCategory: 1
+  visualPrefab: {fileID: 638456201653107473, guid: 9f9fdc7582d8cc34d8f4da802e5dbfff, type: 3}
+  rigChildName: 
+  useRigChildToggle: 0

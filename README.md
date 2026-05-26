@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.060` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.061` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.061** | Add level-up roguelite reward popup with configurable stat offers |
 | **v0.0.060** | Add title screen logo sprites under Assets/Sprites |
 | **v0.0.059** | Add title loading screen with tap-to-start flow and editor setup |
 | **v0.0.058** | Add LootManager to main play scene |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.029** | Sync README version and changelog for v0.0.028. |
 | **v0.0.028** | Animation fixes for orc combat, movement, and facing. |
 | **v0.0.027** | Sync README version and changelog after v0.0.026. |
-| **v0.0.026** | Fix dice DieResult null checks and add architecture documentation. |
 <!-- CHANGELOG:END -->
 
 ---

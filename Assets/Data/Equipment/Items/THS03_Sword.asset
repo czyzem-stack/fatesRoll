@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b7b799e3af5cd424a904a51a6faea4e0, type: 3}
+  m_Name: THS03_Sword
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
+  itemId: THS03_Sword
+  displayName: THS03 Sword
+  slot: 0
+  chestCategory: 0
+  visualPrefab: {fileID: 1782321585234056914, guid: 07d3abef60deba84a9298a7bde5f4191, type: 3}
+  rigChildName: 
+  useRigChildToggle: 0

@@ -135,32 +135,12 @@ public class Enemy : MonoBehaviour
         agent.avoidancePriority = avoidancePriority;
         agent.updateRotation = true;
 
-        ApplyVisualLocomotionFix();
+        HeroLocomotionUtility.ApplyVisualYawFix(transform, animator, ref visualYawFixApplied);
         CalculateDerivedStats();
         currentHP = maxHP;
         spawnPosition = transform.position;
 
         UpdateHealthUI();
-    }
-
-    /// <summary>Bake 180° yaw on the visual rig once so NavMeshAgent can own rotation (no per-frame fighting).</summary>
-    private void ApplyVisualLocomotionFix()
-    {
-        if (visualYawFixApplied || animator == null) return;
-
-        Transform visualRoot = animator.transform;
-        while (visualRoot.parent != null && visualRoot.parent != transform)
-            visualRoot = visualRoot.parent;
-
-        Vector3 animForward = visualRoot.forward;
-        animForward.y = 0f;
-        if (animForward.sqrMagnitude < 0.01f) return;
-        animForward.Normalize();
-
-        if (Vector3.Dot(animForward, transform.forward) < 0f)
-            visualRoot.localRotation *= Quaternion.Euler(0f, 180f, 0f);
-
-        visualYawFixApplied = true;
     }
 
     public void InitializeFromData(EnemyData data)
@@ -525,9 +505,21 @@ public class Enemy : MonoBehaviour
             animator.SetBool("InCombat", false);
         }
 
-        if (LootManager.Instance != null)
+        var poi = GetComponentInParent<POINode>();
+        bool treasureChest = poi != null && poi.IsTreasureChest;
+
+        if (!treasureChest && LootManager.Instance != null)
             LootManager.Instance.OnEnemyDied(this);
-        
+
+        if (treasureChest)
+        {
+            if (EquipmentLootManager.Instance != null)
+                EquipmentLootManager.Instance.EnqueueChestReward(poi);
+
+            if (cachedHero != null)
+                cachedHero.PlayChestRewardCelebration();
+        }
+
         gameObject.tag = "Untagged";
         if (healthSlider != null) healthSlider.gameObject.SetActive(false);
 
