@@ -221,11 +221,12 @@ public class EquipmentLootManager : MonoBehaviour
         optionB = null;
         float bonus = GetCurrentStatBonusPerRoll();
         int tier = chestsOpenedCount;
+        var heroEquip = FindHeroEquipment();
 
         if (request.forcedA != null)
-            optionA = CreateInstance(request.forcedA, bonus, tier);
+            optionA = CreateInstance(request.forcedA, bonus, tier, heroEquip?.GetReferenceForItemDefinition(request.forcedA));
         if (request.forcedB != null)
-            optionB = CreateInstance(request.forcedB, bonus, tier);
+            optionB = CreateInstance(request.forcedB, bonus, tier, heroEquip?.GetReferenceForItemDefinition(request.forcedB));
 
         if (optionA != null && optionB != null)
             return true;
@@ -272,7 +273,8 @@ public class EquipmentLootManager : MonoBehaviour
         List<EquipmentItemDefinition> pool,
         float bonus,
         int tier,
-        EquipmentItemDefinition exclude = null)
+        EquipmentItemDefinition exclude = null,
+        EquipmentInstance upgradeFrom = null)
     {
         if (pool == null || pool.Count == 0)
             return null;
@@ -288,12 +290,19 @@ public class EquipmentLootManager : MonoBehaviour
             return null;
 
         var pick = candidates[Random.Range(0, candidates.Count)];
-        return CreateInstance(pick, bonus, tier);
+        EquipmentInstance reference = upgradeFrom ?? FindHeroEquipment()?.GetReferenceForItemDefinition(pick);
+        return CreateInstance(pick, bonus, tier, reference);
     }
 
-    private static EquipmentInstance CreateInstance(EquipmentItemDefinition def, float bonus, int tier)
+    private static EquipmentInstance CreateInstance(
+        EquipmentItemDefinition def,
+        float bonus,
+        int tier,
+        EquipmentInstance upgradeFrom = null)
     {
-        var rolled = EquipmentStatRoller.RollTwoOfFour(bonus);
+        var rolled = upgradeFrom != null
+            ? EquipmentStatRoller.RollTwoOfFourUpgradeFrom(upgradeFrom, bonus)
+            : EquipmentStatRoller.RollTwoOfFour(bonus);
         return new EquipmentInstance(def, rolled, tier);
     }
 

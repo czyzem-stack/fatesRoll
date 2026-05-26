@@ -34,6 +34,7 @@ public class HeroController : MonoBehaviour
     private LineRenderer fullPathLine;
 
     private GameObject currentTarget;
+    private GameObject lockedMovementTarget;
     private Enemy approachingEnemy;
     public Enemy ApproachingEnemy => approachingEnemy;
     private int nextPOIOrder = 0;
@@ -211,13 +212,21 @@ public class HeroController : MonoBehaviour
             }
             else if (isMoving)
             {
-                float animatorSpeed = Mathf.Max(agent.velocity.magnitude, 2.0f);
-                HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, animatorSpeed, 0.15f, Time.deltaTime);
+                HeroAnimatorParams.SetFloatSafe(
+                    animator,
+                    HeroAnimatorParams.Speed,
+                    ComputeHeroLocomotionSpeed(agent),
+                    0.15f,
+                    Time.deltaTime);
             }
             else
             {
-                float animatorSpeed = agent.velocity.magnitude < 0.35f ? 0f : agent.velocity.magnitude;
-                HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, animatorSpeed, 0.15f, Time.deltaTime);
+                HeroAnimatorParams.SetFloatSafe(
+                    animator,
+                    HeroAnimatorParams.Speed,
+                    ComputeHeroLocomotionSpeed(agent),
+                    0.15f,
+                    Time.deltaTime);
             }
         }
 
@@ -270,11 +279,29 @@ public class HeroController : MonoBehaviour
                 {
                     var poi = target.GetComponent<POINode>() ?? target.GetComponentInParent<POINode>();
                     OnPOIDefeated(poi);
-                    if (POIManager.Instance != null)
-                        POIManager.Instance.ResolvePOI(target);
+                    POIResolve.Resolve(target);
                 }
             }
         }
+    }
+
+    private static float ComputeHeroLocomotionSpeed(NavMeshAgent navAgent)
+    {
+        if (navAgent == null || !navAgent.isOnNavMesh)
+            return 0f;
+
+        if (!navAgent.pathPending &&
+            navAgent.remainingDistance <= navAgent.stoppingDistance + 0.2f)
+            return 0f;
+
+        float speed = navAgent.velocity.magnitude;
+        if (speed < 0.35f)
+            return 0f;
+        if (speed < 1.2f)
+            return 1f;
+        if (speed > 3.5f)
+            return 2f;
+        return speed;
     }
 
     private static Enemy GetEnemyFromTarget(GameObject target)
@@ -316,8 +343,14 @@ public class HeroController : MonoBehaviour
     {
         currentTarget = null;
         approachingEnemy = null;
-        if (node != null)
-            nextPOIOrder = Mathf.Max(nextPOIOrder, node.order + 1);
+        lockedMovementTarget = null;
+        if (node == null) return;
+
+        nextPOIOrder = Mathf.Max(nextPOIOrder, node.order + 1);
+
+        var pm = POIManager.Instance;
+        if (pm != null && !pm.HasRemainingVisitPOI(node))
+            pm.TryEnableRandomVisitTargeting();
     }
 
     private void AdvancePastEnemyPOI(Enemy enemy)
@@ -326,17 +359,19 @@ public class HeroController : MonoBehaviour
         OnPOIDefeated(enemy.GetComponentInParent<POINode>());
     }
 
-    private bool IsCurrentTargetUsable()
+    private bool IsTargetUsable(GameObject target)
     {
-        if (currentTarget == null) return false;
-        var poi = currentTarget.GetComponent<POINode>();
-        if (poi == null) poi = currentTarget.GetComponentInParent<POINode>();
-        if (poi == null) return false;
+        if (target == null) return false;
 
-        var enemy = GetEnemyFromTarget(currentTarget);
-        if (enemy != null && enemy.isDead) return false;
-        return true;
+        var enemy = GetEnemyFromTarget(target);
+        if (enemy != null)
+            return !enemy.isDead;
+
+        var poi = target.GetComponent<POINode>() ?? target.GetComponentInParent<POINode>();
+        return poi != null;
     }
+
+    private bool IsCurrentTargetUsable() => IsTargetUsable(currentTarget);
 
     /// <summary>POI enemy Steve is walking toward (or last target).</summary>
     public Enemy GetPendingCombatEnemy()
@@ -351,6 +386,12 @@ public class HeroController : MonoBehaviour
         if (enemy == null || enemy.isDead || IsEngageBusy || inCombat)
             return false;
 
+        if (enemy.IsTreasureChest)
+        {
+            enemy.OpenTreasureChest();
+            return false;
+        }
+
         if (!IsWithinMeleeEngageRange(enemy, 0.35f))
         {
             CombatLog.Info($"Steve {DistanceToEnemy(enemy):F1}m out of fight range (engage {MeleeEngageDistance:F1}m) — roll again to close");
@@ -363,7 +404,7 @@ public class HeroController : MonoBehaviour
 
         approachingEnemy = null;
         currentTarget = null;
-        AdvancePastEnemyPOI(enemy);
+        lockedMovementTarget = null;
 
         if (agent != null && agent.isOnNavMesh)
         {
@@ -385,6 +426,7 @@ public class HeroController : MonoBehaviour
     private void OnArrivedNearEnemy(Enemy enemy)
     {
         approachingEnemy = null;
+        lockedMovementTarget = null;
         isMoving = false;
         if (agent != null && agent.isOnNavMesh)
         {
@@ -398,6 +440,12 @@ public class HeroController : MonoBehaviour
         if (enemy == null || enemy.isDead)
         {
             AdvancePastEnemyPOI(enemy);
+            return;
+        }
+
+        if (enemy.IsTreasureChest)
+        {
+            enemy.OpenTreasureChest();
             return;
         }
 
@@ -505,6 +553,7 @@ public class HeroController : MonoBehaviour
     {
         isMoving = false;
         approachingEnemy = null;
+        lockedMovementTarget = null;
         if (agent != null && agent.isOnNavMesh)
         {
             agent.isStopped = true;
@@ -533,13 +582,26 @@ public class HeroController : MonoBehaviour
             else return;
         }
 
-        if (!IsCurrentTargetUsable())
-            currentTarget = null;
+        bool finishCurrentRoute = isMoving && lockedMovementTarget != null && IsTargetUsable(lockedMovementTarget);
 
-        if (currentTarget == null && POIManager.Instance != null)
-            currentTarget = POIManager.Instance.GetPOIByOrder(nextPOIOrder);
+        if (finishCurrentRoute)
+        {
+            currentTarget = lockedMovementTarget;
+            if (approachingEnemy == null)
+                approachingEnemy = GetEnemyFromTarget(currentTarget);
+        }
+        else
+        {
+            if (!IsCurrentTargetUsable())
+                currentTarget = null;
+
+            if (currentTarget == null && POIManager.Instance != null)
+                currentTarget = POIManager.Instance.GetNextPOITarget(nextPOIOrder);
+        }
 
         if (currentTarget == null) return;
+
+        lockedMovementTarget = currentTarget;
 
         Enemy enemy = GetEnemyFromTarget(currentTarget);
         Vector3 pathGoal = enemy != null
@@ -735,12 +797,15 @@ public class HeroController : MonoBehaviour
         celebrationRoutine = null;
     }
 
-    public void PlayChestRewardCelebration()
+    public void PlayChestRewardCelebration(bool instantOpen = false)
     {
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
         isCelebrating = true;
         isMoving = false;
+        lockedMovementTarget = null;
+        currentTarget = null;
+        approachingEnemy = null;
 
         if (agent != null && agent.isOnNavMesh)
         {
@@ -749,7 +814,7 @@ public class HeroController : MonoBehaviour
             agent.velocity = Vector3.zero;
         }
 
-        if (animator != null)
+        if (animator != null && !instantOpen)
         {
             HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f);
             HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
@@ -757,12 +822,13 @@ public class HeroController : MonoBehaviour
         }
 
         if (celebrationRoutine != null) StopCoroutine(celebrationRoutine);
-        celebrationRoutine = StartCoroutine(ChestRewardCelebrationRoutine());
+        celebrationRoutine = StartCoroutine(ChestRewardCelebrationRoutine(instantOpen));
     }
 
-    private IEnumerator ChestRewardCelebrationRoutine()
+    private IEnumerator ChestRewardCelebrationRoutine(bool instantOpen)
     {
-        yield return new WaitForSeconds(LevelUpCelebrationSeconds);
+        if (!instantOpen)
+            yield return new WaitForSeconds(LevelUpCelebrationSeconds);
 
         if (EquipmentLootManager.Instance != null)
             yield return EquipmentLootManager.Instance.RunChestRewards();

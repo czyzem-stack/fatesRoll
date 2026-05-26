@@ -49,4 +49,10 @@ public static class HeroAnimatorParams
         if (HasParameter(animator, name))
             animator.ResetTrigger(name);
     }
+
+    public static void SetBoolSafe(Animator animator, string name, bool value)
+    {
+        if (HasParameter(animator, name))
+            animator.SetBool(name, value);
+    }
 }

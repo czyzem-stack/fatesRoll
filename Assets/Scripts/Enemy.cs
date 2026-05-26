@@ -53,13 +53,25 @@ public class Enemy : MonoBehaviour
     private bool navHeld;
     private bool combatNavLocked;
     private bool visualYawFixApplied;
+    private MonsterLocomotionDriver locomotionDriver;
 
     private Camera mainCamera;
+
+    public bool IsTreasureChest
+    {
+        get
+        {
+            var poi = GetComponent<POINode>() ?? GetComponentInParent<POINode>();
+            return poi != null && poi.IsTreasureChest;
+        }
+    }
 
     private void Start()
     {
         Initialize();
         cachedHero = Object.FindAnyObjectByType<HeroController>();
+        if (IsTreasureChest)
+            ConfigureAsTreasureChest();
         SetHealthBarVisible(false);
         mainCamera = Camera.main;
     }
@@ -69,6 +81,8 @@ public class Enemy : MonoBehaviour
         if (isDead) return;
 
         if (!Application.isPlaying) return;
+
+        if (IsTreasureChest) return;
 
         HandleAI();
         UpdateAnimation();
@@ -101,9 +115,20 @@ public class Enemy : MonoBehaviour
     {
         if (animator == null) return;
 
+        if (locomotionDriver != null && locomotionDriver.UsesStatePlay)
+        {
+            bool inCombat = cachedHero != null && IsFightingHero(cachedHero);
+            float agentSpeed = 0f;
+            if (!navHeld && !isAttacking && !inCombat && IsLocomoting())
+                agentSpeed = agent.velocity.magnitude;
+
+            locomotionDriver.UpdateLocomotion(agentSpeed, inCombat, isAttacking);
+            return;
+        }
+
         if (navHeld || isAttacking || (cachedHero != null && IsFightingHero(cachedHero)))
         {
-            animator.SetFloat("Speed", 0f, 0.15f, Time.deltaTime);
+            HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f, 0.15f, Time.deltaTime);
             return;
         }
 
@@ -116,13 +141,17 @@ public class Enemy : MonoBehaviour
             else if (speed > 3.5f) speed = 2f;
         }
 
-        animator.SetFloat("Speed", speed, 0.2f, Time.deltaTime);
+        HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, speed, 0.2f, Time.deltaTime);
     }
 
     public void Initialize()
     {
         animator = GetComponentInChildren<Animator>();
-        if (animator != null) animator.applyRootMotion = false;
+        if (animator != null)
+        {
+            animator.applyRootMotion = false;
+            EnsureGameplayAnimator();
+        }
 
         agent = GetComponent<NavMeshAgent>();
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
@@ -141,6 +170,51 @@ public class Enemy : MonoBehaviour
         spawnPosition = transform.position;
 
         UpdateHealthUI();
+    }
+
+    private POIType ResolveMonsterType()
+    {
+        var poi = GetComponent<POINode>() ?? GetComponentInParent<POINode>();
+        if (poi != null)
+            return poi.type;
+
+        var spawnNode = GetComponentInParent<SpawnNode>();
+        if (spawnNode != null && spawnNode.hasSpawnedType)
+            return spawnNode.lastSpawnedType;
+
+        return POIType.Orc;
+    }
+
+    private void EnsureGameplayAnimator()
+    {
+        if (IsTreasureChest || animator == null)
+            return;
+
+        POIType type = ResolveMonsterType();
+        var catalog = MonsterAnimatorUtility.ResolveCatalog();
+
+        MonsterAnimatorUtility.ApplyToVisual(animator.gameObject, type, catalog);
+        animator = GetComponentInChildren<Animator>();
+
+        locomotionDriver = GetComponent<MonsterLocomotionDriver>();
+        if (locomotionDriver == null)
+            locomotionDriver = gameObject.AddComponent<MonsterLocomotionDriver>();
+        locomotionDriver.Bind(type, animator);
+    }
+
+    /// <summary>Re-enable a pooled POI enemy after the POI was deactivated.</summary>
+    public void ResetForSpawn()
+    {
+        isDead = false;
+        isAttacking = false;
+        navHeld = false;
+        combatNavLocked = false;
+        currentPatrolPoints = 0;
+        nextPatrolTime = Time.time + 1f;
+
+        Initialize();
+        SetHealthBarVisible(true);
+        cachedHero = Object.FindAnyObjectByType<HeroController>();
     }
 
     public void InitializeFromData(EnemyData data)
@@ -304,8 +378,7 @@ public class Enemy : MonoBehaviour
 
         bool isEngaged = IsFightingHero(cachedHero);
 
-        if (animator != null)
-            animator.SetBool("InCombat", isEngaged);
+        HeroAnimatorParams.SetBoolSafe(animator, "InCombat", isEngaged);
 
         if (isEngaged)
         {
@@ -343,7 +416,10 @@ public class Enemy : MonoBehaviour
                 if (currentPatrolPoints >= patrolPointsBeforeTaunt)
                 {
                     currentPatrolPoints = 0;
-                    StartCoroutine(TauntRoutine());
+                    if (CanPlayTaunt())
+                        StartCoroutine(TauntRoutine());
+                    else
+                        nextPatrolTime = Time.time + Random.Range(1f, 3f);
                     return;
                 }
 
@@ -359,15 +435,22 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    private bool CanPlayTaunt()
+    {
+        if (locomotionDriver != null && locomotionDriver.UsesStatePlay)
+            return locomotionDriver.HasTauntState;
+        return animator != null;
+    }
+
     private System.Collections.IEnumerator TauntRoutine()
     {
         isAttacking = true;
         LockCombatNavigation();
 
-        if (animator != null)
-        {
-            animator.SetTrigger("Taunting");
-        }
+        if (locomotionDriver != null)
+            locomotionDriver.PlayTaunt();
+        else
+            HeroAnimatorParams.SetTriggerSafe(animator, "Taunting");
 
         // Wait for taunt animation to finish (approx 2s)
         yield return new WaitForSeconds(2.2f);
@@ -452,8 +535,68 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    public void ConfigureAsTreasureChest()
+    {
+        strength = 1f;
+        agility = 1f;
+        vitality = 9999f;
+        luck = 1f;
+        patrolRadius = 0f;
+        patrolSpeed = 0f;
+        attackDamage = 0f;
+        CalculateDerivedStats();
+        currentHP = maxHP;
+
+        if (agent == null) agent = GetComponent<NavMeshAgent>();
+        if (agent != null)
+        {
+            agent.speed = 0f;
+            agent.angularSpeed = 0f;
+        }
+
+        SetHealthBarVisible(false);
+    }
+
+    /// <summary>Steve reached the chest — open immediately (no combat).</summary>
+    public void OpenTreasureChest()
+    {
+        if (isDead || !IsTreasureChest) return;
+
+        var poi = GetComponent<POINode>() ?? GetComponentInParent<POINode>();
+        if (poi == null) return;
+
+        isDead = true;
+        currentHP = 0;
+        isAttacking = false;
+        UnlockCombatNavigation();
+        gameObject.tag = "Untagged";
+        SetHealthBarVisible(false);
+
+        if (EquipmentLootManager.Instance != null)
+            EquipmentLootManager.Instance.EnqueueChestReward(poi);
+
+        if (cachedHero == null)
+            cachedHero = Object.FindAnyObjectByType<HeroController>();
+
+        if (cachedHero != null)
+        {
+            cachedHero.ExitCombat();
+            if (poi.GetComponentInParent<SpawnNode>() == null)
+                cachedHero.OnPOIDefeated(poi);
+            cachedHero.PlayChestRewardCelebration(instantOpen: true);
+        }
+
+        POIResolve.Resolve(gameObject);
+    }
+
     public bool TakeDamage(float amount, string attackerName = "Steve")
     {
+        if (IsTreasureChest)
+        {
+            OpenTreasureChest();
+            return true;
+        }
+
         if (isDead || currentHP <= 0) return false;
 
         float dodgeRoll = Random.Range(0f, 100f);
@@ -484,10 +627,10 @@ public class Enemy : MonoBehaviour
             CombatLog.Death(gameObject.name);
             Die();
         }
-        else if (animator != null)
-        {
-            animator.SetTrigger("GetHit");
-        }
+        else if (locomotionDriver != null)
+            locomotionDriver.PlayGetHit();
+        else
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.GetHit);
 
         return true;
     }
@@ -495,30 +638,28 @@ public class Enemy : MonoBehaviour
     private void Die()
     {
         if (isDead) return;
+
+        if (IsTreasureChest)
+        {
+            OpenTreasureChest();
+            return;
+        }
+
         isDead = true;
         UnlockCombatNavigation();
 
-        if (animator != null)
+        if (locomotionDriver != null)
+            locomotionDriver.PlayDie();
+        else
         {
-            animator.SetTrigger("Die");
-            animator.SetBool("IsDead", true);
-            animator.SetBool("InCombat", false);
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Die);
+            HeroAnimatorParams.SetBoolSafe(animator, "IsDead", true);
         }
 
-        var poi = GetComponentInParent<POINode>();
-        bool treasureChest = poi != null && poi.IsTreasureChest;
+        HeroAnimatorParams.SetBoolSafe(animator, "InCombat", false);
 
-        if (!treasureChest && LootManager.Instance != null)
+        if (LootManager.Instance != null)
             LootManager.Instance.OnEnemyDied(this);
-
-        if (treasureChest)
-        {
-            if (EquipmentLootManager.Instance != null)
-                EquipmentLootManager.Instance.EnqueueChestReward(poi);
-
-            if (cachedHero != null)
-                cachedHero.PlayChestRewardCelebration();
-        }
 
         gameObject.tag = "Untagged";
         if (healthSlider != null) healthSlider.gameObject.SetActive(false);
@@ -529,14 +670,7 @@ public class Enemy : MonoBehaviour
             cachedHero.OnPOIDefeated(GetComponentInParent<POINode>());
         }
 
-        if (POIManager.Instance != null)
-        {
-            StartCoroutine(DelayedResolve(POIManager.Instance));
-        }
-        else
-        {
-            Destroy(gameObject, 2.5f);
-        }
+        StartCoroutine(DelayedResolvePoi());
     }
 
     private void OnDestroy()
@@ -547,14 +681,15 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    private System.Collections.IEnumerator DelayedResolve(POIManager pm)
+    private System.Collections.IEnumerator DelayedResolvePoi()
     {
         yield return new WaitForSeconds(2.0f);
-        pm.ResolvePOI(gameObject);
+        POIResolve.Resolve(gameObject);
     }
 
     public void PerformAttack(HeroController hero)
     {
+        if (IsTreasureChest) return;
         if (isDead || currentHP <= 0) return;
         if (isAttacking) return;
         isAttacking = true;
@@ -583,10 +718,12 @@ public class Enemy : MonoBehaviour
         yield return new WaitForSeconds(windUp);
         if (isDead || hero == null) { isAttacking = false; yield break; }
 
-        if (animator != null)
+        if (locomotionDriver != null)
+            locomotionDriver.PlayAttack();
+        else
         {
-            animator.ResetTrigger("Attack");
-            animator.SetTrigger("Attack");
+            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
         }
 
         yield return new WaitForSeconds(hitDelay);

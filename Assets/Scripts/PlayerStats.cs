@@ -88,6 +88,15 @@ public class PlayerStats : MonoBehaviour
         equipmentLuck = luckBonus;
     }
 
+    /// <summary>Primary stats including equipment — used by EnemyStatManager for scaling.</summary>
+    public void GetEffectivePrimaries(out float str, out float agi, out float vit, out float luck)
+    {
+        str = strength + equipmentStrength;
+        agi = agility + equipmentAgility;
+        vit = vitality + equipmentVitality;
+        luck = this.luck + equipmentLuck;
+    }
+
     public void CalculateAllDerivedStats()
     {
         float effStr = strength + equipmentStrength;

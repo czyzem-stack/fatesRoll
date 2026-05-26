@@ -5,6 +5,13 @@ public enum POIType
     Orc,
     Skeleton,
     Slime,
+    Bat,
+    Dragon,
+    EvilMage,
+    Golem,
+    MonsterPlant,
+    Spider,
+    TurtleShell,
     TreasureChest
 }
 
@@ -12,21 +19,17 @@ public class POINode : MonoBehaviour
 {
     public POIType type = POIType.Orc;
     public int order = 0;
-    
-    [HideInInspector]
-    public GameObject currentVisual;
 
-    [Tooltip("Optional tuning asset; overrides default Enemy stats when set.")]
+    [HideInInspector] public GameObject currentVisual;
+    [HideInInspector] public GameObject monsterVisualPrefab;
+    [HideInInspector] public GameObject healthBarPrefab;
+
+    [Tooltip("Optional tuning asset; otherwise EnemyStatManager scales by visit order.")]
     public EnemyData enemyData;
 
     [Header("Treasure chest")]
-    [Tooltip("When true (or type is TreasureChest), defeat opens equipment loot instead of coin celebration.")]
     public bool isTreasureChest;
-
-    [Tooltip("-1 = random weapon vs armor roll. 0+ marks this POI for FTUE sequencing in EquipmentLootManager.")]
     public int ftueLootIndex = -1;
-
-    [Tooltip("Optional forced A/B picks for tutorial chests (leave empty for random).")]
     public EquipmentItemDefinition ftueForcedOptionA;
     public EquipmentItemDefinition ftueForcedOptionB;
 
@@ -39,16 +42,24 @@ public class POINode : MonoBehaviour
 
     void Start()
     {
-        if (POIManager.Instance != null)
-        {
-            POIManager.Instance.RegisterPOI(this);
-        }
-
         if (IsTreasureChest && currentVisual != null)
             PoiVisualPlacer.PlaceTreasureChestVisual(transform, currentVisual);
 
-        // Visuals should already be present from Editor or Spawn
-        InitializeEnemy();
+        if (POIManager.Instance != null && POIManager.Instance.HasInitialized)
+        {
+            if (gameObject.activeInHierarchy)
+            {
+                POIManager.Instance.RegisterPOI(this);
+                InitializeEnemy();
+            }
+            return;
+        }
+
+        if (gameObject.activeInHierarchy && POIManager.Instance != null)
+        {
+            POIManager.Instance.RegisterPOI(this);
+            InitializeEnemy();
+        }
     }
 
     public void InitializeEnemy()
@@ -56,8 +67,16 @@ public class POINode : MonoBehaviour
         Enemy enemy = GetComponent<Enemy>();
         if (enemy == null) return;
 
+        if (IsTreasureChest)
+        {
+            enemy.ConfigureAsTreasureChest();
+            return;
+        }
+
         if (enemyData != null)
             enemy.InitializeFromData(enemyData);
+        else if (EnemyStatManager.Instance != null)
+            EnemyStatManager.Instance.ApplyFtueStepStats(enemy, order);
         else
             enemy.Initialize();
     }
@@ -65,8 +84,6 @@ public class POINode : MonoBehaviour
     void OnDestroy()
     {
         if (POIManager.Instance != null)
-        {
             POIManager.Instance.UnregisterPOI(this);
-        }
     }
 }

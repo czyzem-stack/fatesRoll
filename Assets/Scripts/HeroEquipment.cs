@@ -284,6 +284,38 @@ public class HeroEquipment : MonoBehaviour
             hero.UpdateHealthUI();
     }
 
+    /// <summary>Best equipped item in a chest loot category (for upgrade rolls).</summary>
+    public EquipmentInstance GetReferenceForCategory(EquipmentChestCategory category)
+    {
+        switch (category)
+        {
+            case EquipmentChestCategory.Weapon:
+                return GetEquipped(EquipmentSlotType.MainHand) ?? GetEquipped(EquipmentSlotType.OffHand);
+            case EquipmentChestCategory.Armor:
+                return GetEquipped(EquipmentSlotType.BodyArmor)
+                    ?? GetEquipped(EquipmentSlotType.Head)
+                    ?? GetEquipped(EquipmentSlotType.Cape)
+                    ?? GetEquipped(EquipmentSlotType.Boots)
+                    ?? GetEquipped(EquipmentSlotType.Gloves);
+            case EquipmentChestCategory.Accessory:
+                return GetEquipped(EquipmentSlotType.Ring) ?? GetEquipped(EquipmentSlotType.Necklace);
+            default:
+                return null;
+        }
+    }
+
+    public EquipmentInstance GetReferenceForItemDefinition(EquipmentItemDefinition def)
+    {
+        if (def == null)
+            return null;
+
+        var inSlot = GetEquipped(def.slot);
+        if (inSlot != null)
+            return inSlot;
+
+        return GetReferenceForCategory(def.chestCategory);
+    }
+
 #if UNITY_EDITOR
     public void EditorSetRigRoot(Transform root)
     {

@@ -38,6 +38,18 @@ public static class PoiVisualPlacer
         visual.transform.position += Vector3.up * lift;
     }
 
+    /// <summary>Snap POI root to ground and align the monster mesh so its feet sit on the surface.</summary>
+    public static bool PlaceEnemyOnGround(Transform poiRoot, GameObject visual)
+    {
+        if (!SnapToGround(poiRoot))
+            return false;
+
+        if (visual != null)
+            AlignVisualBottomToPoiRoot(poiRoot, visual);
+
+        return true;
+    }
+
     public static void PlaceTreasureChestVisual(Transform poiRoot, GameObject visual)
     {
         if (visual == null)

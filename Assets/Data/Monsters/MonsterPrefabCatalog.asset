@@ -1,0 +1,46 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 59dccecc5970e3b4e9a86c9be9dda28d, type: 3}
+  m_Name: MonsterPrefabCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterPrefabCatalog
+  gameplayFallback: {fileID: 9100000, guid: d46d70a411faa4a4b8d0d4208dc42740, type: 2}
+  entries:
+  - type: 0
+    prefab: {fileID: 8511647367374691266, guid: 090745f32e1740478c948efbbba21c5a, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: d46d70a411faa4a4b8d0d4208dc42740, type: 2}
+  - type: 1
+    prefab: {fileID: 6285209290496832306, guid: 67ddb690e8bc43439efb218ba32a3d45, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 96cd4059e6ba4beca732f444b57a1789, type: 2}
+  - type: 2
+    prefab: {fileID: 1931298151966786, guid: 596dc7dadc19403380aa123308e5fd8a, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 6843926defe641e58b9e0ea8fdc4c9c5, type: 2}
+  - type: 3
+    prefab: {fileID: 5122791751604650877, guid: 9540b37624f44ab092e166a9bc78d58c, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 861eaa107c294bde819afc3bda1694cb, type: 2}
+  - type: 4
+    prefab: {fileID: 5611543388551634691, guid: a7d06dfb21da417b9d7b1e04350feec1, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: da041994a0b340cca2b079d4ead4585e, type: 2}
+  - type: 5
+    prefab: {fileID: 3972964382682025698, guid: 9b551562a7704a69bb4b5a781408b6a2, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 04fc9e770f024d00a8bc25c0b76d9915, type: 2}
+  - type: 6
+    prefab: {fileID: 1706760125350986, guid: ed6d71d64c34430095360130d5077535, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 0a3afcdd4f9b4942a4ccfc17513432c8, type: 2}
+  - type: 7
+    prefab: {fileID: 1748489546896114, guid: e13e0841a00249caa40b7491ec922069, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 2789482ff284458f8051fd5b9d9fd0cf, type: 2}
+  - type: 8
+    prefab: {fileID: 1557585983417840, guid: c76daac06b7a420cb02fdd233a6a5de7, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 7074180ec74146ad89a72ce30bc78673, type: 2}
+  - type: 9
+    prefab: {fileID: 1524411113276028, guid: e039ba28c6ec4e1f8dc538cdefcaf55e, type: 3}
+    gameplayAnimator: {fileID: 9100000, guid: 0f31f809fb564e5a9c75b4e00b833fb9, type: 2}
