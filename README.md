@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.057` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.058` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.058** | Add LootManager to main play scene |
 | **v0.0.057** | Add LootManager celebration coin drops and gold pickup |
 | **v0.0.056** | Fix melee engage: single distance, Steve initiates, no enemy aggro |
 | **v0.0.055** | Fix README sync in pre-commit to stop version-only commits |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.026** | Fix dice DieResult null checks and add architecture documentation. |
 | **v0.0.025** | HP bar works and UI updated with critical fix. |
 | **v0.0.021** | Combat works with stable hero and enemy animations. |
-| **v0.0.020** | Foundation for massive combat overhaul - everything is set. |
 <!-- CHANGELOG:END -->
 
 ---
