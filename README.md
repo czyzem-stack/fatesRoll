@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.054` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.055` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -86,7 +86,7 @@ Roll (energy) → dice settle → XP → walk toward POI (by order) → combat a
 | Combat | `HeroController`, `Enemy` | Arrival hit + in-combat rolls; world-space HP bar |
 | Stats | `PlayerStats`, `EnemyData` | RPG formulas; SO exists (runtime wiring TBD) |
 | XP / level | `LevelManager` | XP from roll total; level-up animation |
-| Tuning | `GlobalSettings` | Movement, energy, melee spacing/timing, XP, debug flags |
+| Tuning | `GlobalSettings` | Movement, energy, melee spacing/timing, XP; `combatLogEnabled`, `verboseGameplayLogs`, `showPath` |
 | Steve / enemy stats | `PlayerStats`, `Enemy` | HP, damage, crit, dodge (not on GlobalSettings) |
 | QA | `QADashboard`, `QAVersionDisplay` | Roll/distance debug; build version + git hash |
 
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.055** | Fix README sync in pre-commit to stop version-only commits |
 | **v0.0.054** | Sync README version and changelog for v0.0.052 |
 | **v0.0.053** | Sync README version and changelog for v0.0.052 |
 | **v0.0.052** | Sync README version and changelog for v0.0.051 |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.020** | Foundation for massive combat overhaul - everything is set. |
 | **v0.0.019** | Add HealthBar prefab on POI root canvas for all enemy types. |
 | **v0.0.018** | Add git-commit wrapper so hooks run without global config. |
-| **v0.0.017** | Solid state: scene + `IsDead` on hero/orc animators |
 <!-- CHANGELOG:END -->
 
 ---

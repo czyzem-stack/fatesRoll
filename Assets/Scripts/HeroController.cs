@@ -27,6 +27,7 @@ public class HeroController : MonoBehaviour
 
     private GameObject currentTarget;
     private Enemy approachingEnemy;
+    public Enemy ApproachingEnemy => approachingEnemy;
     private int nextPOIOrder = 0;
     private Coroutine engageRoutine;
     private int lastRollValue;
@@ -34,7 +35,7 @@ public class HeroController : MonoBehaviour
     public bool IsEngageBusy => engageRoutine != null;
 
     void Start()
-{
+    {
         agent = GetComponent<NavMeshAgent>();
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
 
@@ -44,7 +45,7 @@ public class HeroController : MonoBehaviour
             if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
             {
                 agent.Warp(hit.position);
-                Debug.Log($"HeroController: Warped {gameObject.name} to NavMesh at {hit.position}");
+                GlobalSettings.LogGameplay($"HeroController: Warped {gameObject.name} to NavMesh at {hit.position}");
             }
         }
 
@@ -56,7 +57,9 @@ public class HeroController : MonoBehaviour
         
         AutoAssignHealthUI();
 
-        agent.speed = GlobalSettings.Instance.heroTravelSpeed;
+        var settings = GlobalSettings.Instance;
+        if (settings != null)
+            agent.speed = settings.heroTravelSpeed;
         agent.acceleration = 30.0f;
         agent.stoppingDistance = 1.0f;
         agent.autoBraking = true;
@@ -188,18 +191,20 @@ public class HeroController : MonoBehaviour
         {
             if (agent.isOnNavMesh)
             {
-                agent.isStopped = true;
-                agent.velocity = Vector3.zero;
+                if (!agent.isStopped)
+                    agent.isStopped = true;
+                if (agent.velocity.sqrMagnitude > 0.0001f)
+                    agent.velocity = Vector3.zero;
             }
         }
 
         UpdatePathLines();
 
-        if (inCombat && currentEnemy != null && engageRoutine == null)
+        if (inCombat && currentEnemy != null && engageRoutine == null && !isMoving)
         {
             var engaged = GetEnemyFromTarget(currentEnemy);
-            if (engaged != null && engaged.IsWithinEngageRange(this))
-                FaceTarget(engaged.transform, false, 20.0f);
+            if (engaged != null && IsWithinMeleeEngageRange(engaged, 0.35f))
+                FaceTarget(engaged.transform, false, 12f);
         }
 
         if (isMoving && !isCelebrating && !IsEngageBusy)
@@ -244,6 +249,12 @@ public class HeroController : MonoBehaviour
         return target.GetComponent<Enemy>() ?? target.GetComponentInChildren<Enemy>();
     }
 
+    /// <summary>Resolve the <see cref="Enemy"/> Steve is fighting (POI root or child visual).</summary>
+    public Enemy GetCurrentEnemy()
+    {
+        return GetEnemyFromTarget(currentEnemy);
+    }
+
     private float DistanceToEnemy(Enemy enemy)
     {
         if (enemy == null) return float.MaxValue;
@@ -254,18 +265,11 @@ public class HeroController : MonoBehaviour
         return Vector3.Distance(a, b);
     }
 
-    private void SnapToMeleeRange(Enemy enemy)
+    private static float MeleeEngageDistance => GlobalSettings.GetMeleeEngageDistance();
+
+    private bool IsWithinMeleeEngageRange(Enemy enemy, float extraBuffer = 0f)
     {
-        if (enemy == null || agent == null || !agent.isOnNavMesh)
-            return;
-
-        float standoff = GlobalSettings.Instance.heroMeleeStandoff;
-        if (DistanceToEnemy(enemy) <= standoff + 0.6f)
-            return;
-
-        Vector3 approach = enemy.GetMeleeApproachPoint(transform.position);
-        if (NavMesh.SamplePosition(approach, out NavMeshHit hit, 2f, NavMesh.AllAreas))
-            agent.Warp(hit.position);
+        return enemy != null && DistanceToEnemy(enemy) <= MeleeEngageDistance + extraBuffer;
     }
 
     public void RecordRoll(int rollTotal)
@@ -300,6 +304,49 @@ public class HeroController : MonoBehaviour
         return true;
     }
 
+    /// <summary>POI enemy Steve is walking toward (or last target).</summary>
+    public Enemy GetPendingCombatEnemy()
+    {
+        if (approachingEnemy != null) return approachingEnemy;
+        return GetEnemyFromTarget(currentTarget);
+    }
+
+    /// <summary>Start melee if Steve is in range — returns true if combat began.</summary>
+    public bool TryBeginMeleeWithRoll(Enemy enemy, int rollTotal)
+    {
+        if (enemy == null || enemy.isDead || IsEngageBusy || inCombat)
+            return false;
+
+        if (!IsWithinMeleeEngageRange(enemy, 0.35f))
+        {
+            CombatLog.Info($"Steve {DistanceToEnemy(enemy):F1}m out of fight range (engage {MeleeEngageDistance:F1}m) — roll again to close");
+            return false;
+        }
+
+        lastRollValue = rollTotal;
+        bool isCrit;
+        int damage = CalculateRollDamage(rollTotal, out isCrit);
+
+        approachingEnemy = null;
+        currentTarget = null;
+        AdvancePastEnemyPOI(enemy);
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            isMoving = false;
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+            agent.stoppingDistance = 1.0f;
+        }
+
+        CombatLog.Info($"Steve reached fight range ({DistanceToEnemy(enemy):F1}m) — attacks first");
+        EnterCombat(enemy.gameObject);
+        if (engageRoutine != null) StopCoroutine(engageRoutine);
+        engageRoutine = StartCoroutine(SteveArrivalAttackRoutine(enemy, damage));
+        return true;
+    }
+
     /// <summary>Steve finished dice movement near a POI enemy — attack if in range, else wait for another roll.</summary>
     private void OnArrivedNearEnemy(Enemy enemy)
     {
@@ -320,45 +367,7 @@ public class HeroController : MonoBehaviour
             return;
         }
 
-        if (IsEngageBusy) return;
-
-        float dist = DistanceToEnemy(enemy);
-        if (!enemy.IsWithinEngageRange(this))
-        {
-            CombatLog.Info($"Steve stopped {dist:F1}m out of fight range — roll again to close");
-            ExitCombat();
-            return;
-        }
-
-        currentTarget = null;
-        AdvancePastEnemyPOI(enemy);
-
-        SnapToMeleeRange(enemy);
-
-        CombatLog.Info($"Steve reached fight range ({dist:F1}m) — attacks first");
-        bool isCrit;
-        int damage = CalculateRollDamage(lastRollValue, out isCrit);
-        EnterCombat(enemy.gameObject);
-        if (engageRoutine != null) StopCoroutine(engageRoutine);
-        engageRoutine = StartCoroutine(SteveArrivalAttackRoutine(enemy, damage));
-    }
-
-    /// <summary>Enemy closed distance first — orc attacks, then Steve can roll in combat.</summary>
-    public void OnEnemyAggroAttack(Enemy enemy)
-    {
-        if (enemy == null || enemy.isDead || IsEngageBusy) return;
-        if (!enemy.IsWithinEngageRange(this))
-        {
-            CombatLog.Info("Enemy aggro ignored — Steve out of fight range");
-            return;
-        }
-
-        SnapToMeleeRange(enemy);
-
-        CombatLog.Info("Enemy reached Steve first — enemy attacks");
-        EnterCombat(enemy.gameObject);
-        if (engageRoutine != null) StopCoroutine(engageRoutine);
-        engageRoutine = StartCoroutine(EnemyFirstAttackRoutine(enemy));
+        TryBeginMeleeWithRoll(enemy, lastRollValue);
     }
 
     private IEnumerator SteveArrivalAttackRoutine(Enemy enemy, int damage)
@@ -372,17 +381,12 @@ public class HeroController : MonoBehaviour
             yield break;
         }
 
-        yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
+        var settings = GlobalSettings.Instance;
+        if (settings != null)
+            yield return new WaitForSeconds(settings.combatReactionDelay);
         if (enemy != null && !enemy.isDead && inCombat)
             enemy.PerformAttack(this);
 
-        engageRoutine = null;
-    }
-
-    private IEnumerator EnemyFirstAttackRoutine(Enemy enemy)
-    {
-        enemy.PerformAttack(this);
-        yield return new WaitForSeconds(enemy.AttackDurationSeconds);
         engageRoutine = null;
     }
 
@@ -391,9 +395,9 @@ public class HeroController : MonoBehaviour
         if (enemy == null || enemy.isDead) yield break;
 
         var settings = GlobalSettings.Instance;
-        FaceTarget(enemy.transform, true);
-        enemy.FaceTarget(transform, true);
-        yield return new WaitForSeconds(settings.combatFaceDelay);
+        FaceTarget(enemy.transform, false, 16f);
+        enemy.FaceTarget(transform, false, 16f);
+        yield return new WaitForSeconds(settings != null ? settings.combatFaceDelay : 0.06f);
 
         if (animator != null)
         {
@@ -401,7 +405,7 @@ public class HeroController : MonoBehaviour
             animator.SetTrigger("Attack");
         }
 
-        yield return new WaitForSeconds(settings.combatHeroHitDelay);
+        yield return new WaitForSeconds(settings != null ? settings.combatHeroHitDelay : 0.22f);
 
         if (enemy != null && !enemy.isDead)
         {
@@ -435,7 +439,8 @@ public class HeroController : MonoBehaviour
 
     private void UpdatePathLines()
     {
-        bool show = GlobalSettings.Instance.showPath;
+        var settings = GlobalSettings.Instance;
+        bool show = settings != null && settings.showPath;
         if (show && agent.hasPath)
         {
             pathLine.enabled = true;
@@ -473,7 +478,7 @@ public class HeroController : MonoBehaviour
             agent.velocity = Vector3.zero;
             agent.updateRotation = false;
         }
-        Debug.Log($"HeroController: Movement Finalized. Reason: {reason}");
+        GlobalSettings.LogGameplay($"HeroController: Movement Finalized. Reason: {reason}");
     }
 
     public void MoveSteps(int diceResult)
@@ -482,6 +487,8 @@ public class HeroController : MonoBehaviour
 
         lastRollValue = diceResult;
         GlobalSettings settings = GlobalSettings.Instance;
+        if (settings == null) return;
+
         float totalMeters = diceResult * settings.stepsPerDiceValue * settings.metersPerStep;
         if (agent == null) agent = GetComponent<NavMeshAgent>();
 
@@ -519,13 +526,37 @@ public class HeroController : MonoBehaviour
         float moveMeters = Mathf.Min(totalMeters, pathDist);
         Vector3 targetPoint = GetPointOnPath(path, moveMeters);
 
+        // Nav path to the approach point can be 0m while Steve is still too far (blocked/stuck) — walk toward the enemy.
+        if (enemy != null)
+        {
+            float distToEnemy = DistanceToEnemy(enemy);
+            float engage = settings.meleeEngageDistance;
+            if (moveMeters < 0.5f && distToEnemy > engage + 0.15f)
+            {
+                Vector3 toEnemy = enemy.GetEngagePosition() - transform.position;
+                toEnemy.y = 0f;
+                if (toEnemy.sqrMagnitude > 0.01f)
+                {
+                    float closeMeters = Mathf.Min(totalMeters, Mathf.Max(0.5f, distToEnemy - engage));
+                    targetPoint = transform.position + toEnemy.normalized * closeMeters;
+                    moveMeters = closeMeters;
+                }
+            }
+        }
+
         NavMeshHit destHit;
         if (NavMesh.SamplePosition(targetPoint, out destHit, 2.0f, NavMesh.AllAreas))
             targetPoint = destHit.position;
 
+        if (enemy != null && moveMeters < 0.15f && IsWithinMeleeEngageRange(enemy, 0.35f))
+        {
+            OnArrivedNearEnemy(enemy);
+            return;
+        }
+
         approachingEnemy = enemy;
         agent.speed = settings.heroTravelSpeed;
-        agent.stoppingDistance = enemy != null ? 0.05f : 1.0f;
+        agent.stoppingDistance = enemy != null ? 0.12f : 1.0f;
         agent.isStopped = false;
         agent.updateRotation = true;
 
@@ -533,7 +564,10 @@ public class HeroController : MonoBehaviour
         {
             isMoving = true;
             if (enemy != null)
-                CombatLog.Info($"Steve moving toward {enemy.name} (up to {moveMeters:F0}m on path)");
+            {
+                string targetLabel = string.IsNullOrEmpty(enemy.name) ? "enemy" : enemy.name;
+                CombatLog.Info($"Steve moving toward {targetLabel} ({moveMeters:F1}m)");
+            }
         }
     }
 
@@ -557,27 +591,22 @@ public class HeroController : MonoBehaviour
 
     public void EnterCombat(GameObject enemy)
     {
+        Enemy ec = GetEnemyFromTarget(enemy);
+        if (ec == null) return;
+
         inCombat = true;
-        currentEnemy = enemy;
+        currentEnemy = ec.gameObject;
         isMoving = false;
         if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
 
-        var ec = enemy != null ? enemy.GetComponent<Enemy>() : null;
-        if (ec != null)
-        {
-            ec.SetHealthBarVisible(true);
-            CombatLog.EnterCombat(gameObject.name, enemy.name);
-        }
+        ec.SetHealthBarVisible(true);
+        CombatLog.EnterCombat(gameObject.name, ec.gameObject.name);
 
         if (animator != null)
         {
             animator.ResetTrigger("Throw"); animator.ResetTrigger("Attack"); animator.ResetTrigger("GetHit");
         }
 
-        Vector3 faceFrom = ec != null ? ec.GetEngagePosition() : enemy.transform.position;
-        Vector3 direction = (faceFrom - transform.position).normalized;
-        direction.y = 0;
-        if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
     }
 
     public void ExitCombat()

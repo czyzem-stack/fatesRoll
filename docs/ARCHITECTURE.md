@@ -72,8 +72,8 @@ flowchart TB
     HC --> NM
 
     PM --> PN
+    ED -->|optional enemyData| PN
     PN --> EN
-    ED -.->|not wired at runtime yet| EN
 
     EN --> HC
     EN --> PM
@@ -497,8 +497,9 @@ Shared RPG formulas on **hero** (`PlayerStats`) and **enemy** (`Enemy`).
 |------|-----------|
 | Steve HP, damage, crit, dodge | `PlayerStats` on Steve |
 | Enemy HP, damage, patrol | `Enemy` on each monster (or `EnemyData` prefab) |
-| Melee range, standoff, combat delays | `GlobalSettings` |
+| Melee engage distance, combat delays | `GlobalSettings.meleeEngageDistance` |
 | Combat console spam | `GlobalSettings.combatLogEnabled` |
+| Dice / movement / XP logs | `GlobalSettings.verboseGameplayLogs` (off by default) |
 
 ---
 
@@ -565,7 +566,7 @@ Files:
 | `HeroController` | NavMesh move, POI target, arrival combat, hero HP HUD |
 | `PlayerStats` | Hero primary/derived stats, dodge |
 | `Enemy` | Enemy stats, AI, HP bar, damage, death |
-| `EnemyData` | ScriptableObject template (**runtime wiring pending**) |
+| `EnemyData` | ScriptableObject; assign on `POINode.enemyData` to override enemy stats at Start |
 | `POINode` | POI tag, type, visit `order`, register/init enemy |
 | `POIManager` | POI list, resolve, nearest/random/order query |
 | `POINodeEditor` | Editor prefab + health bar setup |

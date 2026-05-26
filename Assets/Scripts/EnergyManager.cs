@@ -43,8 +43,9 @@ public class EnergyManager : MonoBehaviour
 
     private void Start()
     {
-        currentEnergy = GlobalSettings.Instance.startingEnergy;
-        nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+        var settings = GlobalSettings.Instance;
+        currentEnergy = settings != null ? settings.startingEnergy : 60;
+        nextRegenTime = Time.time + (settings != null ? settings.energyRegenInterval : 15f);
         UpdateUI();
     }
 
@@ -120,7 +121,7 @@ public class EnergyManager : MonoBehaviour
 
         UpdateUI();
         SpawnFloatingEnergyText(amount);
-        Debug.Log($"EnergyManager: Depleted {amount}. Remaining: {currentEnergy}");
+        GlobalSettings.LogGameplay($"EnergyManager: Depleted {amount}. Remaining: {currentEnergy}");
     }
 
     public void AddEnergy(int amount)

@@ -7,10 +7,12 @@ public class DiceSpawner : MonoBehaviour
 {
     public GameObject d6Prefab;
     public Transform spawnPoint;
-    public float throwForce = 8f;
+    [Tooltip("Impulse scale for dice throw (horizontal component).")]
+    public float throwForce = 1.6f;
     public float torque = 15f;
 
     private List<GameObject> activeDice = new List<GameObject>();
+    private HeroController cachedHero;
     private bool isRolling = false;
     private bool autoRollActive = false;
     private float autoRollNextCheckTime = 0f;
@@ -28,7 +30,7 @@ public class DiceSpawner : MonoBehaviour
     public void ToggleAutoRoll()
     {
         autoRollActive = !autoRollActive;
-        Debug.Log($"DiceSpawner: Auto-Roll {(autoRollActive ? "ENABLED" : "DISABLED")}");
+        GlobalSettings.LogGameplay($"DiceSpawner: Auto-Roll {(autoRollActive ? "ENABLED" : "DISABLED")}");
         
         if (autoRollIndicator != null)
         {
@@ -59,22 +61,18 @@ public class DiceSpawner : MonoBehaviour
     {
         if (isRolling) return false;
         
-        var hero = Object.FindAnyObjectByType<HeroController>();
-        if (hero != null && hero.IsMoving) return false;
+        if (cachedHero == null)
+            cachedHero = Object.FindAnyObjectByType<HeroController>();
+        if (cachedHero != null && cachedHero.IsMoving) return false;
 
-        // Don't auto-roll in combat?
-        // Actually, user said "hold click to enable auto roll", likely for everything.
-        
-        if (EnergyManager.Instance != null && !EnergyManager.Instance.HasEnergy(GlobalSettings.Instance.energyDepletionPerRoll))
+        var settings = GlobalSettings.Instance;
+        int rollCost = settings != null ? settings.energyDepletionPerRoll : 3;
+        if (EnergyManager.Instance != null && !EnergyManager.Instance.HasEnergy(rollCost))
         {
-            if (autoRollActive)
-            {
-                Debug.LogWarning("DiceSpawner: Auto-Roll paused - not enough energy!");
-            }
-            else
-            {
-                Debug.LogWarning("DiceSpawner: Not enough energy to roll!");
-            }
+            string msg = autoRollActive
+                ? "DiceSpawner: Auto-Roll paused - not enough energy!"
+                : "DiceSpawner: Not enough energy to roll!";
+            GlobalSettings.LogGameplayWarning(msg);
             return false;
         }
         
@@ -110,15 +108,15 @@ public class DiceSpawner : MonoBehaviour
         
         try 
         {
-            Debug.Log("DiceSpawner: Starting Roll Routine.");
+            GlobalSettings.LogGameplay("DiceSpawner: Starting Roll Routine.");
 
-            // Deplete Energy
-            if (EnergyManager.Instance != null)
-            {
-                EnergyManager.Instance.Deplete(GlobalSettings.Instance.energyDepletionPerRoll);
-            }
+            var settings = GlobalSettings.Instance;
+            if (EnergyManager.Instance != null && settings != null)
+                EnergyManager.Instance.Deplete(settings.energyDepletionPerRoll);
 
-            var hero = Object.FindAnyObjectByType<HeroController>();
+            if (cachedHero == null)
+                cachedHero = Object.FindAnyObjectByType<HeroController>();
+            var hero = cachedHero;
             if (hero != null)
             {
                 var anim = hero.GetComponentInChildren<Animator>();
@@ -136,7 +134,7 @@ public class DiceSpawner : MonoBehaviour
             }
 
             // 1. Aggressive Cleanup of old dice
-var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclude);
+            var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclude);
             foreach (var d in existingDice)
             {
                 if (d != null && d.gameObject != null) Destroy(d.gameObject);
@@ -149,9 +147,6 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                 yield break;
             }
 
-            // 2. Spawn new dice closer to Steve
-            float reducedThrowForce = 1.6f; 
-            
             // Get hero collider to ignore
             Collider heroCollider = hero != null ? hero.GetComponent<Collider>() : null;
             
@@ -183,7 +178,7 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                     
                     // Throw slightly more upward and forward
                     Vector3 throwDir = (transform.forward * 0.6f + transform.right * Random.Range(-0.2f, 0.2f) + Vector3.up * 0.1f).normalized;
-                    Vector3 force = (throwDir * reducedThrowForce) + (Vector3.up * 1.5f);
+                    Vector3 force = (throwDir * throwForce) + (Vector3.up * 1.5f);
                     rb.AddForce(force, ForceMode.Impulse);
                     rb.AddTorque(Random.onUnitSphere * torque, ForceMode.Impulse);
                 }
@@ -233,13 +228,15 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                 yield return null;
             }
 
-            if (!allSettled) Debug.LogWarning("<b>[Dice Physics]</b> Dice didn't settle perfectly within 3s, reading anyway.");
-            else Debug.Log("<b>[Dice Physics]</b> Dice settled successfully.");
+            if (!allSettled)
+                GlobalSettings.LogGameplayWarning("<b>[Dice Physics]</b> Dice didn't settle in time, reading anyway.");
+            else
+                GlobalSettings.LogGameplay("<b>[Dice Physics]</b> Dice settled successfully.");
 
             // 4. Brief read delay (shorter in combat for snappy turns)
-            float readDelay = (hero != null && hero.InCombat)
-                ? GlobalSettings.Instance.combatDiceReadDelay
-                : GlobalSettings.Instance.travelDiceReadDelay;
+            float readDelay = 0.85f;
+            if (settings != null)
+                readDelay = (hero != null && hero.InCombat) ? settings.combatDiceReadDelay : settings.travelDiceReadDelay;
             yield return new WaitForSeconds(readDelay);
 
             int total = 0;
@@ -259,13 +256,11 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
             }
             LastRoll = total;
             LastIndividualRolls = string.Join(", ", individual);
-            Debug.Log($"<color=green><b>[Final Dice Roll] {total}</b></color> (Individual: {LastIndividualRolls})");
+            GlobalSettings.LogGameplay($"<color=green><b>[Final Dice Roll] {total}</b></color> (Individual: {LastIndividualRolls})");
 
             if (hero != null)
             {
-                Enemy combatEnemy = null;
-                if (hero.currentEnemy != null)
-                    combatEnemy = hero.currentEnemy.GetComponent<Enemy>();
+                Enemy combatEnemy = hero.GetCurrentEnemy();
 
                 if (hero.InCombat && combatEnemy != null && !combatEnemy.isDead)
                 {
@@ -277,7 +272,6 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
 
                     if (combatEnemy.isDead)
                     {
-                        Debug.Log($"{combatEnemy.name} defeated!");
                         int levelsGained = 0;
                         if (LevelManager.Instance != null)
                             levelsGained = LevelManager.Instance.AddXP(total * 2);
@@ -292,18 +286,37 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                         yield break;
                     }
 
-                    yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
+                    if (settings != null)
+                        yield return new WaitForSeconds(settings.combatReactionDelay);
 
                     if (hero.currentEnemy != null && combatEnemy != null && !combatEnemy.isDead)
                         combatEnemy.PerformAttack(hero);
                 }
                 else
                 {
-                    if (hero.InCombat)
-                        hero.ExitCombat();
+                    // In combat but enemy missing — don't bail out and walk away.
+                    if (hero.InCombat && combatEnemy == null)
+                        CombatLog.Info("Dice roll ignored — no valid combat target on currentEnemy");
 
-                    hero.RecordRoll(total);
-                    hero.MoveSteps(total);
+                    if (!hero.InCombat)
+                    {
+                        hero.RecordRoll(total);
+                        hero.MoveSteps(total);
+
+                        float moveWait = 12f;
+                        while (hero.IsMoving && moveWait > 0f)
+                        {
+                            moveWait -= Time.deltaTime;
+                            yield return null;
+                        }
+
+                        Enemy pending = hero.GetPendingCombatEnemy();
+                        if (pending != null && hero.TryBeginMeleeWithRoll(pending, total))
+                        {
+                            while (hero.IsEngageBusy)
+                                yield return null;
+                        }
+                    }
                 }
 
                 // Add XP after the action (unless died/interrupted)
@@ -314,7 +327,7 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                         yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
                 }
             }
-else
+            else
             {
                 Debug.LogError("DiceSpawner: HeroController NOT found!");
             }
@@ -353,7 +366,7 @@ else
     }
 
     private void SetLayerRecursiveInternal(GameObject obj, int layer)
-{
+    {
         obj.layer = layer;
         foreach (Transform child in obj.transform)
         {

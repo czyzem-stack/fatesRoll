@@ -41,7 +41,7 @@ public class DieResult : MonoBehaviour
     public int GetValue()
     {
         Vector3 up = Vector3.up;
-float maxDot = -2f;
+        float maxDot = -2f;
         int value = 0;
 
         // Visual Calibration Mapping (Fixed Z+/Z- swap):
@@ -59,8 +59,6 @@ float maxDot = -2f;
         };
         int[] faceValues = new int[] { 2, 5, 1, 6, 4, 3 };
 
-        string bestAxis = "None";
-
         for (int i = 0; i < faceNormals.Length; i++)
         {
             float dot = Vector3.Dot(transform.TransformDirection(faceNormals[i]), up);
@@ -68,11 +66,10 @@ float maxDot = -2f;
             {
                 maxDot = dot;
                 value = faceValues[i];
-                bestAxis = faceNormals[i].ToString();
             }
         }
 
-        Debug.Log($"<color=cyan>DieResult: Detected {value}. Best Local Axis: {bestAxis} (Dot: {maxDot:F2})</color>");
+        GlobalSettings.LogGameplay($"DieResult: face value {value} (dot {maxDot:F2})");
         return value;
     }
 }

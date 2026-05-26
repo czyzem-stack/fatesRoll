@@ -91,11 +91,21 @@ public static class DiabloCameraSetup
 
         GetOrAddComponent<CinemachineBrain>(cam.gameObject);
 
-        // Disable legacy camera follow to avoid conflicts.
-        CameraFollow legacy = cam.GetComponent<CameraFollow>();
-        if (legacy != null)
+        // Disable legacy camera follow to avoid conflicts (avoid referencing obsolete CameraFollow).
+        DisableComponentByTypeName(cam.gameObject, "CameraFollow");
+    }
+
+    private static void DisableComponentByTypeName(GameObject go, string typeName)
+    {
+        MonoBehaviour[] behaviours = go.GetComponents<MonoBehaviour>();
+        for (int i = 0; i < behaviours.Length; i++)
         {
-            legacy.enabled = false;
+            MonoBehaviour mb = behaviours[i];
+            if (mb != null && mb.GetType().Name == typeName)
+            {
+                mb.enabled = false;
+                return;
+            }
         }
     }
 

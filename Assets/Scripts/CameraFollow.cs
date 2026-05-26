@@ -1,5 +1,8 @@
+using System;
 using UnityEngine;
 
+/// <summary>Legacy follow camera. Disabled by <c>FatesRoll/Camera/Setup Diablo IV Isometric Camera</c>; use Cinemachine instead.</summary>
+[Obsolete("Use Cinemachine + IsometricCameraControl. This component is disabled by DiabloCameraSetup.")]
 public class CameraFollow : MonoBehaviour
 {
     public Transform target;

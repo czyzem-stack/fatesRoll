@@ -13,7 +13,10 @@ public class POINode : MonoBehaviour
     public int order = 0;
     
     [HideInInspector]
-public GameObject currentVisual;
+    public GameObject currentVisual;
+
+    [Tooltip("Optional tuning asset; overrides default Enemy stats when set.")]
+    public EnemyData enemyData;
 
     void Awake()
     {
@@ -34,10 +37,12 @@ public GameObject currentVisual;
     public void InitializeEnemy()
     {
         Enemy enemy = GetComponent<Enemy>();
-        if (enemy != null)
-        {
+        if (enemy == null) return;
+
+        if (enemyData != null)
+            enemy.InitializeFromData(enemyData);
+        else
             enemy.Initialize();
-        }
     }
 
     void OnDestroy()

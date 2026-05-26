@@ -49,7 +49,7 @@ public class LevelManager : MonoBehaviour
     public int AddXP(float amount)
     {
         currentXP += amount;
-        Debug.Log($"LevelManager: Gained {amount} XP. Total: {currentXP}/{xpToNextLevel}");
+        GlobalSettings.LogGameplay($"LevelManager: Gained {amount} XP. Total: {currentXP}/{xpToNextLevel}");
 
         int levelsGained = 0;
         while (currentXP >= xpToNextLevel)
@@ -68,7 +68,7 @@ public class LevelManager : MonoBehaviour
         currentLevel++;
         CalculateXPRequirement();
         
-        Debug.Log($"LevelManager: LEVELED UP! Now Level {currentLevel}");
+        GlobalSettings.LogGameplay($"LevelManager: LEVELED UP! Now Level {currentLevel}");
 
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero != null)
@@ -80,8 +80,9 @@ public class LevelManager : MonoBehaviour
     private void CalculateXPRequirement()
     {
         var settings = GlobalSettings.Instance;
-        // Formula: base * (multiplier ^ (level-1))
-        xpToNextLevel = settings.baseXPForLevel1 * Mathf.Pow(settings.xpExponentialMultiplier, currentLevel - 1);
+        float baseXp = settings != null ? settings.baseXPForLevel1 : 50f;
+        float mult = settings != null ? settings.xpExponentialMultiplier : 1.2f;
+        xpToNextLevel = baseXp * Mathf.Pow(mult, currentLevel - 1);
     }
 
     private void UpdateUI()

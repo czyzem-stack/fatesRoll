@@ -16,7 +16,8 @@ public class Enemy : MonoBehaviour
         // But we want derived stats to show in the inspector.
     }
 #endif
-[Header("Enemy Stats")]
+
+    [Header("Enemy Stats")]
     public float strength = 8f;
     public float agility = 8f;
     public float vitality = 8f;
@@ -38,7 +39,6 @@ public class Enemy : MonoBehaviour
     [Header("Patrol & AI Settings")]
     public float patrolRadius = 5.0f;
     public float patrolSpeed = 1.5f;
-    public float chaseSpeed = 5.5f;
     public int avoidancePriority = 50;
     public int patrolPointsBeforeTaunt = 5;
 
@@ -50,9 +50,9 @@ public class Enemy : MonoBehaviour
     private Slider healthSlider;
     private Canvas healthCanvas;
     private float nextPatrolTime;
-    private bool engageTriggered;
     private bool navHeld;
-    private Vector3 lastChaseDestination;
+    private bool combatNavLocked;
+    private bool visualYawFixApplied;
 
     private Camera mainCamera;
 
@@ -77,7 +77,10 @@ public class Enemy : MonoBehaviour
     private void LateUpdate()
     {
         if (isDead || !Application.isPlaying) return;
-        
+
+        if (combatNavLocked && cachedHero != null)
+            FaceTarget(cachedHero.transform, false, 12f);
+
         // Stabilize and billboard the health bar
         if (healthCanvas != null && healthCanvas.enabled)
         {
@@ -105,14 +108,15 @@ public class Enemy : MonoBehaviour
         }
 
         float speed = 0f;
-        if (agent != null && agent.enabled && !agent.isStopped)
+        if (IsLocomoting())
         {
             speed = agent.velocity.magnitude;
             if (speed < 0.35f) speed = 0f;
             else if (speed < 1.2f) speed = 1.0f;
+            else if (speed > 3.5f) speed = 2f;
         }
 
-        animator.SetFloat("Speed", speed, 0.15f, Time.deltaTime);
+        animator.SetFloat("Speed", speed, 0.2f, Time.deltaTime);
     }
 
     public void Initialize()
@@ -124,17 +128,39 @@ public class Enemy : MonoBehaviour
         if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
         
         agent.speed = patrolSpeed;
-        agent.acceleration = 40.0f; // Very snappy
-        agent.angularSpeed = 720.0f; // Instant turning
-        agent.stoppingDistance = 0.15f;
+        agent.acceleration = 12f;
+        agent.angularSpeed = 360f;
+        agent.stoppingDistance = 0.35f;
+        agent.autoBraking = true;
         agent.avoidancePriority = avoidancePriority;
         agent.updateRotation = true;
 
+        ApplyVisualLocomotionFix();
         CalculateDerivedStats();
         currentHP = maxHP;
         spawnPosition = transform.position;
 
         UpdateHealthUI();
+    }
+
+    /// <summary>Bake 180° yaw on the visual rig once so NavMeshAgent can own rotation (no per-frame fighting).</summary>
+    private void ApplyVisualLocomotionFix()
+    {
+        if (visualYawFixApplied || animator == null) return;
+
+        Transform visualRoot = animator.transform;
+        while (visualRoot.parent != null && visualRoot.parent != transform)
+            visualRoot = visualRoot.parent;
+
+        Vector3 animForward = visualRoot.forward;
+        animForward.y = 0f;
+        if (animForward.sqrMagnitude < 0.01f) return;
+        animForward.Normalize();
+
+        if (Vector3.Dot(animForward, transform.forward) < 0f)
+            visualRoot.localRotation *= Quaternion.Euler(0f, 180f, 0f);
+
+        visualYawFixApplied = true;
     }
 
     public void InitializeFromData(EnemyData data)
@@ -152,6 +178,7 @@ public class Enemy : MonoBehaviour
 
     private void CalculateDerivedStats()
     {
+        // Formulas match PlayerStats.CalculateAllDerivedStats — keep in sync when changing.
         maxHP = vitality * 10f + 100f;
         attackDamage = strength * 4f + 20f;
         attackSpeed = 1.0f + (agility * 0.03f);
@@ -177,23 +204,24 @@ public class Enemy : MonoBehaviour
     public bool IsWithinEngageRange(HeroController hero)
     {
         if (hero == null) return false;
-        float limit = GlobalSettings.Instance.meleeEngageRadius;
-        if (engageTriggered || IsFightingHero(hero))
-            limit += 0.5f;
+        float limit = GlobalSettings.GetMeleeEngageDistance();
+        if (IsFightingHero(hero))
+            limit += 0.35f;
+
         return HorizontalDistanceTo(hero.transform.position) <= limit;
     }
 
     /// <summary>Nav destination for Steve to stand toe-to-toe with this enemy.</summary>
     public Vector3 GetMeleeApproachPoint(Vector3 heroPosition)
     {
-        float standoff = GlobalSettings.Instance.heroMeleeStandoff;
+        float engage = GlobalSettings.GetMeleeEngageDistance();
         Vector3 toHero = heroPosition - transform.position;
         toHero.y = 0f;
         if (toHero.sqrMagnitude < 0.01f)
             toHero = Vector3.forward;
         toHero.Normalize();
 
-        Vector3 point = transform.position + toHero * standoff;
+        Vector3 point = transform.position + toHero * engage;
         if (UnityEngine.AI.NavMesh.SamplePosition(point, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
             return hit.position;
         return point;
@@ -201,7 +229,9 @@ public class Enemy : MonoBehaviour
 
     public bool IsFightingHero(HeroController hero)
     {
-        return hero != null && hero.InCombat && hero.currentEnemy == gameObject;
+        if (hero == null || !hero.InCombat) return false;
+        Enemy target = hero.GetCurrentEnemy();
+        return target != null && target == this;
     }
 
     public Vector3 GetEngagePosition()
@@ -220,7 +250,7 @@ public class Enemy : MonoBehaviour
 
     private void HoldPosition()
     {
-        if (agent == null || !agent.enabled) return;
+        if (agent == null || !agent.enabled || combatNavLocked) return;
         if (navHeld) return;
         navHeld = true;
         agent.isStopped = true;
@@ -234,49 +264,57 @@ public class Enemy : MonoBehaviour
         navHeld = false;
     }
 
-    private void HoldEngaged()
+    private void BeginLocomotion(float speed)
     {
-        if (agent != null && agent.enabled)
-        {
-            navHeld = true;
-            agent.isStopped = true;
-            agent.updateRotation = false;
-            agent.ResetPath();
-            agent.velocity = Vector3.zero;
-        }
-        if (cachedHero != null)
-            FaceTarget(cachedHero.transform, false, 18.0f);
-    }
-
-    private void ChaseHero()
-    {
-        if (agent == null || !agent.enabled || cachedHero == null) return;
-
-        Vector3 dest = GetMeleeChasePoint(cachedHero.transform.position);
-        if (navHeld && agent.hasPath && Vector3.Distance(dest, lastChaseDestination) < 0.5f)
-            return;
-
+        if (agent == null || !agent.enabled || combatNavLocked) return;
         ReleaseNavHold();
         agent.isStopped = false;
         agent.updateRotation = true;
-        agent.speed = chaseSpeed;
-        lastChaseDestination = dest;
-        agent.SetDestination(dest);
+        agent.speed = speed;
     }
 
-    private Vector3 GetMeleeChasePoint(Vector3 heroPosition)
+    private bool IsLocomoting()
     {
-        float standoff = GlobalSettings.Instance.enemyMeleeStandoff;
-        Vector3 toEnemy = transform.position - heroPosition;
-        toEnemy.y = 0f;
-        if (toEnemy.sqrMagnitude < 0.01f)
-            toEnemy = Vector3.forward;
-        toEnemy.Normalize();
+        return agent != null && agent.enabled && !agent.isStopped && !navHeld && !isDead && !combatNavLocked;
+    }
 
-        Vector3 point = heroPosition + toEnemy * standoff;
-        if (UnityEngine.AI.NavMesh.SamplePosition(point, out UnityEngine.AI.NavMeshHit hit, 2f, UnityEngine.AI.NavMesh.AllAreas))
-            return hit.position;
-        return point;
+    private void LockCombatNavigation()
+    {
+        if (combatNavLocked || agent == null || !agent.enabled) return;
+        combatNavLocked = true;
+        navHeld = true;
+        agent.isStopped = true;
+        agent.updateRotation = false;
+        agent.ResetPath();
+        agent.velocity = Vector3.zero;
+    }
+
+    private void UnlockCombatNavigation()
+    {
+        if (!combatNavLocked) return;
+        combatNavLocked = false;
+        navHeld = false;
+        if (agent != null && agent.enabled)
+            agent.updateRotation = true;
+    }
+
+    private void SnapFaceTarget(Transform target)
+    {
+        if (target == null) return;
+        Vector3 dir = target.position - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.001f) return;
+        transform.rotation = Quaternion.LookRotation(dir.normalized);
+    }
+
+    private void HoldEngaged()
+    {
+        LockCombatNavigation();
+    }
+
+    private bool IsSteveApproachingUs()
+    {
+        return cachedHero != null && cachedHero.ApproachingEnemy == this;
     }
 
     private void HandleAI()
@@ -284,22 +322,10 @@ public class Enemy : MonoBehaviour
         if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
         if (cachedHero == null) return;
 
-        bool inFightRange = IsWithinEngageRange(cachedHero);
         bool isEngaged = IsFightingHero(cachedHero);
 
         if (animator != null)
-        {
             animator.SetBool("InCombat", isEngaged);
-        }
-
-        bool steveInPatrol = IsHeroInPatrolZone(cachedHero);
-
-        if (!steveInPatrol || cachedHero.IsMoving || cachedHero.IsEngageBusy ||
-            (cachedHero.InCombat && cachedHero.currentEnemy != gameObject))
-        {
-            engageTriggered = false;
-            ReleaseNavHold();
-        }
 
         if (isEngaged)
         {
@@ -307,41 +333,27 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        if (cachedHero.IsMoving || cachedHero.IsEngageBusy || isAttacking)
+        UnlockCombatNavigation();
+
+        // Steve walks in or is in melee range — stand still. Never chase; never walk off when he arrives.
+        if (cachedHero.IsEngageBusy || isAttacking ||
+            IsSteveApproachingUs() || IsWithinEngageRange(cachedHero) ||
+            (cachedHero.IsMoving && IsHeroInPatrolZone(cachedHero)))
         {
             HoldPosition();
             return;
         }
 
-        if (!cachedHero.InCombat && steveInPatrol)
-        {
-            if (!inFightRange)
-            {
-                engageTriggered = false;
-                ChaseHero();
-            }
-            else if (!engageTriggered)
-            {
-                engageTriggered = true;
-                HoldPosition();
-                CombatLog.Info($"{gameObject.name} aggro — in range, attacks Steve");
-                cachedHero.OnEnemyAggroAttack(this);
-            }
-            return;
-        }
+        if (navHeld)
+            ReleaseNavHold();
 
-        ReleaseNavHold();
         if (!isAttacking)
-        {
             HandlePatrol();
-        }
     }
 
     private void HandlePatrol()
     {
         if (agent == null || !agent.enabled) return;
-        ReleaseNavHold();
-        agent.speed = patrolSpeed;
 
         if (!agent.pathPending && agent.remainingDistance < agent.stoppingDistance + 0.1f)
         {
@@ -359,7 +371,7 @@ public class Enemy : MonoBehaviour
                 NavMeshHit hit;
                 if (NavMesh.SamplePosition(randomPoint, out hit, patrolRadius, NavMesh.AllAreas))
                 {
-                    agent.isStopped = false;
+                    BeginLocomotion(patrolSpeed);
                     agent.SetDestination(hit.position);
                     nextPatrolTime = Time.time + Random.Range(3f, 7f);
                 }
@@ -370,11 +382,7 @@ public class Enemy : MonoBehaviour
     private System.Collections.IEnumerator TauntRoutine()
     {
         isAttacking = true;
-        if (agent != null && agent.enabled)
-        {
-            agent.isStopped = true;
-            agent.velocity = Vector3.zero;
-        }
+        LockCombatNavigation();
 
         if (animator != null)
         {
@@ -391,15 +399,19 @@ public class Enemy : MonoBehaviour
     public void FaceTarget(Transform target, bool instant = false, float speed = 15.0f)
     {
         if (target == null) return;
-        Vector3 targetPos = target.position;
-        targetPos.y = transform.position.y;
-        Vector3 direction = (targetPos - transform.position).normalized;
-        if (direction.sqrMagnitude > 0.001f)
+        if (instant)
         {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            if (instant) transform.rotation = targetRotation;
-            else transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * speed);
+            SnapFaceTarget(target);
+            return;
         }
+
+        Vector3 dir = target.position - transform.position;
+        dir.y = 0f;
+        if (dir.sqrMagnitude < 0.001f) return;
+
+        Quaternion want = Quaternion.LookRotation(dir.normalized);
+        if (Quaternion.Angle(transform.rotation, want) > 2f)
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, want, speed * 20f * Time.deltaTime);
     }
 
     public void SetHealthBarVisible(bool visible)
@@ -460,12 +472,6 @@ public class Enemy : MonoBehaviour
         }
     }
 
-    private void OnGUI()
-    {
-        // Removed to ensure HP bar draws behind ScreenSpaceOverlay UI.
-        // Handled via child uGUI Canvas in World Space.
-    }
-
     public bool TakeDamage(float amount, string attackerName = "Steve")
     {
         if (isDead || currentHP <= 0) return false;
@@ -510,6 +516,7 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+        UnlockCombatNavigation();
 
         if (animator != null)
         {
@@ -553,9 +560,10 @@ public class Enemy : MonoBehaviour
 
     public void PerformAttack(HeroController hero)
     {
-        if (isDead || currentHP <= 0 || isAttacking) return;
+        if (isDead || currentHP <= 0) return;
+        if (isAttacking) return;
         isAttacking = true;
-        FaceTarget(hero.transform, false, 30.0f); // Smooth snappy rotation
+        FaceTarget(hero.transform, false, 20f);
         StartCoroutine(AttackRoutine(hero));
     }
 
@@ -564,6 +572,7 @@ public class Enemy : MonoBehaviour
         get
         {
             var s = GlobalSettings.Instance;
+            if (s == null) return 0.45f;
             return s.enemyAttackWindUp + s.enemyAttackHitDelay + 0.05f;
         }
     }
@@ -573,7 +582,10 @@ public class Enemy : MonoBehaviour
         var settings = GlobalSettings.Instance;
         CombatLog.AttackStart(gameObject.name, hero != null ? hero.name : "Steve", "enemy melee");
 
-        yield return new WaitForSeconds(settings.enemyAttackWindUp);
+        float windUp = settings != null ? settings.enemyAttackWindUp : 0.14f;
+        float hitDelay = settings != null ? settings.enemyAttackHitDelay : 0.26f;
+
+        yield return new WaitForSeconds(windUp);
         if (isDead || hero == null) { isAttacking = false; yield break; }
 
         if (animator != null)
@@ -582,7 +594,7 @@ public class Enemy : MonoBehaviour
             animator.SetTrigger("Attack");
         }
 
-        yield return new WaitForSeconds(settings.enemyAttackHitDelay);
+        yield return new WaitForSeconds(hitDelay);
         if (!isDead && currentHP > 0 && hero != null)
         {
             float damage = attackDamage;

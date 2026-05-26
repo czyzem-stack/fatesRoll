@@ -46,14 +46,14 @@ public class GlobalSettings : MonoBehaviour
     public float energyDisplayNextDuration = 3f;
 
     [Header("Combat — spacing")]
-    [Tooltip("Max horizontal distance to start or continue melee (separate from enemy patrol aggro zone).")]
-    public float meleeEngageRadius = 3.25f;
+    [Tooltip("Horizontal distance from enemy center where Steve can start melee and paths aim to stop.")]
+    public float meleeEngageDistance = 2.5f;
 
-    [Tooltip("How close Steve's path goal gets to the enemy center (meters, horizontal).")]
-    public float heroMeleeStandoff = 2.0f;
-
-    [Tooltip("How close enemies move toward Steve when chasing (meters, horizontal).")]
-    public float enemyMeleeStandoff = 1.75f;
+    public static float GetMeleeEngageDistance()
+    {
+        var s = Instance;
+        return s != null ? s.meleeEngageDistance : 2.5f;
+    }
 
     [Header("Combat — timing (seconds)")]
     public float combatDiceReadDelay = 0.2f;
@@ -72,8 +72,26 @@ public class GlobalSettings : MonoBehaviour
     [Tooltip("Log combat events to the Console (filter: Combat).")]
     public bool combatLogEnabled = true;
 
+    [Tooltip("Log dice, movement, energy, XP, and die physics to the Console.")]
+    public bool verboseGameplayLogs = false;
+
     [Tooltip("Draw Steve's dice path and POI path lines.")]
     public bool showPath = true;
+
+    /// <summary>Gameplay/system logs gated by <see cref="verboseGameplayLogs"/>.</summary>
+    public static void LogGameplay(string message)
+    {
+        var s = Instance;
+        if (s != null && s.verboseGameplayLogs)
+            Debug.Log(message);
+    }
+
+    public static void LogGameplayWarning(string message)
+    {
+        var s = Instance;
+        if (s != null && s.verboseGameplayLogs)
+            Debug.LogWarning(message);
+    }
 
     private void Awake()
     {

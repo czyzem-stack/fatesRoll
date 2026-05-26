@@ -104,10 +104,6 @@ public class PlayerStats : MonoBehaviour
         if (currentHP > maxHP) currentHP = maxHP;
     }
 
-    public float GetFinalAttackDamage() => attackDamage;
-    public float GetFinalCritChance() => critChance;
-    public float GetFinalDodgeChance() => dodgeChance;
-
     public void RestoreFullHealth()
     {
         CalculateAllDerivedStats();

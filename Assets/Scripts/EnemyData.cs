@@ -12,5 +12,6 @@ public class EnemyData : ScriptableObject
     public float luck = 10f;
 
     [Header("Visuals")]
+    [Tooltip("For editor POI spawn only; runtime uses the monster already on the POI.")]
     public GameObject prefab;
 }
