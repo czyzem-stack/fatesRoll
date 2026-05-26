@@ -202,6 +202,36 @@ public class Enemy : MonoBehaviour
         locomotionDriver.Bind(type, animator);
     }
 
+    /// <summary>Full heal and base difficulty after Steve dies (visit POI or stray enemy).</summary>
+    public void ReviveForRunReset(POINode poiNode = null)
+    {
+        if (IsTreasureChest) return;
+
+        isDead = false;
+        isAttacking = false;
+        navHeld = false;
+        combatNavLocked = false;
+        currentPatrolPoints = 0;
+        nextPatrolTime = Time.time + 1f;
+
+        POINode poi = poiNode ?? GetComponent<POINode>() ?? GetComponentInParent<POINode>();
+        if (poi != null)
+            gameObject.tag = "POI";
+        if (poi != null && poi.enemyData != null)
+            InitializeFromData(poi.enemyData);
+        else if (poi != null && EnemyStatManager.Instance != null)
+            EnemyStatManager.Instance.ApplyFtueStepStats(this, poi.order);
+        else if (EnemyStatManager.Instance != null)
+            EnemyStatManager.Instance.ApplyScaledStats(this);
+        else
+            Initialize();
+
+        currentHP = maxHP;
+        SetHealthBarVisible(true);
+        UnlockCombatNavigation();
+        cachedHero = Object.FindAnyObjectByType<HeroController>();
+    }
+
     /// <summary>Re-enable a pooled POI enemy after the POI was deactivated.</summary>
     public void ResetForSpawn()
     {
@@ -290,6 +320,15 @@ public class Enemy : MonoBehaviour
 
     public Vector3 GetEngagePosition()
     {
+        return transform.position;
+    }
+
+    /// <summary>World position used for chest pathing and open range (visual when present).</summary>
+    public Vector3 GetChestInteractPosition()
+    {
+        var poi = GetComponent<POINode>() ?? GetComponentInParent<POINode>();
+        if (poi != null && poi.currentVisual != null)
+            return poi.currentVisual.transform.position;
         return transform.position;
     }
 
@@ -583,7 +622,8 @@ public class Enemy : MonoBehaviour
             cachedHero.ExitCombat();
             if (poi.GetComponentInParent<SpawnNode>() == null)
                 cachedHero.OnPOIDefeated(poi);
-            cachedHero.PlayChestRewardCelebration(instantOpen: true);
+            if (EquipmentLootManager.Instance != null && EquipmentLootManager.Instance.HasPendingChestRewards)
+                cachedHero.PlayChestRewardCelebration(instantOpen: true);
         }
 
         POIResolve.Resolve(gameObject);
@@ -592,10 +632,7 @@ public class Enemy : MonoBehaviour
     public bool TakeDamage(float amount, string attackerName = "Steve")
     {
         if (IsTreasureChest)
-        {
-            OpenTreasureChest();
-            return true;
-        }
+            return false;
 
         if (isDead || currentHP <= 0) return false;
 

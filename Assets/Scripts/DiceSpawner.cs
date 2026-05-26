@@ -8,6 +8,17 @@ using UnityEditor;
 
 public class DiceSpawner : MonoBehaviour
 {
+    private static DiceSpawner _instance;
+    public static DiceSpawner Instance
+    {
+        get
+        {
+            if (_instance == null)
+                _instance = Object.FindAnyObjectByType<DiceSpawner>();
+            return _instance;
+        }
+    }
+
     private const string DefaultD6PrefabPath = "Assets/Dice/Prefabs/Dice_d6.prefab";
     private const string D6ResourcesPath = "Dice/Dice_d6";
 
@@ -20,6 +31,7 @@ public class DiceSpawner : MonoBehaviour
     private List<GameObject> activeDice = new List<GameObject>();
     private HeroController cachedHero;
     private bool isRolling = false;
+    private Coroutine rollCoroutine;
     private bool autoRollActive = false;
     private float autoRollNextCheckTime = 0f;
     private float autoRollCheckInterval = 1.0f;
@@ -35,7 +47,37 @@ public class DiceSpawner : MonoBehaviour
 
     private void Awake()
     {
+        if (_instance != null && _instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        _instance = this;
         EnsureReferences();
+    }
+
+    public void CancelActiveRoll()
+    {
+        if (rollCoroutine != null)
+        {
+            StopCoroutine(rollCoroutine);
+            rollCoroutine = null;
+        }
+
+        isRolling = false;
+        DestroyActiveDice();
+    }
+
+    private void DestroyActiveDice()
+    {
+        foreach (var d in activeDice)
+        {
+            if (d != null)
+                Destroy(d);
+        }
+
+        activeDice.Clear();
     }
 
     /// <summary>Assigns default d6 prefab and spawn point when Inspector references are missing.</summary>
@@ -55,8 +97,7 @@ public class DiceSpawner : MonoBehaviour
 
         if (d6Prefab == null)
             GlobalSettings.LogGameplayWarning(
-                "DiceSpawner: d6Prefab is not assigned. Use FatesRoll → Dice → Fix Dice Spawner In Scene, " +
-                $"or assign {DefaultD6PrefabPath}.");
+                $"DiceSpawner: d6Prefab is not assigned. Assign {DefaultD6PrefabPath} on DiceSpawner in the scene.");
     }
 
     public void ToggleAutoRoll()
@@ -108,6 +149,12 @@ public class DiceSpawner : MonoBehaviour
             return false;
         }
         
+        if (cachedHero != null && (cachedHero.IsDead || cachedHero.IsRespawning))
+            return false;
+
+        if (RunDeathController.Instance != null && RunDeathController.Instance.IsDeathInProgress)
+            return false;
+
         return true;
     }
 
@@ -130,7 +177,9 @@ public class DiceSpawner : MonoBehaviour
     public void RollDice()
     {
         if (!CanRoll()) return;
-        StartCoroutine(RollRoutine());
+        if (rollCoroutine != null)
+            StopCoroutine(rollCoroutine);
+        rollCoroutine = StartCoroutine(RollRoutine());
     }
 
     private IEnumerator RollRoutine()
@@ -149,20 +198,11 @@ public class DiceSpawner : MonoBehaviour
             if (cachedHero == null)
                 cachedHero = Object.FindAnyObjectByType<HeroController>();
             var hero = cachedHero;
-            if (hero != null)
+            if (hero != null && !hero.InCombat)
             {
-                var anim = hero.GetComponentInChildren<Animator>();
-                if (anim != null)
-                {
-                    // Only play the body throw animation if we are NOT in combat.
-                    // During combat, Steve is already in a battle stance; we just spawn the dice.
-                    if (!hero.InCombat)
-                    {
-                        HeroAnimatorParams.SetTriggerSafe(anim, HeroAnimatorParams.Throw);
-                        // Wait for the animation to reach the "throw" point
-                        yield return new WaitForSeconds(0.2f);
-                    }
-                }
+                var steveAnim = hero.GetComponent<SteveAnimator>();
+                steveAnim?.PlayThrow();
+                yield return new WaitForSeconds(0.2f);
             }
 
             // 1. Aggressive Cleanup of old dice
@@ -178,8 +218,7 @@ public class DiceSpawner : MonoBehaviour
             if (d6Prefab == null)
             {
                 Debug.LogError(
-                    $"DiceSpawner: d6Prefab is missing. Assign {DefaultD6PrefabPath} on DiceSpawner, " +
-                    "or run FatesRoll → Dice → Fix Dice Spawner In Scene.");
+                    $"DiceSpawner: d6Prefab is missing. Assign {DefaultD6PrefabPath} on DiceSpawner in the scene.");
                 yield break;
             }
 
@@ -269,12 +308,6 @@ public class DiceSpawner : MonoBehaviour
             else
                 GlobalSettings.LogGameplay("<b>[Dice Physics]</b> Dice settled successfully.");
 
-            // 4. Brief read delay (shorter in combat for snappy turns)
-            float readDelay = 0.85f;
-            if (settings != null)
-                readDelay = (hero != null && hero.InCombat) ? settings.combatDiceReadDelay : settings.travelDiceReadDelay;
-            yield return new WaitForSeconds(readDelay);
-
             int total = 0;
             List<int> individual = new List<int>();
             foreach (var d in activeDice)
@@ -300,6 +333,9 @@ public class DiceSpawner : MonoBehaviour
 
                 if (hero.InCombat && combatEnemy != null && !combatEnemy.isDead)
                 {
+                    float readDelay = settings != null ? settings.combatDiceReadDelay : 0.35f;
+                    yield return new WaitForSeconds(readDelay);
+
                     bool isCrit;
                     int finalDamage = hero.CalculateRollDamage(total, out isCrit);
                     CombatLog.Info($"Dice combat turn | roll {total} → {finalDamage} damage{(isCrit ? " (CRIT)" : "")}");
@@ -339,15 +375,21 @@ public class DiceSpawner : MonoBehaviour
 
                     if (!hero.InCombat)
                     {
+                        if (hero.IsDead || hero.IsRespawning)
+                            yield break;
+
                         hero.RecordRoll(total);
                         hero.MoveSteps(total);
 
                         float moveWait = 12f;
-                        while (hero.IsMoving && moveWait > 0f)
+                        while (hero.IsMoving && moveWait > 0f && !hero.IsDead && !hero.IsRespawning)
                         {
                             moveWait -= Time.deltaTime;
                             yield return null;
                         }
+
+                        if (hero.IsDead || hero.IsRespawning)
+                            yield break;
 
                         Enemy pending = hero.GetPendingCombatEnemy();
                         if (pending != null && hero.TryBeginMeleeWithRoll(pending, total))
@@ -377,6 +419,7 @@ public class DiceSpawner : MonoBehaviour
         finally
         {
             isRolling = false;
+            rollCoroutine = null;
         }
     }
 

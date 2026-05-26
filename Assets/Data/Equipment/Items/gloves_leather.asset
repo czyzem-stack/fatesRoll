@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: gloves_leather
   displayName: Leather Gloves
-  slot: 8
+  slot: 4
   chestCategory: 2
   visualPrefab: {fileID: 0}
   rigChildName: 

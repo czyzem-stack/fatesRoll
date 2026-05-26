@@ -202,6 +202,20 @@ public class POIManager : MonoBehaviour
     public GameObject GetPOIByOrder(int order) => GetVisitPOIByOrder(order);
     public GameObject GetSequentialPOIByOrder(int order) => GetVisitPOIByOrder(order);
 
+    /// <summary>Revive and re-scale visit POI enemies still in the scene (spawn pool handled separately).</summary>
+    public void RefreshRemainingVisitEnemies()
+    {
+        foreach (var poi in allVisitPOIs)
+        {
+            if (poi == null || poi.IsTreasureChest) continue;
+
+            var enemy = poi.GetComponent<Enemy>();
+            if (enemy == null) continue;
+
+            enemy.ReviveForRunReset(poi);
+        }
+    }
+
     // Back-compat for any callers
     public void ResolveSequentialPOI(GameObject go) => ResolveVisitPOI(go);
 }

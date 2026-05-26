@@ -69,7 +69,6 @@ public class DieResult : MonoBehaviour
             }
         }
 
-        GlobalSettings.LogGameplay($"DieResult: face value {value} (dot {maxDot:F2})");
         return value;
     }
 }

@@ -1,5 +1,8 @@
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Equips gear on Steve's modular rig: visuals on sockets / body toggles; stat-only slots apply bonuses only.
@@ -14,6 +17,11 @@ public class HeroEquipment : MonoBehaviour
     [SerializeField] private Transform socketMainHand;
     [SerializeField] private Transform socketOffHand;
     [SerializeField] private Transform socketHead;
+
+    [Header("Default head (when slot empty)")]
+    [SerializeField] private string defaultHeadBaseId = "Head01_Male";
+    [SerializeField] private string defaultEyesId = "Eye01";
+    [SerializeField] private string defaultEyebrowId = "Eyebrow01";
 
     private readonly Dictionary<EquipmentSlotType, EquipmentInstance> equipped = new Dictionary<EquipmentSlotType, EquipmentInstance>();
     private readonly Dictionary<EquipmentSlotType, GameObject> spawnedVisuals = new Dictionary<EquipmentSlotType, GameObject>();
@@ -37,6 +45,7 @@ public class HeroEquipment : MonoBehaviour
         CacheRigChildren();
         HideAllBodyVariants();
         EnsureBaseBodyVisible();
+        EnsureDefaultHeadParts();
     }
 
     public void ResolveRig()
@@ -137,7 +146,6 @@ public class HeroEquipment : MonoBehaviour
         equipped[slot] = instance;
         ApplyVisual(instance);
         RefreshStatBonuses();
-        RefreshWeaponStance();
         GlobalSettings.LogGameplay($"Equipped {instance.BuildChoiceLabel()} in {slot}.");
         return true;
     }
@@ -147,20 +155,12 @@ public class HeroEquipment : MonoBehaviour
         UnequipVisual(slot);
         equipped.Remove(slot);
         RefreshStatBonuses();
-        RefreshWeaponStance();
-    }
-
-    private void RefreshWeaponStance()
-    {
-        var stance = GetComponent<HeroWeaponStance>();
-        if (stance != null)
-            stance.RefreshFromEquipment();
     }
 
     private void UnequipVisual(EquipmentSlotType slot)
     {
         if (spawnedVisuals.TryGetValue(slot, out GameObject go) && go != null)
-            Destroy(go);
+            DestroyEquippedObject(go);
         spawnedVisuals.Remove(slot);
 
         if (slot == EquipmentSlotType.BodyArmor)
@@ -211,11 +211,41 @@ public class HeroEquipment : MonoBehaviour
         if (def.slot == EquipmentSlotType.MainHand && IsTwoHanded(def))
             Unequip(EquipmentSlotType.OffHand);
 
-        GameObject visual = Instantiate(def.visualPrefab, parent);
+        GameObject visual = SpawnVisualPrefab(def.visualPrefab, parent);
+        if (visual == null)
+            return;
+
         visual.transform.localPosition = Vector3.zero;
         visual.transform.localRotation = Quaternion.identity;
         visual.transform.localScale = Vector3.one;
         spawnedVisuals[def.slot] = visual;
+    }
+
+    private static GameObject SpawnVisualPrefab(GameObject prefab, Transform parent)
+    {
+        if (prefab == null || parent == null)
+            return null;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+            return (GameObject)PrefabUtility.InstantiatePrefab(prefab, parent);
+#endif
+        return Instantiate(prefab, parent);
+    }
+
+    private static void DestroyEquippedObject(Object obj)
+    {
+        if (obj == null)
+            return;
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            Object.DestroyImmediate(obj);
+            return;
+        }
+#endif
+        Object.Destroy(obj);
     }
 
     private void DisableCloakChildren()
@@ -233,10 +263,77 @@ public class HeroEquipment : MonoBehaviour
         {
             EquipmentSlotType.MainHand => socketMainHand,
             EquipmentSlotType.OffHand => socketOffHand,
-            EquipmentSlotType.Head => socketHead,
+            EquipmentSlotType.HeadBase => socketHead,
+            EquipmentSlotType.HeadEyes => socketHead,
+            EquipmentSlotType.HeadHelmet => socketHead,
+            EquipmentSlotType.HeadFacial => socketHead,
             EquipmentSlotType.Cape => FindBone(rigRoot, "CloakBone01") ?? rigRoot,
             _ => null
         };
+    }
+
+    /// <summary>Base head + eyes + brows for any empty head slots.</summary>
+    public void EnsureDefaultHeadParts()
+    {
+        if (rigRoot == null)
+            ResolveRig();
+
+        TryEquipDefaultCatalogItem(defaultHeadBaseId, EquipmentSlotType.HeadBase);
+        TryEquipDefaultCatalogItem(defaultEyesId, EquipmentSlotType.HeadEyes);
+        TryEquipDefaultCatalogItem(defaultEyebrowId, EquipmentSlotType.HeadFacial);
+    }
+
+    /// <summary>Clears all head-slot visuals and re-applies defaults (editor setup).</summary>
+    public void ResetHeadPartsToDefault()
+    {
+        foreach (EquipmentSlotType slot in new[]
+                 {
+                     EquipmentSlotType.HeadBase, EquipmentSlotType.HeadEyes, EquipmentSlotType.HeadHelmet,
+                     EquipmentSlotType.HeadFacial
+                 })
+        {
+            Unequip(slot);
+        }
+
+        EnsureDefaultHeadParts();
+    }
+
+    private void TryEquipDefaultCatalogItem(string itemId, EquipmentSlotType slot)
+    {
+        if (string.IsNullOrEmpty(itemId) || GetEquipped(slot) != null)
+            return;
+
+        var def = ResolveCatalogDefinition(itemId);
+        if (def == null)
+            return;
+
+        Equip(new EquipmentInstance(def, new List<EquipmentStatBonus>(), 0));
+    }
+
+    private static EquipmentItemDefinition ResolveCatalogDefinition(string itemId)
+    {
+#if UNITY_EDITOR
+        var catalog = AssetDatabase.LoadAssetAtPath<EquipmentCatalog>("Assets/Data/Equipment/EquipmentCatalog.asset");
+        if (catalog != null)
+        {
+            foreach (var item in catalog.items)
+            {
+                if (item != null && item.itemId == itemId)
+                    return item;
+            }
+        }
+#endif
+        var resourcesCatalog = Resources.Load<EquipmentCatalog>("Equipment/EquipmentCatalog");
+        if (resourcesCatalog == null)
+            return null;
+
+        foreach (var item in resourcesCatalog.items)
+        {
+            if (item != null && item.itemId == itemId)
+                return item;
+        }
+
+        return null;
     }
 
     private static bool IsTwoHanded(EquipmentItemDefinition def)
@@ -293,7 +390,10 @@ public class HeroEquipment : MonoBehaviour
                 return GetEquipped(EquipmentSlotType.MainHand) ?? GetEquipped(EquipmentSlotType.OffHand);
             case EquipmentChestCategory.Armor:
                 return GetEquipped(EquipmentSlotType.BodyArmor)
-                    ?? GetEquipped(EquipmentSlotType.Head)
+                    ?? GetEquipped(EquipmentSlotType.HeadBase)
+                    ?? GetEquipped(EquipmentSlotType.HeadHelmet)
+                    ?? GetEquipped(EquipmentSlotType.HeadEyes)
+                    ?? GetEquipped(EquipmentSlotType.HeadFacial)
                     ?? GetEquipped(EquipmentSlotType.Cape)
                     ?? GetEquipped(EquipmentSlotType.Boots)
                     ?? GetEquipped(EquipmentSlotType.Gloves);

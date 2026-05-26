@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Hat05
   displayName: Hat05
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 3664300683476958376, guid: f1049ac0cd34ac548893dd0a93203887, type: 3}
   rigChildName: 

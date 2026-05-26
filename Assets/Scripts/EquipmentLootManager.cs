@@ -76,6 +76,7 @@ public class EquipmentLootManager : MonoBehaviour
     private EquipmentInstance pendingOptionB;
 
     public bool IsRewardFlowActive => rewardFlowActive;
+    public bool HasPendingChestRewards => pendingChests.Count > 0;
     public EquipmentCatalog Catalog => catalog;
     public int ChestsOpenedCount => chestsOpenedCount;
 
@@ -113,7 +114,7 @@ public class EquipmentLootManager : MonoBehaviour
 
         if (catalog == null)
             GlobalSettings.LogGameplayWarning(
-                "EquipmentLootManager: no catalog assigned. Run FatesRoll → Equipment → Fix Equipment Loot Manager In Scene.");
+                "EquipmentLootManager: no catalog assigned. Assign EquipmentCatalog on EquipmentLootManager in the scene.");
     }
 
     public void EnqueueChestReward(POINode poi)
@@ -236,7 +237,7 @@ public class EquipmentLootManager : MonoBehaviour
         {
             Debug.LogError(
                 $"EquipmentLootManager: no Equipment Catalog. Assign {DefaultCatalogPath} or run " +
-                "FatesRoll → Equipment → Fix Equipment Loot Manager In Scene.");
+                "Assign EquipmentCatalog on EquipmentLootManager in the scene.");
             return false;
         }
 

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC04_ShortEars
   displayName: AC04 ShortEars
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 2234397998069020902, guid: 460c107a6258b1646ac7a43949177a2b, type: 3}
   rigChildName: 

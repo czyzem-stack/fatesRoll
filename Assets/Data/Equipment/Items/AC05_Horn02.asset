@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC05_Horn02
   displayName: AC05 Horn02
-  slot: 2
+  slot: 5
   chestCategory: 1
   visualPrefab: {fileID: 6513709937529828530, guid: 0d47297e505d86645a0c995bf9c2b5f1, type: 3}
   rigChildName: 

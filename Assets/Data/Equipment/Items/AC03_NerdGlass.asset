@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC03_NerdGlass
   displayName: AC03 NerdGlass
-  slot: 2
+  slot: 3
   chestCategory: 1
   visualPrefab: {fileID: 8899905937601322386, guid: c36fdd77d2d0a0544b415041d8f686fe, type: 3}
   rigChildName: 

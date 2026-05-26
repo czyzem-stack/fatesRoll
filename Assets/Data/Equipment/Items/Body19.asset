@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Body19
   displayName: Armor Body19
-  slot: 3
+  slot: 6
   chestCategory: 1
   visualPrefab: {fileID: 0}
   rigChildName: Body19

@@ -3,7 +3,15 @@ public enum EquipmentSlotType
 {
     MainHand,
     OffHand,
-    Head,
+    /// <summary>Base skull mesh (Head01_Male, etc.).</summary>
+    HeadBase,
+    Head = HeadBase,
+    /// <summary>Eyes, eyebrows, glasses (Eye*, Eyebrow*, AC03_*).</summary>
+    HeadEyes,
+    /// <summary>Hats, helmets, hair, head armor (Hat*, HeadArmor*, Hair*).</summary>
+    HeadHelmet,
+    /// <summary>Mouth, mustaches, face decals (Mouth*, AC10_*, AC11_*).</summary>
+    HeadFacial,
     BodyArmor,
     Cape,
     Ring,

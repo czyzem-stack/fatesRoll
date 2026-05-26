@@ -31,7 +31,6 @@ public static class TitleSceneSetup
     const string TitleStartPrefabPath =
         "Assets/UI/GUI Pro-FantasyRPG/Prefabs/Prefabs_DemoScene_Panels/TitleStart.prefab";
 
-    [MenuItem("FatesRoll/Scenes/Setup Title Loading Scene")]
     public static void SetupTitleLoadingScene()
     {
         var titlePrefab = AssetDatabase.LoadAssetAtPath<GameObject>(TitlePrefabPath);
@@ -89,7 +88,6 @@ public static class TitleSceneSetup
             "Title scene saved. Build order: title (0) → main (1). Press Play from any scene to run the title/loading flow first.");
     }
 
-    [MenuItem("FatesRoll/Scenes/Set Build Order (Title → Main)")]
     public static void SetBuildScenesMenu()
     {
         SetBuildScenes();
@@ -116,14 +114,12 @@ public static class TitleSceneSetup
         ApplyPlayModeStartScene(silent: true);
     }
 
-    [MenuItem("FatesRoll/Scenes/Always Start Play From Title Scene")]
     public static void EnablePlayModeStartSceneMenu()
     {
         EditorPrefs.SetBool(PlayFromActiveScenePref, false);
         ApplyPlayModeStartScene();
     }
 
-    [MenuItem("FatesRoll/Scenes/Play From Active Scene (Skip Title On Play)")]
     public static void DisablePlayModeStartSceneMenu()
     {
         EditorPrefs.SetBool(PlayFromActiveScenePref, true);
@@ -177,7 +173,6 @@ public static class TitleSceneSetup
         cam.cullingMask = 0;
     }
 
-    [MenuItem("FatesRoll/Scenes/Consolidate Title UI (one logo set)")]
     public static void ConsolidateTitleSceneMenu()
     {
         if (!File.Exists(TitleScenePath))
@@ -354,7 +349,6 @@ public static class TitleSceneSetup
         return null;
     }
 
-    [MenuItem("FatesRoll/Scenes/Fix Title Scene Camera")]
     public static void FixTitleSceneCamera()
     {
         if (!File.Exists(TitleScenePath))

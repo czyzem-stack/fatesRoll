@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC02_Leaf
   displayName: AC02 Leaf
-  slot: 2
+  slot: 5
   chestCategory: 1
   visualPrefab: {fileID: 2193658558950196739, guid: ebfaa0da77f00ab468c9d6130fd57477, type: 3}
   rigChildName: 

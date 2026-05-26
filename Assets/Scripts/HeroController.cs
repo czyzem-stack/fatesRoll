@@ -2,17 +2,26 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
+/// <summary>Steve — combat, health, death. Travel is <see cref="SteveMovement"/>; animation is <see cref="SteveAnimator"/>.</summary>
 public class HeroController : MonoBehaviour
 {
     private NavMeshAgent agent;
-    private Animator animator;
-    private bool isMoving = false;
-    public bool IsMoving => isMoving;
+    private SteveAnimator steveAnim;
+    private SteveMovement movement;
 
-    private bool isCelebrating = false;
+    private bool isCelebrating;
+    private bool isDead;
+    private bool isRespawning;
     public bool IsCelebrating => isCelebrating;
+    public bool IsDead => isDead;
+    public bool IsRespawning => isRespawning;
+    public bool IsMoving => movement != null && movement.IsMoving;
+    public Enemy ApproachingEnemy => movement != null ? movement.ApproachingEnemy : null;
     public bool IsBlockedForDice =>
+        isDead ||
+        isRespawning ||
         isCelebrating ||
+        (RunDeathController.Instance != null && RunDeathController.Instance.IsDeathInProgress) ||
         (RogueLiteManager.Instance != null && RogueLiteManager.Instance.IsRewardFlowActive) ||
         (EquipmentLootManager.Instance != null && EquipmentLootManager.Instance.IsRewardFlowActive);
     public float LevelUpCelebrationSeconds => 2.7f;
@@ -24,109 +33,179 @@ public class HeroController : MonoBehaviour
     [SerializeField] private float extraVisualYawDegrees;
 
     private PlayerStats stats;
-    private bool inCombat = false;
+    private bool inCombat;
     public bool InCombat => inCombat;
     public GameObject currentEnemy;
 
     public UnityEngine.UI.Slider healthSlider;
 
-    private LineRenderer pathLine;
-    private LineRenderer fullPathLine;
-
-    private GameObject currentTarget;
-    private GameObject lockedMovementTarget;
-    private Enemy approachingEnemy;
-    public Enemy ApproachingEnemy => approachingEnemy;
-    private int nextPOIOrder = 0;
     private Coroutine engageRoutine;
-    private int lastRollValue;
-
     public bool IsEngageBusy => engageRoutine != null;
 
-    /// <summary>Align MC02 mesh forward with NavMeshAgent facing (call after rig swap).</summary>
+    private Vector3 visualRigAuthoringLocal;
+    private float agentBaseOffsetAuthoring;
+    private bool hasAuthoringBaseline;
+    private const float MaxSavedVisualLocalY = 0.6f;
+
+    private Animator Animator => steveAnim != null ? steveAnim.RigAnimator : null;
+
+    public void CaptureAuthoringBaseline(bool force = false)
+    {
+        if (hasAuthoringBaseline && !force)
+            return;
+
+        var anim = Animator;
+        if (anim == null)
+            return;
+
+        Transform visual = HeroLocomotionUtility.GetVisualRigRoot(transform, anim);
+        if (agent == null)
+            agent = GetComponent<NavMeshAgent>();
+
+        if (Mathf.Abs(visual.localPosition.y) > MaxSavedVisualLocalY)
+        {
+            visual.localPosition = new Vector3(visual.localPosition.x, 0f, visual.localPosition.z);
+            if (agent != null)
+                agent.baseOffset = 0f;
+        }
+
+        visualRigAuthoringLocal = visual.localPosition;
+        agentBaseOffsetAuthoring = agent != null ? agent.baseOffset : 0f;
+        hasAuthoringBaseline = true;
+    }
+
+    public void ResetFeetAlignmentAuthoring()
+    {
+        var anim = Animator;
+        if (anim == null)
+            return;
+
+        Transform visual = HeroLocomotionUtility.GetVisualRigRoot(transform, anim);
+        visual.localPosition = new Vector3(visual.localPosition.x, 0f, visual.localPosition.z);
+
+        if (agent == null)
+            agent = GetComponent<NavMeshAgent>();
+        if (agent != null)
+            agent.baseOffset = 0f;
+
+        hasAuthoringBaseline = false;
+        CaptureAuthoringBaseline(force: true);
+    }
+
+    public void CaptureVisualBaseline() => CaptureAuthoringBaseline();
+
+    public void SnapBodyToGround()
+    {
+        if (agent == null)
+            agent = GetComponent<NavMeshAgent>();
+        HeroLocomotionUtility.EnsureNavMeshFootPivot(agent);
+
+        var anim = Animator;
+        if (anim == null)
+            return;
+
+        if (!hasAuthoringBaseline)
+            CaptureAuthoringBaseline();
+
+        Transform visual = HeroLocomotionUtility.GetVisualRigRoot(transform, anim);
+        visual.localPosition = visualRigAuthoringLocal;
+        if (agent != null)
+            agent.baseOffset = agentBaseOffsetAuthoring;
+
+        anim.Update(0f);
+        HeroLocomotionUtility.AlignVisualFeetToGround(
+            transform, anim, agent, visualRigAuthoringLocal, agentBaseOffsetAuthoring);
+    }
+
     public void ApplyVisualLocomotionAlignment()
     {
-        if (animator == null)
-            animator = GetComponentInChildren<Animator>();
-        if (animator == null)
+        var anim = Animator;
+        if (anim == null)
             return;
 
         visualYawFixApplied = false;
         HeroLocomotionUtility.AlignVisualToAgentForward(
-            transform, animator, ref visualYawFixApplied, extraVisualYawDegrees);
+            transform, anim, ref visualYawFixApplied, extraVisualYawDegrees);
     }
 
-    void Start()
+    private void Start()
     {
         agent = GetComponent<NavMeshAgent>();
-        if (agent == null) agent = gameObject.AddComponent<NavMeshAgent>();
+        if (agent == null)
+            agent = gameObject.AddComponent<NavMeshAgent>();
+        HeroLocomotionUtility.EnsureNavMeshFootPivot(agent);
 
         if (!agent.isOnNavMesh)
         {
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(transform.position, out hit, 5.0f, NavMesh.AllAreas))
-            {
+            if (NavMesh.SamplePosition(transform.position, out NavMeshHit hit, 5f, NavMesh.AllAreas))
                 agent.Warp(hit.position);
-                GlobalSettings.LogGameplay($"HeroController: Warped {gameObject.name} to NavMesh at {hit.position}");
-            }
+        }
+        else if (HeroSpawnUtility.TryResolveSpawnPosition(transform.position, out Vector3 grounded))
+        {
+            agent.Warp(grounded);
         }
 
-        animator = GetComponentInChildren<Animator>();
-
         stats = GetComponent<PlayerStats>();
-        if (stats == null) stats = gameObject.AddComponent<PlayerStats>();
+        if (stats == null)
+            stats = gameObject.AddComponent<PlayerStats>();
 
         if (GetComponent<HeroEquipment>() == null)
             gameObject.AddComponent<HeroEquipment>();
 
-        var weaponStance = GetComponent<HeroWeaponStance>();
-        if (weaponStance == null)
-            weaponStance = gameObject.AddComponent<HeroWeaponStance>();
-        weaponStance.Initialize();
+        steveAnim = GetComponent<SteveAnimator>();
+        if (steveAnim == null)
+            steveAnim = gameObject.AddComponent<SteveAnimator>();
 
-        if (animator != null)
-        {
-            animator.applyRootMotion = false;
-            ApplyVisualLocomotionAlignment();
-        }
-        
+        movement = GetComponent<SteveMovement>();
+        if (movement == null)
+            movement = gameObject.AddComponent<SteveMovement>();
+
+        steveAnim.Initialize(transform);
+        movement.Initialize(agent, steveAnim);
+
+        ResetFeetAlignmentAuthoring();
+        ApplyVisualLocomotionAlignment();
+        SnapBodyToGround();
+
         AutoAssignHealthUI();
 
         var settings = GlobalSettings.Instance;
         if (settings != null)
             agent.speed = settings.heroTravelSpeed;
-        agent.acceleration = 30.0f;
-        agent.stoppingDistance = 1.0f;
+        agent.acceleration = 30f;
+        agent.stoppingDistance = 1f;
         agent.autoBraking = true;
         agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
 
-        SetupPathLines();
         SetLayerRecursive(gameObject, 8);
+
+        if (RunDeathController.Instance != null)
+            RunDeathController.Instance.RecordHeroSpawn(this);
     }
 
     private void SetLayerRecursive(GameObject obj, int layer)
     {
-        if (obj.GetComponent<UnityEngine.Canvas>() != null || 
-            obj.GetComponent<UnityEngine.RectTransform>() != null || 
+        if (obj.GetComponent<UnityEngine.Canvas>() != null ||
+            obj.GetComponent<UnityEngine.RectTransform>() != null ||
             obj.GetComponent<UnityEngine.LineRenderer>() != null ||
             obj.name.Contains("PathLine"))
         {
-            int targetLayer = (obj.GetComponent<UnityEngine.LineRenderer>() != null || obj.name.Contains("PathLine")) ? 0 : 5;
+            int targetLayer = obj.GetComponent<UnityEngine.LineRenderer>() != null || obj.name.Contains("PathLine") ? 0 : 5;
             SetLayerRecursiveInternal(obj, targetLayer);
             return;
         }
 
         var renderer = obj.GetComponent<Renderer>();
-        if (renderer != null) obj.layer = layer;
-        else obj.layer = 0;
-
-        foreach (Transform child in obj.transform) SetLayerRecursive(child.gameObject, layer);
+        obj.layer = renderer != null ? layer : 0;
+        foreach (Transform child in obj.transform)
+            SetLayerRecursive(child.gameObject, layer);
     }
 
-    private void SetLayerRecursiveInternal(GameObject obj, int layer)
+    private static void SetLayerRecursiveInternal(GameObject obj, int layer)
     {
         obj.layer = layer;
-        foreach (Transform child in obj.transform) SetLayerRecursiveInternal(child.gameObject, layer);
+        foreach (Transform child in obj.transform)
+            SetLayerRecursiveInternal(child.gameObject, layer);
     }
 
     private void AutoAssignHealthUI()
@@ -134,8 +213,10 @@ public class HeroController : MonoBehaviour
         if (healthSlider == null)
         {
             GameObject sliderGO = GameObject.Find("MainUI_Canvas/HUD_Profile/Slider_Bottom");
-            if (sliderGO != null) healthSlider = sliderGO.GetComponent<UnityEngine.UI.Slider>();
+            if (sliderGO != null)
+                healthSlider = sliderGO.GetComponent<UnityEngine.UI.Slider>();
         }
+
         UpdateHealthUI();
     }
 
@@ -148,89 +229,35 @@ public class HeroController : MonoBehaviour
         }
     }
 
-    private void SetupPathLines()
+    public void FaceTarget(Transform target, bool instant = false, float speed = 15f)
     {
-        GameObject goPath = new GameObject("RollPathLine");
-        goPath.transform.SetParent(transform);
-        goPath.layer = 0;
-        pathLine = goPath.AddComponent<LineRenderer>();
-        ConfigureLine(pathLine, Color.yellow, 0.2f);
+        if (target == null)
+            return;
 
-        GameObject goFull = new GameObject("FullPathLine");
-        goFull.transform.SetParent(transform);
-        goFull.layer = 0;
-        fullPathLine = goFull.AddComponent<LineRenderer>();
-        ConfigureLine(fullPathLine, Color.magenta, 0.1f);
+        Vector3 direction = target.position - transform.position;
+        direction.y = 0f;
+        if (direction.sqrMagnitude < 0.01f)
+            return;
+
+        Quaternion targetRotation = Quaternion.LookRotation(direction.normalized);
+        transform.rotation = instant
+            ? targetRotation
+            : Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * speed);
     }
 
-    private void ConfigureLine(LineRenderer lr, Color color, float width)
+    private void Update()
     {
-        lr.startWidth = width;
-        lr.endWidth = width;
-        lr.material = new Material(Shader.Find("Sprites/Default"));
-        lr.startColor = color;
-        lr.endColor = color;
-        lr.positionCount = 0;
-        lr.enabled = false;
-    }
-
-    public void FaceTarget(Transform target, bool instant = false, float speed = 15.0f)
-    {
-        if (target == null) return;
-        Vector3 direction = (target.position - transform.position).normalized;
-        direction.y = 0;
-        if (direction != Vector3.zero)
-        {
-            Quaternion targetRotation = Quaternion.LookRotation(direction);
-            if (instant)
-            {
-                transform.rotation = targetRotation;
-            }
-            else
-            {
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * speed);
-            }
-        }
-    }
-
-    void Update()
-    {
-        if (agent == null) return;
+        if (agent == null || isDead || isRespawning)
+            return;
 
         if (healthSlider != null && stats != null)
         {
-            if (healthSlider.maxValue != stats.MaxHP) healthSlider.maxValue = stats.MaxHP;
+            if (healthSlider.maxValue != stats.MaxHP)
+                healthSlider.maxValue = stats.MaxHP;
             healthSlider.value = stats.currentHP;
         }
 
-        if (animator != null)
-        {
-            if (animator.applyRootMotion) animator.applyRootMotion = false;
-            if (isCelebrating || IsEngageBusy || (inCombat && !isMoving))
-            {
-                HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f, 0.15f, Time.deltaTime);
-            }
-            else if (isMoving)
-            {
-                HeroAnimatorParams.SetFloatSafe(
-                    animator,
-                    HeroAnimatorParams.Speed,
-                    ComputeHeroLocomotionSpeed(agent),
-                    0.15f,
-                    Time.deltaTime);
-            }
-            else
-            {
-                HeroAnimatorParams.SetFloatSafe(
-                    animator,
-                    HeroAnimatorParams.Speed,
-                    ComputeHeroLocomotionSpeed(agent),
-                    0.15f,
-                    Time.deltaTime);
-            }
-        }
-
-        if ((inCombat && !isMoving) || IsEngageBusy)
+        if ((inCombat && !IsMoving) || IsEngageBusy)
         {
             if (agent.isOnNavMesh)
             {
@@ -241,215 +268,106 @@ public class HeroController : MonoBehaviour
             }
         }
 
-        UpdatePathLines();
+        bool blockTravel = isCelebrating || IsEngageBusy;
+        movement?.Tick(blockTravel);
 
-        if (inCombat && currentEnemy != null && engageRoutine == null && !isMoving)
+        if (inCombat && currentEnemy != null && engageRoutine == null && !IsMoving)
         {
             var engaged = GetEnemyFromTarget(currentEnemy);
             if (engaged != null && IsWithinMeleeEngageRange(engaged, 0.35f))
                 FaceTarget(engaged.transform, false, 12f);
         }
-
-        if (isMoving && !isCelebrating && !IsEngageBusy)
-        {
-            Enemy targetEnemy = approachingEnemy ?? GetEnemyFromTarget(currentTarget);
-            if (targetEnemy != null)
-            {
-                if (targetEnemy.IsWithinEngageRange(this))
-                {
-                    OnArrivedNearEnemy(targetEnemy);
-                    return;
-                }
-
-                bool reachedDest = !agent.pathPending &&
-                    agent.remainingDistance <= agent.stoppingDistance + 0.2f;
-
-                if (reachedDest)
-                {
-                    OnArrivedNearEnemy(targetEnemy);
-                    return;
-                }
-            }
-            else if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
-            {
-                FinalizeMovement("Destination reached");
-                GameObject target = currentTarget;
-                currentTarget = null;
-                if (target != null)
-                {
-                    var poi = target.GetComponent<POINode>() ?? target.GetComponentInParent<POINode>();
-                    OnPOIDefeated(poi);
-                    POIResolve.Resolve(target);
-                }
-            }
-        }
     }
 
-    private static float ComputeHeroLocomotionSpeed(NavMeshAgent navAgent)
+    public void RecordRoll(int rollTotal) => movement?.RecordRoll(rollTotal);
+
+    public void MoveSteps(int diceResult)
     {
-        if (navAgent == null || !navAgent.isOnNavMesh)
-            return 0f;
+        if (isCelebrating || isDead || isRespawning)
+            return;
 
-        if (!navAgent.pathPending &&
-            navAgent.remainingDistance <= navAgent.stoppingDistance + 0.2f)
-            return 0f;
-
-        float speed = navAgent.velocity.magnitude;
-        if (speed < 0.35f)
-            return 0f;
-        if (speed < 1.2f)
-            return 1f;
-        if (speed > 3.5f)
-            return 2f;
-        return speed;
+        movement?.MoveAfterRoll(diceResult);
     }
 
-    private static Enemy GetEnemyFromTarget(GameObject target)
+    public void ResetDiceMovement() => movement?.ResetAll();
+
+    public void OnPOIDefeated(POINode node) => movement?.NotifyPoiDefeated(node);
+
+    public Enemy GetPendingCombatEnemy() => movement != null ? movement.GetPendingCombatEnemy() : null;
+
+    public Enemy GetCurrentEnemy() => GetEnemyFromTarget(currentEnemy);
+
+    public void OnMovementArrivedAtEnemy(Enemy enemy)
     {
-        if (target == null) return null;
-        return target.GetComponent<Enemy>() ?? target.GetComponentInChildren<Enemy>();
+        int roll = movement != null ? movement.LastRollValue : 0;
+        if (TryBeginMeleeWithRoll(enemy, roll))
+            movement?.EndRoute();
+        else
+            movement?.OnRollSegmentEnded();
     }
 
-    /// <summary>Resolve the <see cref="Enemy"/> Steve is fighting (POI root or child visual).</summary>
-    public Enemy GetCurrentEnemy()
+    public void OnMovementArrivedAtPoi(POINode poi, GameObject target)
     {
-        return GetEnemyFromTarget(currentEnemy);
+        movement?.EndRoute();
+        OnPOIDefeated(poi);
+        POIResolve.Resolve(target);
     }
 
-    private float DistanceToEnemy(Enemy enemy)
+    public bool IsWithinChestInteractRange(Enemy chest)
     {
-        if (enemy == null) return float.MaxValue;
+        if (chest == null || chest.isDead)
+            return false;
+
         Vector3 a = transform.position;
-        Vector3 b = enemy.GetEngagePosition();
+        Vector3 b = chest.GetChestInteractPosition();
         a.y = 0f;
         b.y = 0f;
-        return Vector3.Distance(a, b);
+        return Vector3.Distance(a, b) <= GlobalSettings.GetChestInteractDistance();
     }
 
-    private static float MeleeEngageDistance => GlobalSettings.GetMeleeEngageDistance();
-
-    private bool IsWithinMeleeEngageRange(Enemy enemy, float extraBuffer = 0f)
+    public void OnMovementArrivedAtTreasureChest(Enemy chest)
     {
-        return enemy != null && DistanceToEnemy(enemy) <= MeleeEngageDistance + extraBuffer;
+        if (chest == null || chest.isDead)
+            return;
+
+        if (!IsWithinChestInteractRange(chest))
+        {
+            movement?.OnRollSegmentEnded();
+            return;
+        }
+
+        chest.OpenTreasureChest();
+        movement?.EndRoute();
     }
 
-    public void RecordRoll(int rollTotal)
-    {
-        lastRollValue = rollTotal;
-    }
-
-    /// <summary>Mark a POI as done so the next roll targets the following visit order.</summary>
-    public void OnPOIDefeated(POINode node)
-    {
-        currentTarget = null;
-        approachingEnemy = null;
-        lockedMovementTarget = null;
-        if (node == null) return;
-
-        nextPOIOrder = Mathf.Max(nextPOIOrder, node.order + 1);
-
-        var pm = POIManager.Instance;
-        if (pm != null && !pm.HasRemainingVisitPOI(node))
-            pm.TryEnableRandomVisitTargeting();
-    }
-
-    private void AdvancePastEnemyPOI(Enemy enemy)
-    {
-        if (enemy == null) return;
-        OnPOIDefeated(enemy.GetComponentInParent<POINode>());
-    }
-
-    private bool IsTargetUsable(GameObject target)
-    {
-        if (target == null) return false;
-
-        var enemy = GetEnemyFromTarget(target);
-        if (enemy != null)
-            return !enemy.isDead;
-
-        var poi = target.GetComponent<POINode>() ?? target.GetComponentInParent<POINode>();
-        return poi != null;
-    }
-
-    private bool IsCurrentTargetUsable() => IsTargetUsable(currentTarget);
-
-    /// <summary>POI enemy Steve is walking toward (or last target).</summary>
-    public Enemy GetPendingCombatEnemy()
-    {
-        if (approachingEnemy != null) return approachingEnemy;
-        return GetEnemyFromTarget(currentTarget);
-    }
-
-    /// <summary>Start melee if Steve is in range — returns true if combat began.</summary>
     public bool TryBeginMeleeWithRoll(Enemy enemy, int rollTotal)
     {
         if (enemy == null || enemy.isDead || IsEngageBusy || inCombat)
             return false;
 
         if (enemy.IsTreasureChest)
-        {
-            enemy.OpenTreasureChest();
             return false;
-        }
 
         if (!IsWithinMeleeEngageRange(enemy, 0.35f))
         {
-            CombatLog.Info($"Steve {DistanceToEnemy(enemy):F1}m out of fight range (engage {MeleeEngageDistance:F1}m) — roll again to close");
+            CombatLog.Info(
+                $"Steve {DistanceToEnemy(enemy):F1}m out of fight range (engage {GlobalSettings.GetMeleeEngageDistance():F1}m) — roll again to close");
             return false;
         }
 
-        lastRollValue = rollTotal;
+        movement?.RecordRoll(rollTotal);
+        movement?.EndRoute();
+        movement?.Stop();
+
         bool isCrit;
         int damage = CalculateRollDamage(rollTotal, out isCrit);
 
-        approachingEnemy = null;
-        currentTarget = null;
-        lockedMovementTarget = null;
-
-        if (agent != null && agent.isOnNavMesh)
-        {
-            isMoving = false;
-            agent.isStopped = true;
-            agent.ResetPath();
-            agent.velocity = Vector3.zero;
-            agent.stoppingDistance = 1.0f;
-        }
-
         CombatLog.Info($"Steve reached fight range ({DistanceToEnemy(enemy):F1}m) — attacks first");
         EnterCombat(enemy.gameObject);
-        if (engageRoutine != null) StopCoroutine(engageRoutine);
+        if (engageRoutine != null)
+            StopCoroutine(engageRoutine);
         engageRoutine = StartCoroutine(SteveArrivalAttackRoutine(enemy, damage));
         return true;
-    }
-
-    /// <summary>Steve finished dice movement near a POI enemy — attack if in range, else wait for another roll.</summary>
-    private void OnArrivedNearEnemy(Enemy enemy)
-    {
-        approachingEnemy = null;
-        lockedMovementTarget = null;
-        isMoving = false;
-        if (agent != null && agent.isOnNavMesh)
-        {
-            agent.isStopped = true;
-            agent.ResetPath();
-            agent.velocity = Vector3.zero;
-            agent.updateRotation = false;
-            agent.stoppingDistance = 1.0f;
-        }
-
-        if (enemy == null || enemy.isDead)
-        {
-            AdvancePastEnemyPOI(enemy);
-            return;
-        }
-
-        if (enemy.IsTreasureChest)
-        {
-            enemy.OpenTreasureChest();
-            return;
-        }
-
-        TryBeginMeleeWithRoll(enemy, lastRollValue);
     }
 
     private IEnumerator SteveArrivalAttackRoutine(Enemy enemy, int damage)
@@ -474,19 +392,15 @@ public class HeroController : MonoBehaviour
 
     public IEnumerator HeroAttackRoutine(Enemy enemy, int damage)
     {
-        if (enemy == null || enemy.isDead) yield break;
+        if (enemy == null || enemy.isDead)
+            yield break;
 
         var settings = GlobalSettings.Instance;
         FaceTarget(enemy.transform, false, 16f);
         enemy.FaceTarget(transform, false, 16f);
         yield return new WaitForSeconds(settings != null ? settings.combatFaceDelay : 0.06f);
 
-        if (animator != null)
-        {
-            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
-            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
-        }
-
+        steveAnim?.PlayAttack();
         yield return new WaitForSeconds(settings != null ? settings.combatHeroHitDelay : 0.22f);
 
         if (enemy != null && !enemy.isDead)
@@ -508,7 +422,7 @@ public class HeroController : MonoBehaviour
         if (stats != null && critRoll < stats.CritChance)
         {
             isCrit = true;
-            heroDamage *= (1f + (stats.CritDamage / 100f));
+            heroDamage *= 1f + stats.CritDamage / 100f;
         }
 
         if (stats != null)
@@ -519,250 +433,116 @@ public class HeroController : MonoBehaviour
         return finalDamage;
     }
 
-    private void UpdatePathLines()
-    {
-        var settings = GlobalSettings.Instance;
-        bool show = settings != null && settings.showPath;
-        if (show && agent.hasPath)
-        {
-            pathLine.enabled = true;
-            pathLine.positionCount = agent.path.corners.Length;
-            for (int i = 0; i < agent.path.corners.Length; i++) pathLine.SetPosition(i, agent.path.corners[i] + Vector3.up * 0.15f);
-        }
-        else pathLine.enabled = false;
-
-        if (show && currentTarget != null)
-        {
-            Enemy pathEnemy = GetEnemyFromTarget(currentTarget);
-            Vector3 pathGoal = pathEnemy != null
-                ? pathEnemy.GetMeleeApproachPoint(transform.position)
-                : currentTarget.transform.position;
-            NavMeshPath path = new NavMeshPath();
-            if (NavMesh.CalculatePath(transform.position, pathGoal, NavMesh.AllAreas, path))
-            {
-                fullPathLine.enabled = true;
-                fullPathLine.positionCount = path.corners.Length;
-                for (int i = 0; i < path.corners.Length; i++) fullPathLine.SetPosition(i, path.corners[i] + Vector3.up * 0.1f);
-            }
-            else fullPathLine.enabled = false;
-        }
-        else fullPathLine.enabled = false;
-    }
-
-    private void FinalizeMovement(string reason)
-    {
-        isMoving = false;
-        approachingEnemy = null;
-        lockedMovementTarget = null;
-        if (agent != null && agent.isOnNavMesh)
-        {
-            agent.isStopped = true;
-            agent.ResetPath();
-            agent.velocity = Vector3.zero;
-            agent.updateRotation = false;
-        }
-        GlobalSettings.LogGameplay($"HeroController: Movement Finalized. Reason: {reason}");
-    }
-
-    public void MoveSteps(int diceResult)
-    {
-        if (isCelebrating) return;
-
-        lastRollValue = diceResult;
-        GlobalSettings settings = GlobalSettings.Instance;
-        if (settings == null) return;
-
-        float totalMeters = diceResult * settings.stepsPerDiceValue * settings.metersPerStep;
-        if (agent == null) agent = GetComponent<NavMeshAgent>();
-
-        if (!agent.isOnNavMesh)
-        {
-            NavMeshHit hit;
-            if (NavMesh.SamplePosition(transform.position, out hit, 3.0f, NavMesh.AllAreas)) agent.Warp(hit.position);
-            else return;
-        }
-
-        bool finishCurrentRoute = isMoving && lockedMovementTarget != null && IsTargetUsable(lockedMovementTarget);
-
-        if (finishCurrentRoute)
-        {
-            currentTarget = lockedMovementTarget;
-            if (approachingEnemy == null)
-                approachingEnemy = GetEnemyFromTarget(currentTarget);
-        }
-        else
-        {
-            if (!IsCurrentTargetUsable())
-                currentTarget = null;
-
-            if (currentTarget == null && POIManager.Instance != null)
-                currentTarget = POIManager.Instance.GetNextPOITarget(nextPOIOrder);
-        }
-
-        if (currentTarget == null) return;
-
-        lockedMovementTarget = currentTarget;
-
-        Enemy enemy = GetEnemyFromTarget(currentTarget);
-        Vector3 pathGoal = enemy != null
-            ? enemy.GetMeleeApproachPoint(transform.position)
-            : currentTarget.transform.position;
-
-        NavMeshPath path = new NavMeshPath();
-        if (!NavMesh.CalculatePath(transform.position, pathGoal, NavMesh.AllAreas, path) ||
-            path.status == NavMeshPathStatus.PathInvalid)
-        {
-            return;
-        }
-
-        float pathDist = 0f;
-        for (int i = 0; i < path.corners.Length - 1; i++)
-            pathDist += Vector3.Distance(path.corners[i], path.corners[i + 1]);
-
-        float moveMeters = Mathf.Min(totalMeters, pathDist);
-        Vector3 targetPoint = GetPointOnPath(path, moveMeters);
-
-        // Nav path to the approach point can be 0m while Steve is still too far (blocked/stuck) — walk toward the enemy.
-        if (enemy != null)
-        {
-            float distToEnemy = DistanceToEnemy(enemy);
-            float engage = settings.meleeEngageDistance;
-            if (moveMeters < 0.5f && distToEnemy > engage + 0.15f)
-            {
-                Vector3 toEnemy = enemy.GetEngagePosition() - transform.position;
-                toEnemy.y = 0f;
-                if (toEnemy.sqrMagnitude > 0.01f)
-                {
-                    float closeMeters = Mathf.Min(totalMeters, Mathf.Max(0.5f, distToEnemy - engage));
-                    targetPoint = transform.position + toEnemy.normalized * closeMeters;
-                    moveMeters = closeMeters;
-                }
-            }
-        }
-
-        NavMeshHit destHit;
-        if (NavMesh.SamplePosition(targetPoint, out destHit, 2.0f, NavMesh.AllAreas))
-            targetPoint = destHit.position;
-
-        if (enemy != null && moveMeters < 0.15f && IsWithinMeleeEngageRange(enemy, 0.35f))
-        {
-            OnArrivedNearEnemy(enemy);
-            return;
-        }
-
-        approachingEnemy = enemy;
-        agent.speed = settings.heroTravelSpeed;
-        agent.stoppingDistance = enemy != null ? 0.12f : 1.0f;
-        agent.isStopped = false;
-        agent.updateRotation = true;
-
-        if (agent.SetDestination(targetPoint))
-        {
-            isMoving = true;
-            if (enemy != null)
-            {
-                string targetLabel = string.IsNullOrEmpty(enemy.name) ? "enemy" : enemy.name;
-                CombatLog.Info($"Steve moving toward {targetLabel} ({moveMeters:F1}m)");
-            }
-        }
-    }
-
-    private Vector3 GetPointOnPath(NavMeshPath path, float distance)
-    {
-        if (path.corners.Length < 2) return transform.position;
-        float accumulatedDistance = 0;
-        for (int i = 0; i < path.corners.Length - 1; i++)
-        {
-            float segmentDistance = Vector3.Distance(path.corners[i], path.corners[i+1]);
-            if (accumulatedDistance + segmentDistance >= distance)
-            {
-                float remainingDistance = distance - accumulatedDistance;
-                float fraction = remainingDistance / segmentDistance;
-                return Vector3.Lerp(path.corners[i], path.corners[i+1], fraction);
-            }
-            accumulatedDistance += segmentDistance;
-        }
-        return path.corners[path.corners.Length - 1];
-    }
-
     public void EnterCombat(GameObject enemy)
     {
         Enemy ec = GetEnemyFromTarget(enemy);
-        if (ec == null) return;
+        if (ec == null)
+            return;
 
         inCombat = true;
         currentEnemy = ec.gameObject;
-        isMoving = false;
-        if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
+        movement?.Stop();
+
+        if (agent != null)
+        {
+            agent.isStopped = true;
+            agent.velocity = Vector3.zero;
+            agent.updateRotation = true;
+        }
 
         ec.SetHealthBarVisible(true);
         CombatLog.EnterCombat(gameObject.name, ec.gameObject.name);
-
-        if (animator != null)
-        {
-            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Throw);
-            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
-            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.GetHit);
-        }
-
+        steveAnim?.SetSpeed(0f);
+        steveAnim?.ResetActionTriggers();
     }
 
     public void ExitCombat()
     {
         inCombat = false;
         currentEnemy = null;
-        approachingEnemy = null;
         if (agent != null && agent.isOnNavMesh)
         {
-            agent.stoppingDistance = 1.0f;
+            agent.stoppingDistance = 1f;
             agent.updateRotation = true;
         }
     }
 
     public bool TakeDamage(int amount, string attackerName = "Enemy", bool attackerCrit = false)
     {
-        if (stats == null || stats.currentHP <= 0) return false;
+        if (isDead || stats == null || stats.currentHP <= 0)
+            return false;
 
         if (attackerCrit)
             CombatLog.DamageCalc(attackerName, $"hit Steve for {amount} (critical)");
 
         bool tookDamage = stats.TakeDamage(amount);
         UpdateHealthUI();
-        if (tookDamage)
+        if (!tookDamage)
+            return false;
+
+        if (Application.isPlaying)
         {
-            if (Application.isPlaying)
-            {
-                GameObject go = new GameObject("FloatingText_Damage");
-                go.transform.position = transform.position + Vector3.up * 2.2f;
-                var ft = go.AddComponent<FloatingText>();
-                ft.Setup($"-{amount} HP", Color.red);
-            }
-            if (stats.currentHP <= 0)
-            {
-                CombatLog.Death("Steve");
-                HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Die);
-            }
-            else
-                HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.GetHit);
+            GameObject go = new GameObject("FloatingText_Damage");
+            go.transform.position = transform.position + Vector3.up * 2.2f;
+            go.AddComponent<FloatingText>().Setup($"-{amount} HP", Color.red);
         }
-        return tookDamage;
+
+        if (stats.currentHP <= 0)
+        {
+            CombatLog.Death("Steve");
+            steveAnim?.PlayDie();
+            BeginDeathSequence();
+        }
+        else
+            steveAnim?.PlayGetHit();
+
+        return true;
     }
 
-    public void VictoryFlourish() { HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Victory); }
-
-    public void PlayLevelUpCelebration()
+    private void BeginDeathSequence()
     {
-        if (animator == null) animator = GetComponentInChildren<Animator>();
+        if (isDead)
+            return;
+        isDead = true;
 
-        isCelebrating = true;
-        isMoving = false;
+        if (engageRoutine != null)
+        {
+            StopCoroutine(engageRoutine);
+            engageRoutine = null;
+        }
+
+        movement?.Stop();
+        ExitCombat();
 
         if (agent != null && agent.isOnNavMesh)
         {
             agent.isStopped = true;
-            agent.ResetPath();
             agent.velocity = Vector3.zero;
         }
+
+        if (RunDeathController.Instance == null)
+            new GameObject("RunDeathController").AddComponent<RunDeathController>();
+
+        DiceSpawner.Instance?.CancelActiveRoll();
+        RunDeathController.Instance.HandleHeroDeath(this);
+    }
+
+    public void PrepareForRespawnAtSpawn(Vector3 position, Quaternion rotation)
+    {
+        isRespawning = true;
+        isDead = true;
+        isCelebrating = false;
+
+        if (engageRoutine != null)
+        {
+            StopCoroutine(engageRoutine);
+            engageRoutine = null;
+        }
+
+        ExitCombat();
+        movement?.ResetAll();
+
+        HeroSpawnUtility.PlaceHero(this, position, rotation);
 
         if (stats != null)
         {
@@ -770,23 +550,75 @@ public class HeroController : MonoBehaviour
             UpdateHealthUI();
         }
 
-        if (EnergyManager.Instance != null)
+        steveAnim?.Initialize(transform);
+        ApplyVisualLocomotionAlignment();
+        SnapBodyToGround();
+
+        var anim = Animator;
+        if (anim != null)
         {
-            EnergyManager.Instance.RestoreFull();
+            steveAnim?.SetSpeed(0f);
+            steveAnim?.ResetActionTriggers();
+            if (!HeroDeathAnimHelper.PlayDeadStay(anim))
+                steveAnim?.PlayDie();
         }
 
-        if (animator != null)
+        GlobalSettings.LogGameplay("HeroController: Steve at spawn (dead pose).");
+    }
+
+    public IEnumerator PlayStandUpFromDeathRoutine(float standUpSeconds)
+    {
+        var anim = Animator;
+        if (anim != null)
         {
-            HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f);
-            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
-            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
+            if (!HeroDeathAnimHelper.PlayGetUp(anim))
+            {
+                HeroAnimatorParams.SetBoolSafe(anim, "IsDead", false);
+                HeroAnimatorParams.ResetTriggerSafe(anim, HeroAnimatorParams.Die);
+            }
         }
 
-        if (celebrationRoutine != null) StopCoroutine(celebrationRoutine);
+        if (standUpSeconds > 0f)
+            yield return new WaitForSeconds(standUpSeconds);
+
+        if (anim != null)
+            HeroDeathAnimHelper.ResetToIdle(anim);
+
+        HeroSpawnUtility.PlaceHero(this, transform.position, transform.rotation);
+        steveAnim?.Initialize(transform);
+        ApplyVisualLocomotionAlignment();
+
+        isDead = false;
+        isRespawning = false;
+        movement?.ResetAll();
+        GlobalSettings.LogGameplay("HeroController: Steve stood up — ready to roll.");
+    }
+
+    public void PrepareForRespawn(Vector3 position, Quaternion rotation) =>
+        PrepareForRespawnAtSpawn(position, rotation);
+
+    public void VictoryFlourish() => steveAnim?.PlayVictory();
+
+    public void PlayLevelUpCelebration()
+    {
+        isCelebrating = true;
+        movement?.Stop();
+
+        if (stats != null)
+        {
+            stats.RestoreFullHealth();
+            UpdateHealthUI();
+        }
+
+        EnergyManager.Instance?.RestoreFull();
+        steveAnim?.PlayLevelUp();
+
+        if (celebrationRoutine != null)
+            StopCoroutine(celebrationRoutine);
         celebrationRoutine = StartCoroutine(LevelUpCelebrationRoutine());
     }
 
-    private System.Collections.IEnumerator LevelUpCelebrationRoutine()
+    private IEnumerator LevelUpCelebrationRoutine()
     {
         yield return new WaitForSeconds(LevelUpCelebrationSeconds);
 
@@ -799,13 +631,11 @@ public class HeroController : MonoBehaviour
 
     public void PlayChestRewardCelebration(bool instantOpen = false)
     {
-        if (animator == null) animator = GetComponentInChildren<Animator>();
+        if (EquipmentLootManager.Instance == null || !EquipmentLootManager.Instance.HasPendingChestRewards)
+            return;
 
         isCelebrating = true;
-        isMoving = false;
-        lockedMovementTarget = null;
-        currentTarget = null;
-        approachingEnemy = null;
+        movement?.ResetAll();
 
         if (agent != null && agent.isOnNavMesh)
         {
@@ -814,14 +644,11 @@ public class HeroController : MonoBehaviour
             agent.velocity = Vector3.zero;
         }
 
-        if (animator != null && !instantOpen)
-        {
-            HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f);
-            HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
-            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
-        }
+        if (!instantOpen)
+            steveAnim?.PlayLevelUp();
 
-        if (celebrationRoutine != null) StopCoroutine(celebrationRoutine);
+        if (celebrationRoutine != null)
+            StopCoroutine(celebrationRoutine);
         celebrationRoutine = StartCoroutine(ChestRewardCelebrationRoutine(instantOpen));
     }
 
@@ -836,4 +663,25 @@ public class HeroController : MonoBehaviour
         isCelebrating = false;
         celebrationRoutine = null;
     }
+
+    private static Enemy GetEnemyFromTarget(GameObject target)
+    {
+        if (target == null)
+            return null;
+        return target.GetComponent<Enemy>() ?? target.GetComponentInChildren<Enemy>();
+    }
+
+    private float DistanceToEnemy(Enemy enemy)
+    {
+        if (enemy == null)
+            return float.MaxValue;
+        Vector3 a = transform.position;
+        Vector3 b = enemy.GetEngagePosition();
+        a.y = 0f;
+        b.y = 0f;
+        return Vector3.Distance(a, b);
+    }
+
+    private bool IsWithinMeleeEngageRange(Enemy enemy, float extraBuffer = 0f) =>
+        enemy != null && DistanceToEnemy(enemy) <= GlobalSettings.GetMeleeEngageDistance() + extraBuffer;
 }

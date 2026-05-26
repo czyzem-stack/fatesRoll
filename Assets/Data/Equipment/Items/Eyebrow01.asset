@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Eyebrow01
   displayName: Eyebrow01
-  slot: 2
+  slot: 3
   chestCategory: 1
   visualPrefab: {fileID: 2006726970858469914, guid: 21ca235158cf74b47a2d00ec67a52ac6, type: 3}
   rigChildName: 

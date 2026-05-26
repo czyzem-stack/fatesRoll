@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Eye05
   displayName: Eye05
-  slot: 2
+  slot: 3
   chestCategory: 1
   visualPrefab: {fileID: 7060502741906189516, guid: 1d637e02b58134a4094b330f24869f8a, type: 3}
   rigChildName: 

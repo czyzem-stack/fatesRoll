@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC04_AngelEars
   displayName: AC04 AngelEars
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 6216181570375541718, guid: 8f4a87986f41bba4687a9f020ed07325, type: 3}
   rigChildName: 

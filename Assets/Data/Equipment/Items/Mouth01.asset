@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Mouth01
   displayName: Mouth01
-  slot: 2
+  slot: 5
   chestCategory: 1
   visualPrefab: {fileID: 8719645450728625473, guid: 69d10aab74b5f82458b26547db4a3e25, type: 3}
   rigChildName: 

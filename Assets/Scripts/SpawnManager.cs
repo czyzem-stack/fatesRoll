@@ -237,6 +237,24 @@ public class SpawnManager : MonoBehaviour
         return occupied[Random.Range(0, occupied.Count)].activeEncounter;
     }
 
+    /// <summary>Clears random spawns and refills at base difficulty (after Steve dies).</summary>
+    public void ResetRunEncounters()
+    {
+        if (!spawnPoolInitialized) return;
+
+        foreach (var node in allSpawnNodes)
+        {
+            if (node == null) continue;
+            UnregisterActiveNode(node);
+            node.ClearEncounter();
+        }
+
+        activeSpawnNodes.Clear();
+        randomPoolKillCounter = 0;
+        FillSpawnNodes();
+        GlobalSettings.LogGameplay("SpawnManager: random encounters reset after Steve respawn.");
+    }
+
     public GameObject GetNearestSpawn(Vector3 position)
     {
         if (!spawnPoolInitialized) return null;

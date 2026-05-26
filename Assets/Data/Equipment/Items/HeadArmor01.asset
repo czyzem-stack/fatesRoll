@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: HeadArmor01
   displayName: HeadArmor01
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 8376417401931944494, guid: 1e52fac9ca7e16447af5e50cfa7e9340, type: 3}
   rigChildName: 

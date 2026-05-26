@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Head05_Santa
   displayName: Head05 Santa
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 3972850014804673841, guid: 4552edb304cb34649953bafe6b96aff3, type: 3}
   rigChildName: 

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: BackPack01
   displayName: BackPack01
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 1750633385060757277, guid: ac361e78bb7bacd45a58402c81b239d9, type: 3}
   rigChildName: 

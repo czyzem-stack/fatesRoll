@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC03_NightVision
   displayName: AC03 NightVision
-  slot: 2
+  slot: 3
   chestCategory: 1
   visualPrefab: {fileID: 3075254106959916096, guid: c060d37057ab8f14e8fbce1547c3ce5a, type: 3}
   rigChildName: 

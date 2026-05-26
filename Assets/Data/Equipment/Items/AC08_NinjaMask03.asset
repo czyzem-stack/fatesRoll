@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC08_NinjaMask03
   displayName: AC08 NinjaMask03
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 5585302707689304320, guid: 8f0fc8501cd6afc498cc3db0b66350b7, type: 3}
   rigChildName: 

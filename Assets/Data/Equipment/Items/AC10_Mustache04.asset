@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC10_Mustache04
   displayName: AC10 Mustache04
-  slot: 2
+  slot: 5
   chestCategory: 1
   visualPrefab: {fileID: 1787110737317048312, guid: cce932d01c407d84e83fb22b58fe4ae1, type: 3}
   rigChildName: 

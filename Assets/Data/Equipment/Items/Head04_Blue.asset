@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Head04_Blue
   displayName: Head04 Blue
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 8448832635285498620, guid: e6fcceb7c1367194aab9c820e54e7874, type: 3}
   rigChildName: 

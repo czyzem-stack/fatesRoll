@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Cloak02
   displayName: Cloak02
-  slot: 4
+  slot: 7
   chestCategory: 1
   visualPrefab: {fileID: 0}
   rigChildName: Cloak02

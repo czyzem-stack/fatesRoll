@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC03_HeavyMetalGlass
   displayName: AC03 HeavyMetalGlass
-  slot: 2
+  slot: 3
   chestCategory: 1
   visualPrefab: {fileID: 7895882592605477405, guid: df74f2d806c5e784ebf36435eb66998e, type: 3}
   rigChildName: 

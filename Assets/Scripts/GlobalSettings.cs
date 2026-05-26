@@ -59,10 +59,19 @@ public class GlobalSettings : MonoBehaviour
     [Tooltip("Horizontal distance from enemy center where Steve can start melee and paths aim to stop.")]
     public float meleeEngageDistance = 2.5f;
 
+    [Tooltip("Horizontal distance from the chest visual where Steve can open it.")]
+    public float chestInteractDistance = 1.25f;
+
     public static float GetMeleeEngageDistance()
     {
         var s = Instance;
         return s != null ? s.meleeEngageDistance : 2.5f;
+    }
+
+    public static float GetChestInteractDistance()
+    {
+        var s = Instance;
+        return s != null ? s.chestInteractDistance : 1.25f;
     }
 
     [Header("Combat — timing (seconds)")]

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC06_Crown03
   displayName: AC06 Crown03
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 8085543734638913077, guid: 543d9dc8f76a4b845ae88e212286ca9d, type: 3}
   rigChildName: 

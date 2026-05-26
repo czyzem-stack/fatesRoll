@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Hair07
   displayName: Hair07
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 2703708262601595447, guid: 1b5bf0a105de483459d48a01d3352464, type: 3}
   rigChildName: 

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC04_BunnyEars
   displayName: AC04 BunnyEars
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 6027620199790542720, guid: fdb55c7f7fd68314e86be760e0e4ed44, type: 3}
   rigChildName: 

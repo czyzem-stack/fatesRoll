@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Head03_Purple
   displayName: Head03 Purple
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 8760565713528839205, guid: a276118eb69bf6a43a9dfd2ddade1c48, type: 3}
   rigChildName: 

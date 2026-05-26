@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC03_BlackGlass
   displayName: AC03 BlackGlass
-  slot: 2
+  slot: 3
   chestCategory: 1
   visualPrefab: {fileID: 8281632972339375294, guid: c91e15b789a11df4a920d157cf0e138c, type: 3}
   rigChildName: 

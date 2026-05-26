@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: AC04_AnthenaEars
   displayName: AC04 AnthenaEars
-  slot: 2
+  slot: 4
   chestCategory: 1
   visualPrefab: {fileID: 6172065813947309880, guid: e2e7e55d7a43a28468aff0cdfbeb6e5e, type: 3}
   rigChildName: 
