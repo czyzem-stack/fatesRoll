@@ -60,8 +60,18 @@ public class GameServices : MonoBehaviour
         }
     }
 
-    /// <summary>Typed shortcut — same instance as <see cref="Hero"/>.</summary>
+    /// <summary>Steve — alias for <see cref="Hero"/>.</summary>
     public static HeroController HeroController => Hero;
+
+    /// <summary>True when the bootstrap has finished Awake and <see cref="Current"/> is valid.</summary>
+    public static bool IsInitialized
+    {
+        get
+        {
+            PurgeStaleCurrent();
+            return Current != null;
+        }
+    }
 
     public static HeroSpawnPoint HeroSpawn
     {
@@ -199,10 +209,19 @@ public class GameServices : MonoBehaviour
             Current.registry.Remove(type);
     }
 
+    /// <summary>Called from <see cref="HeroController"/> Awake — registers Steve in the service registry.</summary>
     public static void RegisterHero(HeroController controller)
     {
-        if (Current == null || controller == null)
+        if (controller == null)
             return;
+
+        if (Current == null)
+        {
+            Debug.LogWarning(
+                "GameServices.RegisterHero: bootstrap not ready yet. Add GameServices to the scene (FatesRoll → Setup → Add Game Services Bootstrap).",
+                controller);
+            return;
+        }
 
         Current.hero = controller;
         Register(controller);

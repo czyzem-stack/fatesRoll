@@ -2,7 +2,10 @@ using UnityEngine;
 using UnityEngine.AI;
 using System.Collections;
 
-/// <summary>Steve — combat, health, death. Travel is <see cref="SteveMovement"/>; animation is <see cref="SteveAnimator"/>.</summary>
+/// <summary>
+/// Steve — combat, health, death. Travel is <see cref="SteveMovement"/>; animation is <see cref="SteveAnimator"/>.
+/// Registers with <see cref="GameServices"/> in Awake (not <see cref="GameServiceBehaviour{T}"/>).
+/// </summary>
 public class HeroController : MonoBehaviour
 {
     private NavMeshAgent agent;
@@ -21,9 +24,9 @@ public class HeroController : MonoBehaviour
         isDead ||
         isRespawning ||
         isCelebrating ||
-        (RunDeathController.Instance != null && RunDeathController.Instance.IsDeathInProgress) ||
-        (RogueLiteManager.Instance != null && RogueLiteManager.Instance.IsRewardFlowActive) ||
-        (EquipmentLootManager.Instance != null && EquipmentLootManager.Instance.IsRewardFlowActive);
+        (RunDeathController.HasInstance && RunDeathController.Instance.IsDeathInProgress) ||
+        (RogueLiteManager.HasInstance && RogueLiteManager.Instance.IsRewardFlowActive) ||
+        (EquipmentLootManager.HasInstance && EquipmentLootManager.Instance.IsRewardFlowActive);
     public float LevelUpCelebrationSeconds => 2.7f;
 
     private Coroutine celebrationRoutine;
@@ -140,6 +143,9 @@ public class HeroController : MonoBehaviour
 
     private void Start()
     {
+        if (!GameServices.TryGet(out HeroController registered) || registered != this)
+            GameServices.RegisterHero(this);
+
         agent = GetComponent<NavMeshAgent>();
         if (agent == null)
             agent = gameObject.AddComponent<NavMeshAgent>();

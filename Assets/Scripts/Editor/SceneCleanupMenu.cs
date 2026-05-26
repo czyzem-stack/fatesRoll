@@ -20,6 +20,7 @@ public static class SceneCleanupMenu
     public static void RemoveObsoleteHeroComponentsInOpenScene()
     {
         int removed = 0;
+#pragma warning disable CS0618 // Intentionally targets obsolete placeholder so it can be stripped from scenes.
         foreach (var stance in Object.FindObjectsByType<HeroWeaponStance>(FindObjectsInactive.Include))
         {
             if (stance == null)
@@ -27,6 +28,7 @@ public static class SceneCleanupMenu
             Object.DestroyImmediate(stance);
             removed++;
         }
+#pragma warning restore CS0618
 
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         Debug.Log($"FatesRoll: removed {removed} obsolete HeroWeaponStance component(s). Save the scene.");

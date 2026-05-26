@@ -1,6 +1,7 @@
 using UnityEngine;
 using TMPro;
 
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 public class EnergyManager : GameServiceBehaviour<EnergyManager>
 {
 

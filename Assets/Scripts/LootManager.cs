@@ -10,6 +10,7 @@ using UnityEditor;
 /// <summary>
 /// Celebration loot: firework burst around the enemy, coins linger on the ground, then Steve collects them.
 /// </summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [AddComponentMenu("FatesRoll/Loot Manager")]
 public class LootManager : GameServiceBehaviour<LootManager>
 {

@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 
 /// <summary>Visit-order POIs only. When all are consumed, enables SpawnManager (SpawnNode markers).</summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [DefaultExecutionOrder(-50)]
 public class POIManager : GameServiceBehaviour<POIManager>
 {

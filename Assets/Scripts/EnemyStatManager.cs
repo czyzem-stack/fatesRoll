@@ -3,6 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Scales enemy primary stats from Steve's current build. Used for spawn slots and optional FTUE tuning.
 /// </summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 public class EnemyStatManager : GameServiceBehaviour<EnemyStatManager>
 {
 

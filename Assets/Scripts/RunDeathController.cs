@@ -3,6 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>Fade to black on Steve's death, reset enemies to base difficulty, respawn Steve with gear and stats.</summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [DefaultExecutionOrder(50)]
 public class RunDeathController : GameServiceBehaviour<RunDeathController>
 {

@@ -168,7 +168,7 @@ flowchart TD
     Dict --> E
 ```
 
-**Scene setup:** **FatesRoll → Setup → Add Game Services Bootstrap** groups managers under a `GameServices` object (optional **Persist Across Scenes**). Steve registers in `HeroController.Awake` — use `GameServices.Hero` or `GameServices.HeroController`. Strict lookup: `GameServices.Get<T>()` throws if missing; `TryGet<T>` and `Foo.Instance` stay null-safe.
+**Scene setup:** **FatesRoll → Setup → Add Game Services Bootstrap** groups managers under a `GameServices` object (optional **Persist Across Scenes**). Steve calls `GameServices.RegisterHero(this)` in `HeroController.Awake` (and again in `Start` if bootstrap order was late). Access Steve via `GameServices.Hero` or `GameServices.HeroController`. Check bootstrap with `GameServices.IsInitialized`. Strict lookup: `GameServices.Get<T>()` throws if missing; `TryGet<T>`, `HasInstance`, and `Foo.Instance` stay null-safe.
 
 | Component | Pattern | Notes |
 |-----------|---------|--------|

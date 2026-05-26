@@ -6,6 +6,7 @@ using System.Linq;
 /// Populates SpawnNode markers with random enemies on load (world ambience during FTUE).
 /// Steve targets spawn nodes only after all visit POIs are consumed.
 /// </summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [DefaultExecutionOrder(-40)]
 public class SpawnManager : GameServiceBehaviour<SpawnManager>
 {

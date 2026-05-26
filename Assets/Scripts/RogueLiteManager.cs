@@ -7,6 +7,7 @@ using UnityEngine.UI;
 /// <summary>
 /// Level-up roguelite rewards: after Steve's celebration, shows a popup with two random upgrade choices.
 /// </summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [AddComponentMenu("FatesRoll/Rogue Lite Manager")]
 public class RogueLiteManager : GameServiceBehaviour<RogueLiteManager>
 {

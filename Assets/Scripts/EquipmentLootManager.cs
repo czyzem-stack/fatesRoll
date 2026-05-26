@@ -10,6 +10,7 @@ using UnityEditor;
 /// <summary>
 /// Treasure chest rewards: rolled equipment with two-of-four stat bonuses and A/B popup picks.
 /// </summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [AddComponentMenu("FatesRoll/Equipment Loot Manager")]
 public class EquipmentLootManager : GameServiceBehaviour<EquipmentLootManager>
 {

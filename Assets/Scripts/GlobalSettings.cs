@@ -5,6 +5,7 @@ using UnityEngine;
 /// Hero combat stats: <see cref="PlayerStats"/> on Steve.
 /// Enemy combat stats: <see cref="Enemy"/> on each monster.
 /// </summary>
+/// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 public class GlobalSettings : GameServiceBehaviour<GlobalSettings>
 {
 
