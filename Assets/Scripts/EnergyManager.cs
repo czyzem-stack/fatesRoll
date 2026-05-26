@@ -131,6 +131,13 @@ public class EnergyManager : MonoBehaviour
         UpdateDisplay();
     }
 
+    public void RestoreFull()
+    {
+        currentEnergy = GlobalSettings.Instance.maxEnergy;
+        nextRegenTime = Time.time + GlobalSettings.Instance.energyRegenInterval;
+        UpdateDisplay();
+    }
+
     private void UpdateUI()
     {
         UpdateDisplay();

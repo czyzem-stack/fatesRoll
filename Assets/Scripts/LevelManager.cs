@@ -46,20 +46,20 @@ public class LevelManager : MonoBehaviour
         UpdateUI();
     }
 
-    public bool AddXP(float amount)
+    public int AddXP(float amount)
     {
         currentXP += amount;
         Debug.Log($"LevelManager: Gained {amount} XP. Total: {currentXP}/{xpToNextLevel}");
 
-        bool didLevelUp = false;
+        int levelsGained = 0;
         while (currentXP >= xpToNextLevel)
         {
             LevelUp();
-            didLevelUp = true;
+            levelsGained++;
         }
 
         UpdateUI();
-        return didLevelUp;
+        return levelsGained;
     }
 
     private void LevelUp()
@@ -70,15 +70,10 @@ public class LevelManager : MonoBehaviour
         
         Debug.Log($"LevelManager: LEVELED UP! Now Level {currentLevel}");
 
-        // Play Level Up Animation on Steve
         var hero = Object.FindAnyObjectByType<HeroController>();
         if (hero != null)
         {
-            var anim = hero.GetComponentInChildren<Animator>();
-            if (anim != null)
-            {
-                anim.SetTrigger("LevelUp");
-            }
+            hero.PlayLevelUpCelebration();
         }
     }
 

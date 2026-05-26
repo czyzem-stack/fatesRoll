@@ -324,9 +324,17 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                             if (enemy.isDead) 
                             {
                                 Debug.Log($"{enemy.name} defeated!");
-                                hero.VictoryFlourish();
-                                if (LevelManager.Instance != null) LevelManager.Instance.AddXP(total * 2);
-                                yield return new WaitForSeconds(1.2f);
+                                int levelsGained = 0;
+                                if (LevelManager.Instance != null)
+                                    levelsGained = LevelManager.Instance.AddXP(total * 2);
+
+                                if (levelsGained > 0)
+                                    yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
+                                else
+                                {
+                                    hero.VictoryFlourish();
+                                    yield return new WaitForSeconds(1.2f);
+                                }
                                 yield break;
                             }
 
@@ -349,8 +357,9 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                 // Add XP after the action (unless died/interrupted)
                 if (LevelManager.Instance != null)
                 {
-                    bool leveledUp = LevelManager.Instance.AddXP(total);
-                    if (leveledUp) yield return new WaitForSeconds(2.7f);
+                    int levelsGained = LevelManager.Instance.AddXP(total);
+                    if (levelsGained > 0)
+                        yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
                 }
             }
 else

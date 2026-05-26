@@ -108,6 +108,12 @@ public class PlayerStats : MonoBehaviour
     public float GetFinalCritChance() => critChance;
     public float GetFinalDodgeChance() => dodgeChance;
 
+    public void RestoreFullHealth()
+    {
+        CalculateAllDerivedStats();
+        currentHP = maxHP;
+    }
+
     /// <summary>
     /// Basic damage handling with dodge check.
     /// Returns true if damage was actually taken, false if dodged.

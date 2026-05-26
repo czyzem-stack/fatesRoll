@@ -8,6 +8,12 @@ public class HeroController : MonoBehaviour
     private bool isMoving = false;
     public bool IsMoving => isMoving;
 
+    private bool isCelebrating = false;
+    public bool IsCelebrating => isCelebrating;
+    public float LevelUpCelebrationSeconds => 2.7f;
+
+    private Coroutine celebrationRoutine;
+
     private PlayerStats stats;
     private bool inCombat = false;
     public bool InCombat => inCombat;
@@ -157,10 +163,17 @@ public class HeroController : MonoBehaviour
         if (animator != null)
         {
             if (animator.applyRootMotion) animator.applyRootMotion = false;
-            float currentSpeed = agent.velocity.magnitude;
-            float animatorSpeed = isMoving ? Mathf.Max(currentSpeed, 2.0f) : currentSpeed;
-            if (animatorSpeed < 0.05f) animatorSpeed = 0f;
-            animator.SetFloat("Speed", animatorSpeed);
+            if (isCelebrating)
+            {
+                animator.SetFloat("Speed", 0f);
+            }
+            else
+            {
+                float currentSpeed = agent.velocity.magnitude;
+                float animatorSpeed = isMoving ? Mathf.Max(currentSpeed, 2.0f) : currentSpeed;
+                if (animatorSpeed < 0.05f) animatorSpeed = 0f;
+                animator.SetFloat("Speed", animatorSpeed);
+            }
         }
 
         UpdatePathLines();
@@ -170,7 +183,7 @@ public class HeroController : MonoBehaviour
             FaceTarget(currentEnemy.transform, false, 20.0f);
         }
 
-        if (isMoving)
+        if (isMoving && !isCelebrating)
         {
             if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             {
@@ -303,6 +316,8 @@ public class HeroController : MonoBehaviour
 
     public void MoveSteps(int diceResult)
     {
+        if (isCelebrating) return;
+
         GlobalSettings settings = GlobalSettings.Instance;
         float totalMeters = diceResult * settings.stepsPerDiceValue * settings.metersPerStep;
         if (agent == null) agent = GetComponent<NavMeshAgent>();
@@ -413,4 +428,47 @@ public class HeroController : MonoBehaviour
     }
 
     public void VictoryFlourish() { if (animator != null) animator.SetTrigger("Victory"); }
+
+    public void PlayLevelUpCelebration()
+    {
+        if (animator == null) animator = GetComponentInChildren<Animator>();
+
+        isCelebrating = true;
+        isMoving = false;
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+        }
+
+        if (stats != null)
+        {
+            stats.RestoreFullHealth();
+            UpdateHealthUI();
+        }
+
+        if (EnergyManager.Instance != null)
+        {
+            EnergyManager.Instance.RestoreFull();
+        }
+
+        if (animator != null)
+        {
+            animator.SetFloat("Speed", 0f);
+            animator.ResetTrigger("LevelUp");
+            animator.SetTrigger("LevelUp");
+        }
+
+        if (celebrationRoutine != null) StopCoroutine(celebrationRoutine);
+        celebrationRoutine = StartCoroutine(LevelUpCelebrationRoutine());
+    }
+
+    private System.Collections.IEnumerator LevelUpCelebrationRoutine()
+    {
+        yield return new WaitForSeconds(LevelUpCelebrationSeconds);
+        isCelebrating = false;
+        celebrationRoutine = null;
+    }
 }
