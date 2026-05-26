@@ -50,7 +50,9 @@ public class Enemy : MonoBehaviour
     private Slider healthSlider;
     private Canvas healthCanvas;
     private float nextPatrolTime;
-    private bool idleAggroTriggered;
+    private bool engageTriggered;
+    private bool navHeld;
+    private Vector3 lastChaseDestination;
 
     private Camera mainCamera;
 
@@ -156,54 +158,126 @@ public class Enemy : MonoBehaviour
         if (currentHP > maxHP) currentHP = maxHP;
     }
 
+    /// <summary>Steve is inside this enemy's patrol territory (spawn-centered).</summary>
+    public bool IsHeroInPatrolZone(HeroController hero)
+    {
+        if (hero == null) return false;
+        return Vector3.Distance(spawnPosition, hero.transform.position) <= patrolRadius;
+    }
+
+    /// <summary>Steve is close enough to fight — uses the same radius as patrol.</summary>
+    public bool IsWithinEngageRange(HeroController hero)
+    {
+        if (hero == null) return false;
+        return Vector3.Distance(GetEngagePosition(), hero.transform.position) <= patrolRadius;
+    }
+
+    public Vector3 GetEngagePosition()
+    {
+        var childAnim = GetComponentInChildren<Animator>();
+        return childAnim != null ? childAnim.transform.position : transform.position;
+    }
+
+    private void HoldPosition()
+    {
+        if (agent == null || !agent.enabled) return;
+        if (navHeld) return;
+        navHeld = true;
+        agent.isStopped = true;
+        agent.updateRotation = false;
+        agent.ResetPath();
+    }
+
+    private void ReleaseNavHold()
+    {
+        navHeld = false;
+    }
+
+    private void HoldEngaged()
+    {
+        if (agent != null && agent.enabled)
+        {
+            if (!navHeld)
+            {
+                agent.isStopped = true;
+                agent.updateRotation = false;
+                agent.ResetPath();
+                navHeld = true;
+            }
+        }
+        FaceTarget(cachedHero.transform, false, 25.0f);
+    }
+
+    private void ChaseHero()
+    {
+        if (agent == null || !agent.enabled || cachedHero == null) return;
+
+        Vector3 dest = cachedHero.transform.position;
+        if (navHeld && agent.hasPath && Vector3.Distance(dest, lastChaseDestination) < 0.75f)
+            return;
+
+        ReleaseNavHold();
+        agent.isStopped = false;
+        agent.updateRotation = true;
+        agent.speed = chaseSpeed;
+        lastChaseDestination = dest;
+        agent.SetDestination(dest);
+    }
+
     private void HandleAI()
     {
         if (cachedHero == null) cachedHero = Object.FindAnyObjectByType<HeroController>();
         if (cachedHero == null) return;
 
-        float distToHero = Vector3.Distance(transform.position, cachedHero.transform.position);
-        float distToSpawn = Vector3.Distance(spawnPosition, cachedHero.transform.position);
-        bool isEngaged = (cachedHero.currentEnemy == gameObject);
+        float distToHero = Vector3.Distance(GetEngagePosition(), cachedHero.transform.position);
+        bool inFightRange = IsWithinEngageRange(cachedHero);
+        bool isEngaged = cachedHero.InCombat && cachedHero.currentEnemy == gameObject && inFightRange;
 
         if (animator != null)
         {
             animator.SetBool("InCombat", isEngaged);
         }
 
-        if (distToHero >= 2.5f || cachedHero.IsMoving ||
+        bool steveInPatrol = IsHeroInPatrolZone(cachedHero);
+
+        if (!steveInPatrol || cachedHero.IsMoving || cachedHero.IsEngageBusy ||
             (cachedHero.InCombat && cachedHero.currentEnemy != gameObject))
         {
-            idleAggroTriggered = false;
+            engageTriggered = false;
+            ReleaseNavHold();
         }
 
         if (isEngaged)
         {
-            if (agent != null && agent.enabled)
-            {
-                agent.isStopped = true;
-                agent.velocity = Vector3.zero; // Stop immediate to allow idle transition
-            }
-            FaceTarget(cachedHero.transform, false, 25.0f); // Snappy but smooth
+            HoldEngaged();
+            return;
         }
-        else if (distToHero < 2.0f && !cachedHero.InCombat && !cachedHero.IsMoving &&
-                 !idleAggroTriggered && !isAttacking)
+
+        if (cachedHero.IsMoving || cachedHero.IsEngageBusy || isAttacking)
         {
-            idleAggroTriggered = true;
-            Debug.Log($"<b>[Combat]</b> {gameObject.name} initiates combat with idle Steve!");
-            cachedHero.EnterCombat(gameObject);
-            PerformAttack(cachedHero);
+            HoldPosition();
+            return;
         }
-        else if (distToSpawn < 4.5f || distToHero < 6.0f)
+
+        if (!cachedHero.InCombat && steveInPatrol)
         {
-            // Run at Steve
-            if (agent != null && agent.enabled)
+            if (!inFightRange)
             {
-                agent.isStopped = false;
-                agent.speed = chaseSpeed;
-                agent.SetDestination(cachedHero.transform.position);
+                engageTriggered = false;
+                ChaseHero();
             }
+            else if (!engageTriggered)
+            {
+                engageTriggered = true;
+                HoldPosition();
+                CombatLog.Info($"{gameObject.name} aggro — in range, attacks Steve");
+                cachedHero.OnEnemyAggroAttack(this);
+            }
+            return;
         }
-        else if (!isAttacking)
+
+        ReleaseNavHold();
+        if (!isAttacking)
         {
             HandlePatrol();
         }
@@ -212,6 +286,7 @@ public class Enemy : MonoBehaviour
     private void HandlePatrol()
     {
         if (agent == null || !agent.enabled) return;
+        ReleaseNavHold();
         agent.speed = patrolSpeed;
 
         if (!agent.pathPending && agent.remainingDistance < agent.stoppingDistance + 0.1f)
@@ -337,20 +412,24 @@ public class Enemy : MonoBehaviour
         // Handled via child uGUI Canvas in World Space.
     }
 
-    public bool TakeDamage(float amount)
+    public bool TakeDamage(float amount, string attackerName = "Steve")
     {
         if (isDead || currentHP <= 0) return false;
 
-        // Dodge check
-        if (Random.Range(0f, 100f) < dodgeChance)
+        float dodgeRoll = Random.Range(0f, 100f);
+        if (dodgeRoll < dodgeChance)
         {
-            Debug.Log($"<b>[Combat]</b> {gameObject.name} dodged!");
+            CombatLog.Dodge(gameObject.name, dodgeChance, dodgeRoll);
+            CombatLog.DamageMitigated(attackerName, gameObject.name, "dodged");
             return false;
         }
 
+        float hpBefore = currentHP;
         SetHealthBarVisible(true);
         currentHP -= amount;
         UpdateHealthUI();
+        CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
+        Debug.Log($"<b>[Combat]</b> {gameObject.name} HP {hpBefore:F0} → {currentHP:F0}");
         
         if (Application.isPlaying)
         {
@@ -363,6 +442,7 @@ public class Enemy : MonoBehaviour
         if (currentHP <= 0)
         {
             currentHP = 0;
+            CombatLog.Death(gameObject.name);
             Die();
         }
         else if (animator != null)
@@ -388,7 +468,11 @@ public class Enemy : MonoBehaviour
         gameObject.tag = "Untagged";
         if (healthSlider != null) healthSlider.gameObject.SetActive(false);
 
-        if (cachedHero != null) cachedHero.ExitCombat();
+        if (cachedHero != null)
+        {
+            cachedHero.ExitCombat();
+            cachedHero.OnPOIDefeated(GetComponentInParent<POINode>());
+        }
 
         if (POIManager.Instance != null)
         {
@@ -416,15 +500,27 @@ public class Enemy : MonoBehaviour
 
     public void PerformAttack(HeroController hero)
     {
-        if (isDead || currentHP <= 0) return;
+        if (isDead || currentHP <= 0 || isAttacking) return;
         isAttacking = true;
         FaceTarget(hero.transform, false, 30.0f); // Smooth snappy rotation
         StartCoroutine(AttackRoutine(hero));
     }
 
+    public float AttackDurationSeconds
+    {
+        get
+        {
+            var s = GlobalSettings.Instance;
+            return s.enemyAttackWindUp + s.enemyAttackHitDelay + 0.05f;
+        }
+    }
+
     private System.Collections.IEnumerator AttackRoutine(HeroController hero)
     {
-        yield return new WaitForSeconds(0.4f);
+        var settings = GlobalSettings.Instance;
+        CombatLog.AttackStart(gameObject.name, hero != null ? hero.name : "Steve", "enemy melee");
+
+        yield return new WaitForSeconds(settings.enemyAttackWindUp);
         if (isDead || hero == null) { isAttacking = false; yield break; }
 
         if (animator != null)
@@ -433,12 +529,19 @@ public class Enemy : MonoBehaviour
             animator.SetTrigger("Attack");
         }
 
-        yield return new WaitForSeconds(0.4f);
+        yield return new WaitForSeconds(settings.enemyAttackHitDelay);
         if (!isDead && currentHP > 0 && hero != null)
         {
             float damage = attackDamage;
-            if (Random.Range(0f, 100f) < critChance) damage *= (1f + (critDamage / 100f));
-            hero.TakeDamage((int)damage);
+            float critRoll = Random.Range(0f, 100f);
+            bool isCrit = critRoll < critChance;
+            CombatLog.CritCheck(gameObject.name, critChance, critRoll, isCrit);
+            if (isCrit) damage *= (1f + (critDamage / 100f));
+
+            CombatLog.DamageCalc(gameObject.name, $"base {attackDamage:F0}" + (isCrit ? $" × crit {critDamage:F0}%" : "") + $" → {(int)damage}");
+            bool hit = hero.TakeDamage((int)damage, gameObject.name, isCrit);
+            if (!hit)
+                CombatLog.DamageMitigated(gameObject.name, hero.name, "Steve dodged or invulnerable");
         }
         isAttacking = false;
     }

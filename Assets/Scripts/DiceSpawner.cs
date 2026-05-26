@@ -189,10 +189,11 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
                 }
             }
 
-            // 3. Wait for dice to settle - more robust check
-            yield return new WaitForSeconds(0.2f); 
-            
-            float settleTimeout = 3.0f; // Longer timeout
+            // 3. Wait for dice to settle (faster timeout while in combat)
+            bool combatRoll = hero != null && hero.InCombat;
+            yield return new WaitForSeconds(combatRoll ? 0.1f : 0.2f);
+
+            float settleTimeout = combatRoll ? 1.25f : 3.0f;
             bool allSettled = false;
             while (settleTimeout > 0)
             {
@@ -235,8 +236,11 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
             if (!allSettled) Debug.LogWarning("<b>[Dice Physics]</b> Dice didn't settle perfectly within 3s, reading anyway.");
             else Debug.Log("<b>[Dice Physics]</b> Dice settled successfully.");
 
-            // 4. Extra visual buffer - Player sees the result before action
-            yield return new WaitForSeconds(1.0f);
+            // 4. Brief read delay (shorter in combat for snappy turns)
+            float readDelay = (hero != null && hero.InCombat)
+                ? GlobalSettings.Instance.combatDiceReadDelay
+                : GlobalSettings.Instance.travelDiceReadDelay;
+            yield return new WaitForSeconds(readDelay);
 
             int total = 0;
             List<int> individual = new List<int>();
@@ -259,98 +263,46 @@ var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclu
 
             if (hero != null)
             {
-                if (hero.InCombat)
+                Enemy combatEnemy = null;
+                if (hero.currentEnemy != null)
+                    combatEnemy = hero.currentEnemy.GetComponent<Enemy>();
+
+                if (hero.InCombat && combatEnemy != null && !combatEnemy.isDead)
                 {
-                    // Combat Attack - Driven by PlayerStats
-                    PlayerStats pStats = hero.GetComponent<PlayerStats>();
-                    float baseDamage = pStats != null ? pStats.AttackDamage : 20f;
-                    
-                    // Scaling: roll of 7 is 100% base damage
-                    float rollMultiplier = total / 7.0f;
-                    float heroDamage = baseDamage * rollMultiplier;
+                    bool isCrit;
+                    int finalDamage = hero.CalculateRollDamage(total, out isCrit);
+                    Debug.Log($"<b>[Combat]</b> Dice combat turn | roll {total} → {finalDamage} damage{(isCrit ? " (CRIT)" : "")}");
 
-                    // Critical Hit Check
-                    bool isCrit = false;
-                    if (pStats != null && Random.Range(0f, 100f) < pStats.CritChance)
-                    {
-                        isCrit = true;
-                        heroDamage *= (1f + (pStats.CritDamage / 100f));
-                    }
+                    yield return hero.HeroAttackRoutine(combatEnemy, finalDamage);
 
-                    int finalDamage = Mathf.RoundToInt(heroDamage);
-                    
-                    if (hero.currentEnemy != null)
+                    if (combatEnemy.isDead)
                     {
-                        var enemy = hero.currentEnemy.GetComponent<Enemy>();
-                        if (enemy != null)
+                        Debug.Log($"{combatEnemy.name} defeated!");
+                        int levelsGained = 0;
+                        if (LevelManager.Instance != null)
+                            levelsGained = LevelManager.Instance.AddXP(total * 2);
+
+                        if (levelsGained > 0)
+                            yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
+                        else
                         {
-                            string critMsg = isCrit ? " <color=red>CRITICAL HIT!</color>" : "";
-                            Debug.Log($"<b>[Combat Action]</b> Steve Attacks: Dealing {finalDamage} damage to {enemy.name}{critMsg}");
-
-                            // [COMBAT CLEANUP]
-                            // 1. Force both combatants to face each other snappily but smoothly
-                            hero.FaceTarget(enemy.transform, false, 30.0f);
-                            enemy.FaceTarget(hero.transform, false, 30.0f);
-
-                            // 2. Short beat to prepare the lunge
-                            yield return new WaitForSeconds(0.25f);
-
-                            // 3. Hero Attack Animation
-                            var heroAnim = hero.GetComponentInChildren<Animator>();
-                            if (heroAnim != null)
-                            {
-                                // Partial Attack Animation (Preparation)
-                                heroAnim.CrossFade("Challenging_Battle_SwordAndShield", 0.1f);
-                                yield return new WaitForSeconds(0.6f);
-
-                                heroAnim.ResetTrigger("Attack");
-                                heroAnim.SetTrigger("Attack");
-                            }
-                            
-                            // 4. Enemy takes damage and reacts
-                            yield return new WaitForSeconds(0.35f);
-                            bool hitOk = enemy.TakeDamage(finalDamage);
-
-                            if (hitOk)
-                            {
-                                Debug.Log($"<b>[Combat Success]</b> {enemy.name} was hit for {finalDamage}.");
-                            }
-                            else
-                            {
-                                Debug.Log($"<b>[Combat Miss]</b> {enemy.name} dodged Steve's attack!");
-                            }
-
-                            // Check if enemy died
-                            if (enemy.isDead) 
-                            {
-                                Debug.Log($"{enemy.name} defeated!");
-                                int levelsGained = 0;
-                                if (LevelManager.Instance != null)
-                                    levelsGained = LevelManager.Instance.AddXP(total * 2);
-
-                                if (levelsGained > 0)
-                                    yield return new WaitForSeconds(hero.LevelUpCelebrationSeconds * levelsGained);
-                                else
-                                {
-                                    hero.VictoryFlourish();
-                                    yield return new WaitForSeconds(1.2f);
-                                }
-                                yield break;
-                            }
-
-                            // Retaliation delay
-                            yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
-
-                            // 5. Enemy Attacks back
-                            if (hero.currentEnemy != null && enemy != null)
-                            {
-                                enemy.PerformAttack(hero);
-                            }
+                            hero.VictoryFlourish();
+                            yield return new WaitForSeconds(0.75f);
                         }
+                        yield break;
                     }
-}
+
+                    yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
+
+                    if (hero.currentEnemy != null && combatEnemy != null && !combatEnemy.isDead)
+                        combatEnemy.PerformAttack(hero);
+                }
                 else
                 {
+                    if (hero.InCombat)
+                        hero.ExitCombat();
+
+                    hero.RecordRoll(total);
                     hero.MoveSteps(total);
                 }
 

@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.AI;
+using System.Collections;
 
 public class HeroController : MonoBehaviour
 {
@@ -25,8 +26,12 @@ public class HeroController : MonoBehaviour
     private LineRenderer fullPathLine;
 
     private GameObject currentTarget;
-    private float leftoverDiceValue = 0;
+    private Enemy approachingEnemy;
     private int nextPOIOrder = 0;
+    private Coroutine engageRoutine;
+    private int lastRollValue;
+
+    public bool IsEngageBusy => engageRoutine != null;
 
     void Start()
 {
@@ -51,7 +56,7 @@ public class HeroController : MonoBehaviour
         
         AutoAssignHealthUI();
 
-        agent.speed = 6.0f; // Increased speed for running
+        agent.speed = GlobalSettings.Instance.heroTravelSpeed;
         agent.acceleration = 30.0f;
         agent.stoppingDistance = 1.0f;
         agent.autoBraking = true;
@@ -177,75 +182,184 @@ public class HeroController : MonoBehaviour
         }
 
         UpdatePathLines();
-            
-        if (inCombat && currentEnemy != null)
+
+        if (inCombat && currentEnemy != null && engageRoutine == null)
         {
-            FaceTarget(currentEnemy.transform, false, 20.0f);
+            var engaged = GetEnemyFromTarget(currentEnemy);
+            if (engaged != null && engaged.IsWithinEngageRange(this))
+                FaceTarget(engaged.transform, false, 20.0f);
         }
 
-        if (isMoving && !isCelebrating)
+        if (isMoving && !isCelebrating && !IsEngageBusy)
         {
-            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
+            Enemy targetEnemy = approachingEnemy ?? GetEnemyFromTarget(currentTarget);
+            if (targetEnemy != null)
+            {
+                if (targetEnemy.IsWithinEngageRange(this))
+                {
+                    OnArrivedNearEnemy(targetEnemy);
+                    return;
+                }
+
+                bool reachedDest = !agent.pathPending &&
+                    agent.remainingDistance <= agent.stoppingDistance + 0.2f;
+
+                if (reachedDest)
+                {
+                    OnArrivedNearEnemy(targetEnemy);
+                    return;
+                }
+            }
+            else if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance)
             {
                 FinalizeMovement("Destination reached");
-            }
-
-            if (currentTarget != null)
-            {
-                float dist = Vector3.Distance(transform.position, currentTarget.transform.position);
-                if (dist < 2.5f)
+                GameObject target = currentTarget;
+                currentTarget = null;
+                if (target != null)
                 {
-                    Debug.Log($"HeroController: Close enough to {currentTarget.name} (Dist: {dist:F2}m). Entering combat/resolution.");
-                    GameObject target = currentTarget;
-                    FinalizeMovement("Proximity trigger");
-                    
-                    var enemy = target.GetComponent<Enemy>();
-                    if (enemy != null)
-                    {
-                        EnterCombat(target);
-                        StartCoroutine(InitialAttackCoroutine(enemy, leftoverDiceValue));
-                    }
-                    else
-                    {
-                        if (POIManager.Instance != null) POIManager.Instance.ResolvePOI(target);
-                    }
-                    currentTarget = null;
-                    nextPOIOrder++;
+                    var poi = target.GetComponent<POINode>() ?? target.GetComponentInParent<POINode>();
+                    OnPOIDefeated(poi);
+                    if (POIManager.Instance != null)
+                        POIManager.Instance.ResolvePOI(target);
                 }
             }
         }
     }
 
-    private System.Collections.IEnumerator InitialAttackCoroutine(Enemy enemy, float diceValue)
+    private static Enemy GetEnemyFromTarget(GameObject target)
     {
-        Debug.Log($"<b>[Combat Flow]</b> Starting Arrival Attack. Leftover steps: {diceValue:F2}");
-        
-        FaceTarget(enemy.transform, false, 30.0f);
-        enemy.FaceTarget(this.transform, false, 30.0f);
+        if (target == null) return null;
+        return target.GetComponent<Enemy>() ?? target.GetComponentInChildren<Enemy>();
+    }
 
-        // Wait a beat after settle/facing
-        yield return new WaitForSeconds(0.45f);
+    private float DistanceToEnemy(Enemy enemy)
+    {
+        if (enemy == null) return float.MaxValue;
+        return Vector3.Distance(transform.position, enemy.GetEngagePosition());
+    }
 
-        // FORMULA: Damage = (leftoverSteps * Multiplier) + (BaseAttack * 0.5)
-        float damageFromSteps = diceValue * GlobalSettings.Instance.leftoverStepDamageMultiplier;
-        float baseDmgBonus = stats != null ? stats.AttackDamage * 0.5f : 30f;
-        float heroDamage = damageFromSteps + baseDmgBonus;
+    public void RecordRoll(int rollTotal)
+    {
+        lastRollValue = rollTotal;
+    }
 
-        if (stats != null && Random.Range(0f, 100f) < stats.CritChance)
+    /// <summary>Mark a POI as done so the next roll targets the following visit order.</summary>
+    public void OnPOIDefeated(POINode node)
+    {
+        currentTarget = null;
+        approachingEnemy = null;
+        if (node != null)
+            nextPOIOrder = Mathf.Max(nextPOIOrder, node.order + 1);
+    }
+
+    private void AdvancePastEnemyPOI(Enemy enemy)
+    {
+        if (enemy == null) return;
+        OnPOIDefeated(enemy.GetComponentInParent<POINode>());
+    }
+
+    private bool IsCurrentTargetUsable()
+    {
+        if (currentTarget == null) return false;
+        var poi = currentTarget.GetComponent<POINode>();
+        if (poi == null) poi = currentTarget.GetComponentInParent<POINode>();
+        if (poi == null) return false;
+
+        var enemy = GetEnemyFromTarget(currentTarget);
+        if (enemy != null && enemy.isDead) return false;
+        return true;
+    }
+
+    /// <summary>Steve finished dice movement near a POI enemy — attack if in range, else wait for another roll.</summary>
+    private void OnArrivedNearEnemy(Enemy enemy)
+    {
+        approachingEnemy = null;
+        isMoving = false;
+        if (agent != null && agent.isOnNavMesh)
         {
-            heroDamage *= (1f + (stats.CritDamage / 100f));
-            Debug.Log("<b>[Combat Flow]</b> <color=red>CRITICAL ARRIVAL HIT!</color>");
+            agent.isStopped = true;
+            agent.ResetPath();
+            agent.velocity = Vector3.zero;
+            agent.updateRotation = false;
+            agent.stoppingDistance = 1.0f;
         }
 
-        int finalDamage = Mathf.RoundToInt(heroDamage);
-        if (finalDamage == 0 && diceValue > 0.01f) finalDamage = 1;
-
-        // Partial Attack Animation (Preparation)
-        if (animator != null)
+        if (enemy == null || enemy.isDead)
         {
-            animator.CrossFade("Challenging_Battle_SwordAndShield", 0.1f);
-            yield return new WaitForSeconds(0.6f);
+            AdvancePastEnemyPOI(enemy);
+            return;
         }
+
+        if (IsEngageBusy) return;
+
+        float dist = DistanceToEnemy(enemy);
+        if (!enemy.IsWithinEngageRange(this))
+        {
+            CombatLog.Info($"Steve stopped {dist:F1}m out of fight range — roll again to close");
+            ExitCombat();
+            return;
+        }
+
+        currentTarget = null;
+        AdvancePastEnemyPOI(enemy);
+
+        CombatLog.Info($"Steve reached fight range ({dist:F1}m) — attacks first");
+        bool isCrit;
+        int damage = CalculateRollDamage(lastRollValue, out isCrit);
+        EnterCombat(enemy.gameObject);
+        if (engageRoutine != null) StopCoroutine(engageRoutine);
+        engageRoutine = StartCoroutine(SteveArrivalAttackRoutine(enemy, damage));
+    }
+
+    /// <summary>Enemy closed distance first — orc attacks, then Steve can roll in combat.</summary>
+    public void OnEnemyAggroAttack(Enemy enemy)
+    {
+        if (enemy == null || enemy.isDead || IsEngageBusy) return;
+        if (!enemy.IsWithinEngageRange(this))
+        {
+            CombatLog.Info("Enemy aggro ignored — Steve out of fight range");
+            return;
+        }
+
+        CombatLog.Info("Enemy reached Steve first — enemy attacks");
+        EnterCombat(enemy.gameObject);
+        if (engageRoutine != null) StopCoroutine(engageRoutine);
+        engageRoutine = StartCoroutine(EnemyFirstAttackRoutine(enemy));
+    }
+
+    private IEnumerator SteveArrivalAttackRoutine(Enemy enemy, int damage)
+    {
+        yield return HeroAttackRoutine(enemy, damage);
+
+        if (enemy != null && enemy.isDead)
+        {
+            VictoryFlourish();
+            engageRoutine = null;
+            yield break;
+        }
+
+        yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
+        if (enemy != null && !enemy.isDead && inCombat)
+            enemy.PerformAttack(this);
+
+        engageRoutine = null;
+    }
+
+    private IEnumerator EnemyFirstAttackRoutine(Enemy enemy)
+    {
+        enemy.PerformAttack(this);
+        yield return new WaitForSeconds(enemy.AttackDurationSeconds);
+        engageRoutine = null;
+    }
+
+    public IEnumerator HeroAttackRoutine(Enemy enemy, int damage)
+    {
+        if (enemy == null || enemy.isDead) yield break;
+
+        var settings = GlobalSettings.Instance;
+        FaceTarget(enemy.transform, true);
+        enemy.FaceTarget(transform, true);
+        yield return new WaitForSeconds(settings.combatFaceDelay);
 
         if (animator != null)
         {
@@ -253,27 +367,36 @@ public class HeroController : MonoBehaviour
             animator.SetTrigger("Attack");
         }
 
-        // Wait for sword swing
-        yield return new WaitForSeconds(0.35f);
-        
-        if (enemy != null)
+        yield return new WaitForSeconds(settings.combatHeroHitDelay);
+
+        if (enemy != null && !enemy.isDead)
         {
-            Debug.Log($"<b>[Combat Flow]</b> Steve hits {enemy.name} for {finalDamage} arrival damage.");
-            enemy.TakeDamage(finalDamage);
-
-            if (enemy.isDead)
-            {
-                VictoryFlourish();
-                yield break;
-            }
-
-            yield return new WaitForSeconds(GlobalSettings.Instance.combatReactionDelay);
-
-            if (enemy != null && enemy.gameObject != null && !enemy.isDead)
-            {
-                enemy.PerformAttack(this);
-            }
+            CombatLog.AttackStart("Steve", enemy.name, "hero melee");
+            bool hit = enemy.TakeDamage(damage, "Steve");
+            if (!hit)
+                CombatLog.DamageMitigated("Steve", enemy.name, "dodged");
         }
+    }
+
+    public int CalculateRollDamage(int rollTotal, out bool isCrit)
+    {
+        isCrit = false;
+        float baseDamage = stats != null ? stats.AttackDamage : 20f;
+        float heroDamage = baseDamage * (rollTotal / 7.0f);
+        float critRoll = stats != null ? Random.Range(0f, 100f) : 100f;
+
+        if (stats != null && critRoll < stats.CritChance)
+        {
+            isCrit = true;
+            heroDamage *= (1f + (stats.CritDamage / 100f));
+        }
+
+        if (stats != null)
+            CombatLog.CritCheck("Steve", stats.CritChance, critRoll, isCrit);
+
+        int finalDamage = Mathf.Max(1, Mathf.RoundToInt(heroDamage));
+        CombatLog.DamageCalc("Steve", $"dice roll {rollTotal} | base {baseDamage:F0} × roll/7 → {finalDamage}" + (isCrit ? " (crit)" : ""));
+        return finalDamage;
     }
 
     private void UpdatePathLines()
@@ -289,8 +412,10 @@ public class HeroController : MonoBehaviour
 
         if (show && currentTarget != null)
         {
+            Enemy pathEnemy = GetEnemyFromTarget(currentTarget);
+            Vector3 pathGoal = pathEnemy != null ? pathEnemy.GetEngagePosition() : currentTarget.transform.position;
             NavMeshPath path = new NavMeshPath();
-            if (NavMesh.CalculatePath(transform.position, currentTarget.transform.position, NavMesh.AllAreas, path))
+            if (NavMesh.CalculatePath(transform.position, pathGoal, NavMesh.AllAreas, path))
             {
                 fullPathLine.enabled = true;
                 fullPathLine.positionCount = path.corners.Length;
@@ -304,6 +429,7 @@ public class HeroController : MonoBehaviour
     private void FinalizeMovement(string reason)
     {
         isMoving = false;
+        approachingEnemy = null;
         if (agent != null && agent.isOnNavMesh)
         {
             agent.isStopped = true;
@@ -318,6 +444,7 @@ public class HeroController : MonoBehaviour
     {
         if (isCelebrating) return;
 
+        lastRollValue = diceResult;
         GlobalSettings settings = GlobalSettings.Instance;
         float totalMeters = diceResult * settings.stepsPerDiceValue * settings.metersPerStep;
         if (agent == null) agent = GetComponent<NavMeshAgent>();
@@ -329,41 +456,46 @@ public class HeroController : MonoBehaviour
             else return;
         }
 
-        if (currentTarget == null)
-        {
-            if (POIManager.Instance != null)
-            {
-                currentTarget = POIManager.Instance.GetPOIByOrder(nextPOIOrder);
-                if (currentTarget != null)
-                {
-                    var poi = currentTarget.GetComponent<POINode>();
-                    if (poi != null) nextPOIOrder = poi.order;
-                }
-            }
-        }
+        if (!IsCurrentTargetUsable())
+            currentTarget = null;
+
+        if (currentTarget == null && POIManager.Instance != null)
+            currentTarget = POIManager.Instance.GetPOIByOrder(nextPOIOrder);
 
         if (currentTarget == null) return;
 
+        Enemy enemy = GetEnemyFromTarget(currentTarget);
+        Vector3 pathGoal = enemy != null ? enemy.GetEngagePosition() : currentTarget.transform.position;
+
         NavMeshPath path = new NavMeshPath();
-        if (NavMesh.CalculatePath(transform.position, currentTarget.transform.position, NavMesh.AllAreas, path))
+        if (!NavMesh.CalculatePath(transform.position, pathGoal, NavMesh.AllAreas, path) ||
+            path.status == NavMeshPathStatus.PathInvalid)
         {
-            if (path.status != NavMeshPathStatus.PathInvalid)
-            {
-                float pathDist = 0;
-                for (int i = 0; i < path.corners.Length - 1; i++) pathDist += Vector3.Distance(path.corners[i], path.corners[i+1]);
+            return;
+        }
 
-                if (pathDist < totalMeters)
-                {
-                    float usedDiceValue = pathDist / (settings.stepsPerDiceValue * settings.metersPerStep);
-                    leftoverDiceValue = Mathf.Max(0, (float)diceResult - usedDiceValue);
-                }
-                else leftoverDiceValue = 0;
+        float pathDist = 0f;
+        for (int i = 0; i < path.corners.Length - 1; i++)
+            pathDist += Vector3.Distance(path.corners[i], path.corners[i + 1]);
 
-                Vector3 targetPoint = GetPointOnPath(path, totalMeters);
-                agent.isStopped = false;
-                agent.updateRotation = true;
-                if (agent.SetDestination(targetPoint)) isMoving = true;
-            }
+        float moveMeters = Mathf.Min(totalMeters, pathDist);
+        Vector3 targetPoint = GetPointOnPath(path, moveMeters);
+
+        NavMeshHit destHit;
+        if (NavMesh.SamplePosition(targetPoint, out destHit, 2.0f, NavMesh.AllAreas))
+            targetPoint = destHit.position;
+
+        approachingEnemy = enemy;
+        agent.speed = settings.heroTravelSpeed;
+        agent.stoppingDistance = enemy != null ? 0.35f : 1.0f;
+        agent.isStopped = false;
+        agent.updateRotation = true;
+
+        if (agent.SetDestination(targetPoint))
+        {
+            isMoving = true;
+            if (enemy != null)
+                CombatLog.Info($"Steve moving toward {enemy.name} (up to {moveMeters:F0}m on path)");
         }
     }
 
@@ -392,24 +524,33 @@ public class HeroController : MonoBehaviour
         isMoving = false;
         if (agent != null) { agent.isStopped = true; agent.velocity = Vector3.zero; }
 
-        var ec = enemy.GetComponent<Enemy>();
-        if (ec != null) ec.SetHealthBarVisible(true);
+        var ec = enemy != null ? enemy.GetComponent<Enemy>() : null;
+        if (ec != null)
+        {
+            ec.SetHealthBarVisible(true);
+            CombatLog.EnterCombat(gameObject.name, enemy.name);
+        }
 
         if (animator != null)
         {
             animator.ResetTrigger("Throw"); animator.ResetTrigger("Attack"); animator.ResetTrigger("GetHit");
         }
-        
-        Vector3 direction = (enemy.transform.position - transform.position).normalized;
+
+        Vector3 faceFrom = ec != null ? ec.GetEngagePosition() : enemy.transform.position;
+        Vector3 direction = (faceFrom - transform.position).normalized;
         direction.y = 0;
         if (direction != Vector3.zero) transform.rotation = Quaternion.LookRotation(direction);
     }
 
-    public void ExitCombat() { inCombat = false; currentEnemy = null; }
+    public void ExitCombat() { inCombat = false; currentEnemy = null; approachingEnemy = null; }
 
-    public bool TakeDamage(int amount)
+    public bool TakeDamage(int amount, string attackerName = "Enemy", bool attackerCrit = false)
     {
         if (stats == null || stats.currentHP <= 0) return false;
+
+        if (attackerCrit)
+            CombatLog.DamageCalc(attackerName, $"hit Steve for {amount} (critical)");
+
         bool tookDamage = stats.TakeDamage(amount);
         UpdateHealthUI();
         if (tookDamage)
@@ -421,7 +562,11 @@ public class HeroController : MonoBehaviour
                 var ft = go.AddComponent<FloatingText>();
                 ft.Setup($"-{amount} HP", Color.red);
             }
-            if (stats.currentHP <= 0) { if (animator != null) animator.SetTrigger("Die"); }
+            if (stats.currentHP <= 0)
+            {
+                CombatLog.Death("Steve");
+                if (animator != null) animator.SetTrigger("Die");
+            }
             else if (animator != null) animator.SetTrigger("GetHit");
         }
         return tookDamage;

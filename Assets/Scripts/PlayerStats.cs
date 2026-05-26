@@ -120,17 +120,18 @@ public class PlayerStats : MonoBehaviour
     /// </summary>
     public bool TakeDamage(float damage)
     {
-        // Dodge check: Agility based evasion
-        if (Random.Range(0f, 100f) < dodgeChance)
+        float dodgeRoll = Random.Range(0f, 100f);
+        if (dodgeRoll < dodgeChance)
         {
-            Debug.Log($"<color=white>{gameObject.name} DODGED the attack!</color>");
+            CombatLog.Dodge(gameObject.name, dodgeChance, dodgeRoll);
             return false;
         }
 
+        float hpBefore = currentHP;
         currentHP -= damage;
         if (currentHP < 0) currentHP = 0;
-        
-        Debug.Log($"<color=red>{gameObject.name} took {damage} damage. Current HP: {currentHP}</color>");
+
+        CombatLog.DamageTaken(gameObject.name, damage, hpBefore, currentHP);
         return true;
     }
 }

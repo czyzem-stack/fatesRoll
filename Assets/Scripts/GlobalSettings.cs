@@ -28,6 +28,9 @@ public class GlobalSettings : MonoBehaviour
     [Tooltip("Distance in meters for a single 'step'")]
     public float metersPerStep = 3.0f;
 
+    [Tooltip("Steve's walk speed when moving along the dice path")]
+    public float heroTravelSpeed = 6f;
+
     [Header("Energy Settings")]
 public int energyDepletionPerRoll = 3;
     public int startingEnergy = 60;
@@ -42,7 +45,15 @@ public int energyDepletionPerRoll = 3;
     public int orcStartHP = 10;
     public int combatDamageMultiplier = 2;
     public float leftoverStepDamageMultiplier = 50.0f;
-public float combatReactionDelay = 0.3f;
+
+    [Header("Combat Timing (seconds)")]
+    public float combatDiceReadDelay = 0.2f;
+    public float travelDiceReadDelay = 0.85f;
+    public float combatFaceDelay = 0.06f;
+    public float combatHeroHitDelay = 0.22f;
+    public float combatReactionDelay = 0.18f;
+    public float enemyAttackWindUp = 0.14f;
+    public float enemyAttackHitDelay = 0.26f;
 
     [Header("XP & Leveling Settings")]
     public float baseXPForLevel1 = 50f;
