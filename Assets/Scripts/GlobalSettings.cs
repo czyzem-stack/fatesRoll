@@ -45,6 +45,16 @@ public class GlobalSettings : MonoBehaviour
     public float energyDisplayTotalDuration = 15f;
     public float energyDisplayNextDuration = 3f;
 
+    [Header("Loot")]
+    [Tooltip("Steve's coin/gold balance when a run starts.")]
+    public int startingCoinBalance = 100;
+
+    public static int GetStartingCoinBalance()
+    {
+        var s = Instance;
+        return s != null ? s.startingCoinBalance : 100;
+    }
+
     [Header("Combat — spacing")]
     [Tooltip("Horizontal distance from enemy center where Steve can start melee and paths aim to stop.")]
     public float meleeEngageDistance = 2.5f;

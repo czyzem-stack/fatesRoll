@@ -524,6 +524,9 @@ public class Enemy : MonoBehaviour
             animator.SetBool("IsDead", true);
             animator.SetBool("InCombat", false);
         }
+
+        if (LootManager.Instance != null)
+            LootManager.Instance.OnEnemyDied(this);
         
         gameObject.tag = "Untagged";
         if (healthSlider != null) healthSlider.gameObject.SetActive(false);
