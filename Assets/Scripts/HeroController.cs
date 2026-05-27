@@ -47,9 +47,6 @@ public class HeroController : MonoBehaviour
 
     public UnityEngine.UI.Slider healthSlider;
 
-    private float lastDisplayedHP = -1f;
-    private float lastDisplayedMaxHP = -1f;
-
     private Coroutine engageRoutine;
     public bool IsEngageBusy => engageRoutine != null;
 

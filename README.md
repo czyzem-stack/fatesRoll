@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.069` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.070` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.070** | Reduce health bar UI churn, gate spawn logs, and harden combat dice flow |
 | **v0.0.069** | Fix visit POIs vs spawns, combat engage, SpawnManager probe, DDOL HUD rebind |
 | **v0.0.068** | Add Bootstrap scene flow, restore main gameplay markers, and fix dice/camera follow |
 | **v0.0.067** | Defer heavy bootstrap to next frame and harden domain reload resets |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.041** | Sync README version and changelog for v0.0.040 |
 | **v0.0.040** | Sync README version and changelog for v0.0.039 |
 | **v0.0.039** | Sync README version and changelog for v0.0.038 |
-| **v0.0.038** | Simplify combat engage and fix POI progression after kills |
 <!-- CHANGELOG:END -->
 
 ---
