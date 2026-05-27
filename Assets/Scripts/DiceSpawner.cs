@@ -560,7 +560,9 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
                             yield break;
 
                         Enemy pending = hero.GetPendingCombatEnemy();
-                        if (pending != null && hero.TryBeginMeleeWithRoll(pending, total))
+                        if (pending != null &&
+                            (hero.TryBeginMeleeWithRoll(pending, total) ||
+                             hero.TryBeginMeleeWithRoll(pending, total, engageExtraBuffer: 1.75f)))
                         {
                             while (hero.IsEngageBusy)
                                 yield return null;
@@ -598,7 +600,11 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
             return;
         }
 
-        GameObject target = poiManager.GetNextPOITarget(0);
+        int visitOrder = 0;
+        if (hero.TryGetComponent(out SteveMovement mv))
+            visitOrder = mv.NextVisitPoiOrder;
+
+        GameObject target = poiManager.GetNextPOITarget(visitOrder);
         string targetName = target != null ? target.name : "none";
         Debug.Log(
             $"Dice resolved - Target POI: {targetName} (roll {rollTotal}, visit POIs {poiManager.VisitPoiCount}, " +

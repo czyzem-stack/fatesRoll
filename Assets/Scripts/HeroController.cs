@@ -316,7 +316,9 @@ public class HeroController : MonoBehaviour
     public void OnMovementArrivedAtEnemy(Enemy enemy)
     {
         int roll = movement != null ? movement.LastRollValue : 0;
-        if (TryBeginMeleeWithRoll(enemy, roll))
+        bool started = TryBeginMeleeWithRoll(enemy, roll)
+            || TryBeginMeleeWithRoll(enemy, roll, engageExtraBuffer: 1.75f);
+        if (started)
             movement?.EndRoute();
         else
             movement?.OnRollSegmentEnded();
@@ -324,6 +326,23 @@ public class HeroController : MonoBehaviour
 
     public void OnMovementArrivedAtPoi(POINode poi, GameObject target)
     {
+        Enemy enemy = GetEnemyFromTarget(target);
+        if (enemy != null && !enemy.IsTreasureChest && !enemy.isDead)
+        {
+            int roll = movement != null ? movement.LastRollValue : 0;
+            bool started = TryBeginMeleeWithRoll(enemy, roll)
+                || TryBeginMeleeWithRoll(enemy, roll, engageExtraBuffer: 1.75f);
+            if (started)
+            {
+                movement?.EndRoute();
+                return;
+            }
+
+            CombatLog.Info("Steve reached POI — still outside fight range; roll again to close distance.");
+            movement?.OnRollSegmentEnded();
+            return;
+        }
+
         movement?.EndRoute();
         OnPOIDefeated(poi);
         POIResolve.Resolve(target);
@@ -356,7 +375,7 @@ public class HeroController : MonoBehaviour
         movement?.EndRoute();
     }
 
-    public bool TryBeginMeleeWithRoll(Enemy enemy, int rollTotal)
+    public bool TryBeginMeleeWithRoll(Enemy enemy, int rollTotal, float engageExtraBuffer = 0.35f)
     {
         if (enemy == null || enemy.isDead || IsEngageBusy || inCombat)
             return false;
@@ -364,10 +383,12 @@ public class HeroController : MonoBehaviour
         if (enemy.IsTreasureChest)
             return false;
 
-        if (!IsWithinMeleeEngageRange(enemy, 0.35f))
+        if (!IsWithinMeleeEngageRange(enemy, engageExtraBuffer))
         {
-            CombatLog.Info(
-                $"Steve {DistanceToEnemy(enemy):F1}m out of fight range (engage {GlobalSettings.GetMeleeEngageDistance():F1}m) — roll again to close");
+            if (engageExtraBuffer <= 0.5f)
+                CombatLog.Info(
+                    $"Steve {DistanceToEnemy(enemy):F1}m out of fight range (engage {GlobalSettings.GetMeleeEngageDistance():F1}m) — roll again to close");
+
             return false;
         }
 
@@ -685,7 +706,9 @@ public class HeroController : MonoBehaviour
     {
         if (target == null)
             return null;
-        return target.GetComponent<Enemy>() ?? target.GetComponentInChildren<Enemy>();
+        return target.GetComponent<Enemy>()
+               ?? target.GetComponentInChildren<Enemy>()
+               ?? target.GetComponentInParent<Enemy>();
     }
 
     private float DistanceToEnemy(Enemy enemy)

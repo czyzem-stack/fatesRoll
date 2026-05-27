@@ -76,10 +76,19 @@ public class POIManager : GameServiceBehaviour<POIManager>
         }
 
         var found = Object.FindObjectsByType<POINode>(FindObjectsInactive.Include);
+        int chestCount = 0;
         foreach (var poi in found)
         {
-            if (poi != null && IsGameplayScene(poi.gameObject.scene))
-                allVisitPOIs.Add(poi);
+            if (poi == null || !IsGameplayScene(poi.gameObject.scene))
+                continue;
+
+            // SpawnEncounterBuilder attaches POINode only to SpawnNode encounters (not FTUE visit order).
+            if (poi.transform.GetComponentInParent<SpawnNode>() != null)
+                continue;
+
+            allVisitPOIs.Add(poi);
+            if (poi.IsTreasureChest)
+                chestCount++;
         }
 
         foreach (var poi in allVisitPOIs)
@@ -87,6 +96,7 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
         HasInitialized = true;
         GlobalSettings.LogGameplay($"POIManager: initialized {allVisitPOIs.Count} visit POI(s) in {gameplaySceneName}.");
+        Debug.Log($"POIManager: scan summary in {gameplaySceneName} => combat={allVisitPOIs.Count - chestCount}, chests={chestCount}.");
 
         if (allVisitPOIs.Count == 0)
             Debug.LogWarning($"POIManager: no POINode objects found in {gameplaySceneName}.");
@@ -98,6 +108,9 @@ public class POIManager : GameServiceBehaviour<POIManager>
     public void RegisterPOI(POINode poi)
     {
         if (poi == null)
+            return;
+
+        if (poi.transform.GetComponentInParent<SpawnNode>() != null)
             return;
 
         if (!allVisitPOIs.Contains(poi))
@@ -146,17 +159,24 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
         poi.gameObject.SetActive(true);
 
-        if (poi.IsTreasureChest && poi.currentVisual == null)
+        // Restored marker-only POIs may not have Enemy/visual children yet.
+        bool needsEncounterBuild = poi.currentVisual == null || poi.GetComponent<Enemy>() == null;
+        if (needsEncounterBuild)
             POIVisualBuilder.BuildVisuals(poi);
 
         if (!activeVisitPOIs.Contains(poi))
             RegisterPOI(poi);
 
         poi.InitializeEnemy();
+
+        var enemy = poi.GetComponent<Enemy>();
+        if (enemy == null)
+            Debug.LogWarning($"POIManager: '{poi.name}' has no Enemy after activation (type={poi.type}, chest={poi.IsTreasureChest}).");
     }
 
     public bool HasRemainingVisitPOI(POINode excludeDefeated = null)
     {
+        PruneDestroyedVisitPois();
         foreach (var poi in allVisitPOIs)
         {
             if (poi == null || poi == excludeDefeated)
@@ -180,16 +200,25 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
     public GameObject GetNextPOITarget(int visitOrder)
     {
-        if (HasRemainingVisitPOI())
+        PruneDestroyedVisitPois();
+
+        if (!HasRemainingVisitPOI())
         {
-            GameObject visit = GetVisitPOIByOrder(visitOrder);
-            if (visit != null)
-                return visit;
+            return GameServices.TryGet(out SpawnManager spawnManager)
+                ? spawnManager.GetRandomSpawnTarget()
+                : null;
         }
 
-        return GameServices.TryGet(out SpawnManager spawnManager)
-            ? spawnManager.GetRandomSpawnTarget()
-            : null;
+        GameObject visit = GetVisitPOIByOrder(visitOrder);
+        if (visit != null)
+            return visit;
+
+        // Never pick random SpawnNode encounters while visit POIs remain (was causing "random walk").
+        Debug.LogWarning(
+            $"POIManager: GetVisitPOIByOrder({visitOrder}) returned null with {allVisitPOIs.Count} POI(s) — falling back to lowest-order visit POI.",
+            this);
+        visit = GetVisitPOIByOrder(int.MinValue);
+        return visit;
     }
 
     public GameObject GetNearestPOI(Vector3 position)
@@ -220,6 +249,7 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
     public GameObject GetVisitPOIByOrder(int order)
     {
+        PruneDestroyedVisitPois();
         POINode exact = null;
         POINode nextHigher = null;
         int nextHigherOrder = int.MaxValue;
@@ -275,5 +305,14 @@ public class POIManager : GameServiceBehaviour<POIManager>
     }
 
     public void ResolveSequentialPOI(GameObject go) => ResolveVisitPOI(go);
+
+    static void PruneDestroyedVisitPois()
+    {
+        // Unity null overload removes destroyed UnityEngine.Object entries.
+        if (POIManager.Instance == null)
+            return;
+        POIManager.Instance.allVisitPOIs.RemoveAll(static p => p == null);
+        POIManager.Instance.activeVisitPOIs.RemoveAll(static p => p == null);
+    }
 }
-
+

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 using TMPro;
+using UnityEngine.SceneManagement;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -77,6 +78,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
     private int pendingBatchGold;
     private bool collectPhaseActive;
     private HeroController cachedHero;
+    private bool hasInitializedGold;
     private static readonly int GroundRayMask = ~0;
 
     public bool IsCollectPhaseActive => collectPhaseActive;
@@ -108,8 +110,30 @@ public class LootManager : GameServiceBehaviour<LootManager>
     protected override void Start()
     {
         base.Start();
-        currentGold = GlobalSettings.GetStartingCoinBalance();
+        if (!hasInitializedGold)
+        {
+            currentGold = GlobalSettings.GetStartingCoinBalance();
+            hasInitializedGold = true;
+        }
         cachedHero = GameServices.Hero;
+        AutoAssignUI();
+        UpdateGoldUI();
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // DDOL manager must rebind main-scene HUD references after Bootstrap/Title transitions.
+        AutoAssignUI();
         UpdateGoldUI();
     }
 
@@ -260,6 +284,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         if (amount <= 0) return;
 
         currentGold += amount;
+        hasInitializedGold = true;
         UpdateGoldUI();
         SpawnGoldFloatingText(amount);
         GlobalSettings.LogGameplay($"LootManager: +{amount} gold (total {currentGold})");
@@ -286,6 +311,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
     public void ResetGoldToStarting()
     {
         currentGold = GlobalSettings.GetStartingCoinBalance();
+        hasInitializedGold = true;
         UpdateGoldUI();
     }
 

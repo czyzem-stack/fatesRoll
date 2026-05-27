@@ -114,6 +114,7 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
             }
         }
 
+        yield return null; // wait one frame for SpawnNode scene objects to settle
         InitializeSpawnNodes();
         refreshRoutine = null;
     }
@@ -226,8 +227,13 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
 
     public void InitializeSpawnNodes()
     {
-        if (!IsGameplayScene(SceneManager.GetActiveScene()))
+        Scene activeScene = SceneManager.GetActiveScene();
+        if (!IsGameplayScene(activeScene))
+        {
+            Debug.Log(
+                $"SpawnManager: InitializeSpawnNodes skipped — active scene is '{activeScene.name}', expected '{gameplaySceneName}'.");
             return;
+        }
 
         ResolveManagerReferences();
 
@@ -240,12 +246,29 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
 
         if (monsterCatalog == null)
         {
-            Debug.LogError("SpawnManager: assign MonsterPrefabCatalog (FatesRoll → Enemies → Build Monster Prefab Catalog).");
+            Debug.LogError(
+                "SpawnManager: MonsterPrefabCatalog is not assigned. " +
+                "Assign Assets/Data/Monsters/MonsterPrefabCatalog.asset on the Bootstrap SpawnManager.",
+                this);
             return;
         }
 
-        var found = Object.FindObjectsByType<SpawnNode>(FindObjectsInactive.Include);
-        allSpawnNodes.AddRange(found.Where(n => n != null && IsGameplayScene(n.gameObject.scene)));
+        SpawnNode[] foundAll = Object.FindObjectsByType<SpawnNode>(FindObjectsInactive.Include);
+        List<SpawnNode> spawnNodes = foundAll
+            .Where(n => n != null &&
+                        n.gameObject.scene == activeScene &&
+                        n.gameObject.activeInHierarchy)
+            .ToList();
+
+        Debug.Log(
+            $"SpawnManager: Found {foundAll.Length} total SpawnNode components. {spawnNodes.Count} active in main scene.");
+        foreach (SpawnNode node in spawnNodes.Take(5))
+        {
+            Debug.Log(
+                $"→ SpawnNode: {node.name} | Position: {node.transform.position} | Active: {node.gameObject.activeInHierarchy}");
+        }
+
+        allSpawnNodes.AddRange(spawnNodes);
 
         spawnPoolInitialized = true;
         HasInitialized = true;
@@ -260,8 +283,12 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         if (allSpawnNodes.Count == 0)
             Debug.LogWarning($"SpawnManager: no SpawnNode markers found in {gameplaySceneName}.");
 
-        if (poiManager != null && poiManager.VisitPoiCount > 0 && !poiManager.HasRemainingVisitPOI())
+        if (GameServices.TryGet(out POIManager poi) &&
+            poi.VisitPoiCount > 0 &&
+            !poi.HasRemainingVisitPOI())
+        {
             EnableRandomVisitTargeting();
+        }
     }
 
     /// <summary>Steve may path to spawn encounters when no visit POIs remain.</summary>
@@ -278,21 +305,44 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
 
     private int GetSpawnBudget()
     {
-        int visitActive = poiManager != null ? poiManager.ActiveVisitCount : 0;
+        int visitActive = 0;
+        if (GameServices.TryGet(out POIManager poi))
+            visitActive = poi.ActiveVisitCount;
         return Mathf.Max(0, maxActiveEncounters - visitActive);
     }
 
     private void FillSpawnNodes()
     {
-        if (!spawnPoolInitialized) return;
+        if (!spawnPoolInitialized)
+            return;
+
+        int visitActive = 0;
+        if (GameServices.TryGet(out POIManager poi))
+            visitActive = poi.ActiveVisitCount;
 
         int budget = GetSpawnBudget();
+        Debug.Log(
+            $"SpawnManager: FillSpawnNodes budget={budget} " +
+            $"(maxActiveEncounters={maxActiveEncounters}, visitPOIsActive={visitActive}, fillSpawnsOnLoad={fillSpawnsOnLoad}).");
+
+        int spawned = 0;
         while (activeSpawnNodes.Count < budget)
         {
-            var node = PickInactiveNode();
-            if (node == null) break;
+            SpawnNode node = PickInactiveNode();
+            if (node == null)
+            {
+                Debug.LogWarning(
+                    $"SpawnManager: FillSpawnNodes stopped — no free nodes " +
+                    $"(encounters={activeSpawnNodes.Count}, budget={budget}).");
+                break;
+            }
+
+            Debug.Log($"SpawnManager: activating '{node.name}' at {node.transform.position}");
             ActivateNode(node);
+            spawned++;
         }
+
+        Debug.Log($"SpawnManager: FillSpawnNodes done — activated {spawned}, total encounters={activeSpawnNodes.Count}.");
     }
 
     private SpawnNode PickInactiveNode()
@@ -317,7 +367,14 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
 
     public void ActivateNode(SpawnNode node)
     {
-        if (node == null || monsterCatalog == null || !spawnPoolInitialized) return;
+        if (node == null || !spawnPoolInitialized)
+            return;
+
+        if (monsterCatalog == null)
+        {
+            Debug.LogError("SpawnManager: ActivateNode failed — MonsterPrefabCatalog is not assigned.", this);
+            return;
+        }
 
         if (activeSpawnNodes.Count >= GetSpawnBudget() && !activeSpawnNodes.Contains(node))
             return;
@@ -331,7 +388,11 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         {
             POIType pick = PickRandomType(node.GetLastSpawnedType());
             encounter = SpawnEncounterBuilder.Build(node, pick, monsterCatalog);
-            if (encounter == null) return;
+            if (encounter == null)
+            {
+                Debug.LogError($"SpawnManager: failed to build encounter for '{node.name}' (type={pick}).", node);
+                return;
+            }
 
             var enemy = encounter.GetComponent<Enemy>();
             if (enemy != null)
@@ -348,10 +409,16 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
             }
         }
 
-        if (encounter == null) return;
+        if (encounter == null)
+        {
+            Debug.LogError($"SpawnManager: ActivateNode produced null encounter on '{node.name}'.", node);
+            return;
+        }
 
         if (!activeSpawnNodes.Contains(node))
             RegisterActiveNode(node);
+
+        Debug.Log($"SpawnManager: encounter ready on '{node.name}' → {encounter.name}", encounter);
     }
 
     private bool ShouldSpawnChest(SpawnNode node)

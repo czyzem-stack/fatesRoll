@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Scene service registered with <see cref="GameServices"/> in Awake — not Start.
@@ -25,7 +26,11 @@ public abstract class GameServiceBehaviour<T> : MonoBehaviour where T : GameServ
     {
         if (GameServices.TryGet(out T existing) && existing != null && !ReferenceEquals(existing, this))
         {
-            Debug.LogWarning($"Duplicate {typeof(T).Name} on '{name}' — destroying.", this);
+            // Bootstrap / DDOL owns the singleton; gameplay scenes often still carry legacy copies — not an error.
+            if (IsDontDestroyOnLoadScene(existing.gameObject.scene))
+                Debug.Log($"{typeof(T).Name}: bootstrap already owns this service — destroying duplicate '{name}'.", this);
+            else
+                Debug.LogWarning($"Duplicate {typeof(T).Name} on '{name}' — destroying.", this);
             Destroy(gameObject);
             return false;
         }
@@ -41,4 +46,7 @@ public abstract class GameServiceBehaviour<T> : MonoBehaviour where T : GameServ
     {
         GameServices.Unregister((T)this);
     }
+
+    static bool IsDontDestroyOnLoadScene(Scene scene) =>
+        scene.IsValid() && scene.name == "DontDestroyOnLoad";
 }

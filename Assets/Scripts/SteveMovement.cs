@@ -31,6 +31,8 @@ public class SteveMovement : MonoBehaviour
     public bool IsMoving => isMoving;
     public Enemy ApproachingEnemy => approachingEnemy;
     public int LastRollValue => lastRollValue;
+    /// <summary>Next expected <see cref="POINode.order"/> for visit-path targeting.</summary>
+    public int NextVisitPoiOrder => nextPoiOrder;
 
     private void Awake()
     {
@@ -396,6 +398,9 @@ public class SteveMovement : MonoBehaviour
     {
         target = null;
 
+        if (GameServices.TryGet(out POIManager poiMgr) && poiMgr.HasRemainingVisitPOI())
+            ClearStaleSpawnEncounterTargets();
+
         if (IsTargetUsable(routeTarget))
         {
             target = routeTarget;
@@ -426,6 +431,19 @@ public class SteveMovement : MonoBehaviour
         return target != null;
     }
 
+    void ClearStaleSpawnEncounterTargets()
+    {
+        bool UnderSpawnNode(GameObject go) =>
+            go != null && go.GetComponentInParent<SpawnNode>() != null;
+
+        if (UnderSpawnNode(routeTarget)) routeTarget = null;
+        if (UnderSpawnNode(lockedTarget)) lockedTarget = null;
+        if (UnderSpawnNode(currentTarget)) currentTarget = null;
+
+        approachingEnemy = approachingEnemy != null && UnderSpawnNode(approachingEnemy.gameObject) ? null : approachingEnemy;
+        approachingChest = approachingChest != null && UnderSpawnNode(approachingChest.gameObject) ? null : approachingChest;
+    }
+
     private bool IsTargetUsable(GameObject target)
     {
         if (target == null)
@@ -443,7 +461,9 @@ public class SteveMovement : MonoBehaviour
     {
         if (target == null)
             return null;
-        return target.GetComponent<Enemy>() ?? target.GetComponentInChildren<Enemy>();
+        return target.GetComponent<Enemy>()
+               ?? target.GetComponentInChildren<Enemy>()
+               ?? target.GetComponentInParent<Enemy>();
     }
 
     private void AssignApproachFromTarget(GameObject target)

@@ -1,5 +1,6 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 /// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 public class EnergyManager : GameServiceBehaviour<EnergyManager>
@@ -15,12 +16,29 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
     private int currentEnergy;
     private float nextRegenTime;
 
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
     protected override void Start()
     {
         base.Start();
         var settings = GlobalSettings.Instance;
         currentEnergy = settings != null ? settings.startingEnergy : 60;
         nextRegenTime = Time.time + GetEffectiveRegenInterval();
+        UpdateUI();
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        // DDOL manager must rebind HUD references after Title -> main transitions.
+        AutoAssignUI();
         UpdateUI();
     }
 
@@ -45,11 +63,15 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
 
     private void UpdateRegeneration()
     {
-        if (currentEnergy >= GlobalSettings.Instance.maxEnergy) return;
+        var settings = GlobalSettings.Instance;
+        if (settings == null)
+            return;
+        if (currentEnergy >= settings.maxEnergy)
+            return;
 
         if (Time.time >= nextRegenTime)
         {
-            AddEnergy(GlobalSettings.Instance.energyRegenAmount);
+            AddEnergy(settings.energyRegenAmount);
             nextRegenTime = Time.time + GetEffectiveRegenInterval();
         }
     }
@@ -59,20 +81,22 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
         // Main text (inside the box) now shows the actual energy
         if (energyText != null)
         {
-            energyText.text = $"{currentEnergy}/{GlobalSettings.Instance.maxEnergy}";
+            int max = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
+            energyText.text = $"{currentEnergy}/{max}";
         }
 
         // Small text (below the box) now shows the timer
         if (regenTimerText != null)
         {
-            if (currentEnergy >= GlobalSettings.Instance.maxEnergy)
+            int max = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
+            if (currentEnergy >= max)
             {
                 regenTimerText.text = "Energy Full";
             }
             else
             {
                 float timeRemaining = nextRegenTime - Time.time;
-                regenTimerText.text = $"More energy in {Mathf.CeilToInt(timeRemaining)}s";
+                regenTimerText.text = $"More energy in {Mathf.CeilToInt(Mathf.Max(0f, timeRemaining))}s";
             }
         }
     }
@@ -84,12 +108,14 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
 
     public void Deplete(int amount)
     {
-        bool wasAtMax = currentEnergy >= GlobalSettings.Instance.maxEnergy;
+        var settings = GlobalSettings.Instance;
+        int maxEnergy = settings != null ? settings.maxEnergy : 60;
+        bool wasAtMax = currentEnergy >= maxEnergy;
         
         currentEnergy -= amount;
         if (currentEnergy < 0) currentEnergy = 0;
         
-        if (wasAtMax && currentEnergy < GlobalSettings.Instance.maxEnergy)
+        if (wasAtMax && currentEnergy < maxEnergy)
         {
             nextRegenTime = Time.time + GetEffectiveRegenInterval();
         }
@@ -101,15 +127,17 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
 
     public void AddEnergy(int amount)
     {
+        int maxEnergy = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
         currentEnergy += amount;
-        if (currentEnergy > GlobalSettings.Instance.maxEnergy)
-            currentEnergy = GlobalSettings.Instance.maxEnergy;
+        if (currentEnergy > maxEnergy)
+            currentEnergy = maxEnergy;
         UpdateDisplay();
     }
 
     public void RestoreFull()
     {
-        currentEnergy = GlobalSettings.Instance.maxEnergy;
+        int maxEnergy = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
+        currentEnergy = maxEnergy;
         nextRegenTime = Time.time + GetEffectiveRegenInterval();
         UpdateDisplay();
     }

@@ -1,6 +1,7 @@
 using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
+using UnityEngine.SceneManagement;
 
 /// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 public class LevelManager : GameServiceBehaviour<LevelManager>
@@ -14,10 +15,27 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     private float currentXP = 0f;
     private float xpToNextLevel;
 
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
     protected override void Start()
     {
         base.Start();
         CalculateXPRequirement();
+        AutoAssignUI();
+        UpdateUI();
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        AutoAssignUI();
         UpdateUI();
     }
 
@@ -80,12 +98,38 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     [ContextMenu("Auto-Assign UI")]
     public void AutoAssignUI()
     {
-        GameObject sliderGO = GameObject.Find("MainUI_Canvas/HUD_Profile/Slider_Top");
-        if (sliderGO != null) xpSlider = sliderGO.GetComponent<Slider>();
+        string[] sliderPaths =
+        {
+            "MainUI_Canvas/HUD_Profile/Slider_Top",
+            "MainUI_Canvas/HUD_Profile/Slider_LevelProfile/Slider_Top",
+        };
 
-        GameObject textGO = GameObject.Find("MainUI_Canvas/HUD_Profile/LevelBadge/Text");
-        if (textGO != null) levelText = textGO.GetComponent<TextMeshProUGUI>();
-        
+        foreach (string path in sliderPaths)
+        {
+            GameObject sliderGO = GameObject.Find(path);
+            if (sliderGO == null)
+                continue;
+            xpSlider = sliderGO.GetComponent<Slider>();
+            if (xpSlider != null)
+                break;
+        }
+
+        string[] levelTextPaths =
+        {
+            "MainUI_Canvas/HUD_Profile/LevelBadge/Text",
+            "MainUI_Canvas/HUD_Profile/LevelBadge/Text (TMP)",
+        };
+
+        foreach (string path in levelTextPaths)
+        {
+            GameObject textGO = GameObject.Find(path);
+            if (textGO == null)
+                continue;
+            levelText = textGO.GetComponent<TextMeshProUGUI>();
+            if (levelText != null)
+                break;
+        }
+
         UpdateUI();
     }
 }

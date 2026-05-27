@@ -25,6 +25,12 @@ public static class MainSceneBootstrapCleanup
         RemoveFromMainScene(saveScene: true);
     }
 
+    [MenuItem("FatesRoll/Setup/Strip Bootstrap Service Components From Main Scene")]
+    public static void StripServiceComponentsFromMainSceneMenu()
+    {
+        StripServiceComponentsFromMainScene(saveScene: true);
+    }
+
     /// <summary>Batchmode: Unity -executeMethod MainSceneBootstrapCleanup.RemoveFromMainSceneBatch</summary>
     public static void RemoveFromMainSceneBatch()
     {
@@ -41,16 +47,39 @@ public static class MainSceneBootstrapCleanup
 
         Scene scene = EditorSceneManager.OpenScene(MainScenePath, OpenSceneMode.Single);
         int removed = RemoveBootstrapObjectsFromScene(scene);
+        int stripped = StripBootstrapServiceComponents(scene);
 
-        if (saveScene && removed > 0)
+        if (saveScene && (removed > 0 || stripped > 0))
             EditorSceneManager.SaveScene(scene);
 
         Debug.Log(
-            removed > 0
-                ? $"MainSceneBootstrapCleanup: removed {removed} object(s) from main.unity (Hero, UI, geometry, POIs kept)."
+            (removed > 0 || stripped > 0)
+                ? $"MainSceneBootstrapCleanup: removed {removed} object(s), stripped {stripped} duplicate service component(s) from main.unity (Hero, UI, geometry, POIs kept)."
                 : "MainSceneBootstrapCleanup: no duplicate GameServices / manager roots found in main.");
 
-        return removed;
+        return removed + stripped;
+    }
+
+    public static int StripServiceComponentsFromMainScene(bool saveScene = true)
+    {
+        if (!System.IO.File.Exists(MainScenePath))
+        {
+            Debug.LogError($"MainSceneBootstrapCleanup: missing {MainScenePath}.");
+            return 0;
+        }
+
+        Scene scene = EditorSceneManager.OpenScene(MainScenePath, OpenSceneMode.Single);
+        int stripped = StripBootstrapServiceComponents(scene);
+
+        if (saveScene && stripped > 0)
+            EditorSceneManager.SaveScene(scene);
+
+        Debug.Log(
+            stripped > 0
+                ? $"MainSceneBootstrapCleanup: stripped {stripped} bootstrap service component(s) from main.unity."
+                : "MainSceneBootstrapCleanup: no bootstrap service components needed stripping in main.");
+
+        return stripped;
     }
 
     public static int RemoveBootstrapObjectsFromScene(Scene scene)
@@ -102,6 +131,34 @@ public static class MainSceneBootstrapCleanup
 
     static bool IsManagerObjectWithGameplayChildren(Type serviceType) =>
         serviceType == typeof(POIManager) || serviceType == typeof(SpawnManager);
+
+    static int StripBootstrapServiceComponents(Scene scene)
+    {
+        int stripped = 0;
+        foreach (Type serviceType in ServiceComponentTypes)
+        {
+            foreach (var obj in UnityEngine.Object.FindObjectsByType(serviceType, FindObjectsInactive.Include))
+            {
+                if (obj is not Component component)
+                    continue;
+
+                GameObject go = component.gameObject;
+                if (go == null || go.scene != scene)
+                    continue;
+
+                if (component is POIManager || component is SpawnManager)
+                    RescueGameplayMarkersFrom(go);
+
+                Undo.DestroyObjectImmediate(component);
+                stripped++;
+            }
+        }
+
+        if (stripped > 0)
+            EditorSceneManager.MarkSceneDirty(scene);
+
+        return stripped;
+    }
 
     /// <summary>POI / spawn markers must survive when their manager root is removed.</summary>
     static void RescueGameplayMarkersFrom(GameObject root)
