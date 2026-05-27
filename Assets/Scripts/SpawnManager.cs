@@ -230,7 +230,7 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         Scene activeScene = SceneManager.GetActiveScene();
         if (!IsGameplayScene(activeScene))
         {
-            Debug.Log(
+            GlobalSettings.LogGameplay(
                 $"SpawnManager: InitializeSpawnNodes skipped — active scene is '{activeScene.name}', expected '{gameplaySceneName}'.");
             return;
         }
@@ -260,13 +260,15 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
                         n.gameObject.activeInHierarchy)
             .ToList();
 
-        Debug.Log(
+        GlobalSettings.LogGameplay(
             $"SpawnManager: Found {foundAll.Length} total SpawnNode components. {spawnNodes.Count} active in main scene.");
+#if UNITY_EDITOR
         foreach (SpawnNode node in spawnNodes.Take(5))
         {
-            Debug.Log(
+            GlobalSettings.LogGameplay(
                 $"→ SpawnNode: {node.name} | Position: {node.transform.position} | Active: {node.gameObject.activeInHierarchy}");
         }
+#endif
 
         allSpawnNodes.AddRange(spawnNodes);
 
@@ -321,7 +323,7 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
             visitActive = poi.ActiveVisitCount;
 
         int budget = GetSpawnBudget();
-        Debug.Log(
+        GlobalSettings.LogGameplay(
             $"SpawnManager: FillSpawnNodes budget={budget} " +
             $"(maxActiveEncounters={maxActiveEncounters}, visitPOIsActive={visitActive}, fillSpawnsOnLoad={fillSpawnsOnLoad}).");
 
@@ -331,18 +333,18 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
             SpawnNode node = PickInactiveNode();
             if (node == null)
             {
-                Debug.LogWarning(
+                GlobalSettings.LogGameplayWarning(
                     $"SpawnManager: FillSpawnNodes stopped — no free nodes " +
                     $"(encounters={activeSpawnNodes.Count}, budget={budget}).");
                 break;
             }
 
-            Debug.Log($"SpawnManager: activating '{node.name}' at {node.transform.position}");
+            GlobalSettings.LogGameplay($"SpawnManager: activating '{node.name}' at {node.transform.position}");
             ActivateNode(node);
             spawned++;
         }
 
-        Debug.Log($"SpawnManager: FillSpawnNodes done — activated {spawned}, total encounters={activeSpawnNodes.Count}.");
+        GlobalSettings.LogGameplay($"SpawnManager: FillSpawnNodes done — activated {spawned}, total encounters={activeSpawnNodes.Count}.");
     }
 
     private SpawnNode PickInactiveNode()
@@ -418,7 +420,7 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         if (!activeSpawnNodes.Contains(node))
             RegisterActiveNode(node);
 
-        Debug.Log($"SpawnManager: encounter ready on '{node.name}' → {encounter.name}", encounter);
+        GlobalSettings.LogGameplay($"SpawnManager: encounter ready on '{node.name}' → {encounter.name}");
     }
 
     private bool ShouldSpawnChest(SpawnNode node)

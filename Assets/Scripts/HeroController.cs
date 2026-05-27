@@ -36,11 +36,19 @@ public class HeroController : MonoBehaviour
     [SerializeField] private float extraVisualYawDegrees;
 
     private PlayerStats stats;
-    private bool inCombat;
-    public bool InCombat => inCombat;
+
+    /// <summary>Simple combat state machine for consistent tracking across Hero, Enemy queries, and POI resolution.</summary>
+    public enum CombatState { Idle, Moving, InCombat, Dead }
+
+    private CombatState combatState = CombatState.Idle;
+    public CombatState State => combatState;
+    public bool InCombat => combatState == CombatState.InCombat;
     public GameObject currentEnemy;
 
     public UnityEngine.UI.Slider healthSlider;
+
+    private float lastDisplayedHP = -1f;
+    private float lastDisplayedMaxHP = -1f;
 
     private Coroutine engageRoutine;
     public bool IsEngageBusy => engageRoutine != null;
@@ -48,6 +56,7 @@ public class HeroController : MonoBehaviour
     private Vector3 visualRigAuthoringLocal;
     private float agentBaseOffsetAuthoring;
     private bool hasAuthoringBaseline;
+    private Renderer[] footMeshRenderers;
     private const float MaxSavedVisualLocalY = 0.6f;
 
     private Animator Animator => steveAnim != null ? steveAnim.RigAnimator : null;
@@ -117,7 +126,7 @@ public class HeroController : MonoBehaviour
 
         anim.Update(0f);
         HeroLocomotionUtility.AlignVisualFeetToGround(
-            transform, anim, agent, visualRigAuthoringLocal, agentBaseOffsetAuthoring);
+            transform, anim, agent, visualRigAuthoringLocal, agentBaseOffsetAuthoring, ref footMeshRenderers);
     }
 
     public void ApplyVisualLocomotionAlignment()
@@ -127,6 +136,7 @@ public class HeroController : MonoBehaviour
             return;
 
         visualYawFixApplied = false;
+        footMeshRenderers = null;
         HeroLocomotionUtility.AlignVisualToAgentForward(
             transform, anim, ref visualYawFixApplied, extraVisualYawDegrees);
     }
@@ -266,14 +276,7 @@ public class HeroController : MonoBehaviour
         if (agent == null || isDead || isRespawning)
             return;
 
-        if (healthSlider != null && stats != null)
-        {
-            if (healthSlider.maxValue != stats.MaxHP)
-                healthSlider.maxValue = stats.MaxHP;
-            healthSlider.value = stats.currentHP;
-        }
-
-        if ((inCombat && !IsMoving) || IsEngageBusy)
+        if ((InCombat && !IsMoving) || IsEngageBusy)
         {
             if (agent.isOnNavMesh)
             {
@@ -287,7 +290,7 @@ public class HeroController : MonoBehaviour
         bool blockTravel = isCelebrating || IsEngageBusy;
         movement?.Tick(blockTravel);
 
-        if (inCombat && currentEnemy != null && engageRoutine == null && !IsMoving)
+        if (InCombat && currentEnemy != null && engageRoutine == null && !IsMoving)
         {
             var engaged = GetEnemyFromTarget(currentEnemy);
             if (engaged != null && IsWithinMeleeEngageRange(engaged, 0.35f))
@@ -301,6 +304,9 @@ public class HeroController : MonoBehaviour
     {
         if (isCelebrating || isDead || isRespawning)
             return;
+
+        if (!InCombat && State != CombatState.Moving && State != CombatState.Dead)
+            TransitionCombatState(CombatState.Moving, "dice travel");
 
         movement?.MoveAfterRoll(diceResult);
     }
@@ -345,6 +351,7 @@ public class HeroController : MonoBehaviour
 
         movement?.EndRoute();
         OnPOIDefeated(poi);
+        TransitionCombatState(CombatState.Idle, "arrived at POI (resolved)");
         POIResolve.Resolve(target);
     }
 
@@ -373,11 +380,12 @@ public class HeroController : MonoBehaviour
 
         chest.OpenTreasureChest();
         movement?.EndRoute();
+        TransitionCombatState(CombatState.Idle, "arrived at treasure chest");
     }
 
     public bool TryBeginMeleeWithRoll(Enemy enemy, int rollTotal, float engageExtraBuffer = 0.35f)
     {
-        if (enemy == null || enemy.isDead || IsEngageBusy || inCombat)
+        if (enemy == null || enemy.isDead || IsEngageBusy || InCombat || State == CombatState.Dead)
             return false;
 
         if (enemy.IsTreasureChest)
@@ -421,7 +429,7 @@ public class HeroController : MonoBehaviour
         var settings = GlobalSettings.Instance;
         if (settings != null)
             yield return new WaitForSeconds(settings.combatReactionDelay);
-        if (enemy != null && !enemy.isDead && inCombat)
+        if (enemy != null && !enemy.isDead && InCombat)
             enemy.PerformAttack(this);
 
         engageRoutine = null;
@@ -440,7 +448,7 @@ public class HeroController : MonoBehaviour
         steveAnim?.PlayAttack();
         yield return new WaitForSeconds(settings != null ? settings.combatHeroHitDelay : 0.22f);
 
-        if (enemy != null && !enemy.isDead)
+        if (enemy != null && !enemy.isDead && InCombat && State != CombatState.Dead)
         {
             CombatLog.AttackStart("Steve", enemy.name, "hero melee");
             bool hit = enemy.TakeDamage(damage, "Steve");
@@ -476,7 +484,6 @@ public class HeroController : MonoBehaviour
         if (ec == null)
             return;
 
-        inCombat = true;
         currentEnemy = ec.gameObject;
         movement?.Stop();
 
@@ -488,6 +495,7 @@ public class HeroController : MonoBehaviour
         }
 
         ec.SetHealthBarVisible(true);
+        TransitionCombatState(CombatState.InCombat, ec.gameObject.name);
         CombatLog.EnterCombat(gameObject.name, ec.gameObject.name);
         steveAnim?.SetSpeed(0f);
         steveAnim?.ResetActionTriggers();
@@ -495,13 +503,25 @@ public class HeroController : MonoBehaviour
 
     public void ExitCombat()
     {
-        inCombat = false;
+        if (combatState == CombatState.InCombat)
+        {
+            TransitionCombatState(CombatState.Idle, "exit combat");
+        }
         currentEnemy = null;
         if (agent != null && agent.isOnNavMesh)
         {
             agent.stoppingDistance = 1f;
             agent.updateRotation = true;
         }
+    }
+
+    /// <summary>Centralized state transition with logging. All combat/movement mode changes go through here.</summary>
+    private void TransitionCombatState(CombatState newState, string reason = "")
+    {
+        if (combatState == newState) return;
+        CombatState previous = combatState;
+        combatState = newState;
+        CombatLog.Info($"[State] Hero {previous} -> {newState}" + (string.IsNullOrEmpty(reason) ? "" : $" ({reason})"));
     }
 
     public bool TakeDamage(int amount, string attackerName = "Enemy", bool attackerCrit = false)
@@ -549,7 +569,8 @@ public class HeroController : MonoBehaviour
         }
 
         movement?.Stop();
-        ExitCombat();
+        TransitionCombatState(CombatState.Dead, "hero death");
+        currentEnemy = null;
 
         if (agent != null && agent.isOnNavMesh)
         {
@@ -577,7 +598,8 @@ public class HeroController : MonoBehaviour
             engageRoutine = null;
         }
 
-        ExitCombat();
+        TransitionCombatState(CombatState.Dead, "prepare respawn");
+        currentEnemy = null;
         movement?.ResetAll();
 
         HeroSpawnUtility.PlaceHero(this, position, rotation);
@@ -628,6 +650,7 @@ public class HeroController : MonoBehaviour
 
         isDead = false;
         isRespawning = false;
+        TransitionCombatState(CombatState.Idle, "stood up after death");
         movement?.ResetAll();
         GlobalSettings.LogGameplay("HeroController: Steve stood up — ready to roll.");
     }

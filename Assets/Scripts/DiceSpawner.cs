@@ -498,44 +498,52 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
             {
                 Enemy combatEnemy = hero.GetCurrentEnemy();
 
-                if (hero.InCombat && combatEnemy != null && !combatEnemy.isDead)
+                bool handledCombat = false;
+                if (hero.InCombat && hero.State == HeroController.CombatState.InCombat && combatEnemy != null && !combatEnemy.isDead)
                 {
                     float readDelay = settings != null ? settings.combatDiceReadDelay : 0.35f;
                     yield return new WaitForSeconds(readDelay);
 
-                    bool isCrit;
-                    int finalDamage = hero.CalculateRollDamage(total, out isCrit);
-                    CombatLog.Info($"Dice combat turn | roll {total} → {finalDamage} damage{(isCrit ? " (CRIT)" : "")}");
-
-                    yield return hero.HeroAttackRoutine(combatEnemy, finalDamage);
-
-                    if (combatEnemy.isDead)
+                    // Re-validate after delay (protects against death mid-roll or external state change)
+                    if (hero.InCombat && hero.State == HeroController.CombatState.InCombat && combatEnemy != null && !combatEnemy.isDead)
                     {
-                        int levelsGained = 0;
-                        if (GameServices.TryGet(out LevelManager levelManager))
-                            levelsGained = levelManager.AddXP(total * 2);
+                        bool isCrit;
+                        int finalDamage = hero.CalculateRollDamage(total, out isCrit);
+                        CombatLog.Info($"Dice combat turn | roll {total} → {finalDamage} damage{(isCrit ? " (CRIT)" : "")}");
 
-                        if (levelsGained > 0)
+                        yield return hero.HeroAttackRoutine(combatEnemy, finalDamage);
+
+                        if (combatEnemy.isDead)
                         {
-                            while (hero.IsBlockedForDice)
-                                yield return null;
-                        }
-                        else
-                        {
-                            hero.VictoryFlourish();
-                            yield return new WaitForSeconds(0.75f);
+                            int levelsGained = 0;
+                            if (GameServices.TryGet(out LevelManager levelManager))
+                                levelsGained = levelManager.AddXP(total * 2);
+
+                            if (levelsGained > 0)
+                            {
+                                while (hero.IsBlockedForDice)
+                                    yield return null;
+                            }
+                            else
+                            {
+                                hero.VictoryFlourish();
+                                yield return new WaitForSeconds(0.75f);
+                            }
+
+                            handledCombat = true;
+                            yield break;
                         }
 
-                        yield break;
+                        if (settings != null)
+                            yield return new WaitForSeconds(settings.combatReactionDelay);
+
+                        if (hero.currentEnemy != null && combatEnemy != null && !combatEnemy.isDead && hero.InCombat)
+                            combatEnemy.PerformAttack(hero);
                     }
-
-                    if (settings != null)
-                        yield return new WaitForSeconds(settings.combatReactionDelay);
-
-                    if (hero.currentEnemy != null && combatEnemy != null && !combatEnemy.isDead)
-                        combatEnemy.PerformAttack(hero);
+                    handledCombat = true;
                 }
-                else
+
+                if (!handledCombat)
                 {
                     if (hero.InCombat && combatEnemy == null)
                         CombatLog.Info("Dice roll ignored — no valid combat target on currentEnemy");

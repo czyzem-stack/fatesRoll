@@ -14,6 +14,9 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     private int currentLevel = 1;
     private float currentXP = 0f;
     private float xpToNextLevel;
+    private float lastDisplayedXP = -1f;
+    private float lastDisplayedXpMax = -1f;
+    private int lastDisplayedLevel = -1;
 
     private void OnEnable()
     {
@@ -85,13 +88,21 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     {
         if (xpSlider != null)
         {
-            xpSlider.maxValue = xpToNextLevel;
-            xpSlider.value = currentXP;
+            if (Mathf.Abs(currentXP - lastDisplayedXP) > 0.01f ||
+                Mathf.Abs(xpToNextLevel - lastDisplayedXpMax) > 0.01f)
+            {
+                if (xpSlider.maxValue != xpToNextLevel)
+                    xpSlider.maxValue = xpToNextLevel;
+                xpSlider.value = currentXP;
+                lastDisplayedXP = currentXP;
+                lastDisplayedXpMax = xpToNextLevel;
+            }
         }
 
-        if (levelText != null)
+        if (levelText != null && currentLevel != lastDisplayedLevel)
         {
             levelText.text = currentLevel.ToString();
+            lastDisplayedLevel = currentLevel;
         }
     }
 

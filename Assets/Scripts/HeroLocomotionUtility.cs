@@ -80,14 +80,15 @@ public static class HeroLocomotionUtility
         Animator animator,
         NavMeshAgent agent,
         Vector3 visualLocalAuthoring,
-        float baseOffsetAuthoring)
+        float baseOffsetAuthoring,
+        ref Renderer[] cachedRenderers)
     {
         if (agentRoot == null || animator == null)
             return;
 
         animator.Update(0f);
 
-        if (!TryGetMeshFootWorldData(agentRoot, animator, out Vector3 footCenter, out float footY))
+        if (!TryGetMeshFootWorldData(agentRoot, animator, out Vector3 footCenter, out float footY, ref cachedRenderers))
             return;
 
         float groundY = ResolveGroundY(footCenter, agentRoot.position);
@@ -131,7 +132,8 @@ public static class HeroLocomotionUtility
         Transform visualRoot = GetVisualRigRoot(agentRoot, animator);
         NavMeshAgent agent = agentRoot.GetComponent<NavMeshAgent>();
         float baseOffset = agent != null ? agent.baseOffset : 0f;
-        AlignVisualFeetToGround(agentRoot, animator, agent, visualRoot.localPosition, baseOffset);
+        Renderer[] cached = null;
+        AlignVisualFeetToGround(agentRoot, animator, agent, visualRoot.localPosition, baseOffset, ref cached);
     }
 
     public static bool TrySampleVisualGroundY(Vector3 worldPosition, out float groundY, float rayStartHeight = 40f, float maxDistance = 120f)
@@ -159,20 +161,28 @@ public static class HeroLocomotionUtility
         return agentPosition.y;
     }
 
-    private static bool TryGetMeshFootWorldData(Transform agentRoot, Animator animator, out Vector3 footCenter, out float footY)
+    private static bool TryGetMeshFootWorldData(
+        Transform agentRoot,
+        Animator animator,
+        out Vector3 footCenter,
+        out float footY,
+        ref Renderer[] cachedRenderers)
     {
         footCenter = Vector3.zero;
         footY = 0f;
 
         Transform visualRoot = GetVisualRigRoot(agentRoot, animator);
-        var renderers = visualRoot.GetComponentsInChildren<Renderer>(true);
-        if (renderers.Length == 0)
+        if (cachedRenderers == null || cachedRenderers.Length == 0)
+            cachedRenderers = visualRoot.GetComponentsInChildren<Renderer>(true);
+
+        var renderers = cachedRenderers;
+        if (renderers == null || renderers.Length == 0)
             return false;
 
         Bounds bounds = renderers[0].bounds;
         for (int i = 1; i < renderers.Length; i++)
         {
-            if (renderers[i] is SpriteRenderer) continue;
+            if (renderers[i] == null || renderers[i] is SpriteRenderer) continue;
             bounds.Encapsulate(renderers[i].bounds);
         }
 

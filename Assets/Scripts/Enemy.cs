@@ -49,6 +49,12 @@ public class Enemy : MonoBehaviour
     private HeroController cachedHero;
     private Slider healthSlider;
     private Canvas healthCanvas;
+    private UnityEngine.UI.Image healthFillImage;
+    private UnityEngine.UI.Image healthBgImage;
+    private UnityEngine.UI.Image healthBorderImage;
+    private bool healthBarVisualsCached;
+    private float lastDisplayedHP = -1f;
+    private float lastDisplayedMaxHP = -1f;
     private float nextPatrolTime;
     private bool navHeld;
     private bool combatNavLocked;
@@ -228,6 +234,7 @@ public class Enemy : MonoBehaviour
 
         currentHP = maxHP;
         SetHealthBarVisible(true);
+        UpdateHealthUI();
         UnlockCombatNavigation();
         cachedHero = GameServices.Hero;
     }
@@ -527,51 +534,56 @@ public class Enemy : MonoBehaviour
     {
         if (healthCanvas == null) healthCanvas = GetComponentInChildren<Canvas>(true);
         if (healthSlider == null) healthSlider = GetComponentInChildren<Slider>(true);
-        
+
         if (healthSlider != null)
-        {
-            healthSlider.maxValue = maxHP;
-            healthSlider.value = currentHP;
-        }
+            CacheHealthBarVisuals();
+    }
+
+    private void CacheHealthBarVisuals()
+    {
+        if (healthSlider == null || healthBarVisualsCached)
+            return;
+
+        healthBgImage = healthSlider.transform.Find("Bg")?.GetComponent<UnityEngine.UI.Image>();
+        if (healthBgImage == null)
+            healthBgImage = healthSlider.transform.Find("Background")?.GetComponent<UnityEngine.UI.Image>();
+        healthFillImage = healthSlider.fillRect?.GetComponent<UnityEngine.UI.Image>();
+        healthBorderImage = healthSlider.transform.Find("Border")?.GetComponent<UnityEngine.UI.Image>();
+        healthBarVisualsCached = true;
+
+        if (healthBgImage != null)
+            healthBgImage.color = new Color(0.2f, 0.2f, 0.2f, 0.85f);
+        if (healthBorderImage != null)
+            healthBorderImage.color = Color.white;
     }
 
     private void UpdateHealthUI()
     {
-        if (healthSlider == null || healthCanvas == null) EnsureHealthBar();
+        if (healthSlider == null || healthCanvas == null)
+            EnsureHealthBar();
 
-        if (healthSlider != null)
+        if (healthSlider == null)
+            return;
+
+        if (Mathf.Abs(currentHP - lastDisplayedHP) <= 0.01f &&
+            Mathf.Abs(maxHP - lastDisplayedMaxHP) <= 0.01f)
+            return;
+
+        if (healthSlider.maxValue != maxHP)
+            healthSlider.maxValue = maxHP;
+        healthSlider.value = currentHP;
+        lastDisplayedHP = currentHP;
+        lastDisplayedMaxHP = maxHP;
+
+        if (!healthBarVisualsCached)
+            CacheHealthBarVisuals();
+
+        if (healthFillImage != null && maxHP > 0f)
         {
-            if (healthSlider.maxValue != maxHP) healthSlider.maxValue = maxHP;
-            healthSlider.value = currentHP;
-
             float hpPercent = Mathf.Clamp01(currentHP / maxHP);
-            
-            // Background
-            var bg = healthSlider.transform.Find("Bg")?.GetComponent<UnityEngine.UI.Image>();
-            if (bg == null) bg = healthSlider.transform.Find("Background")?.GetComponent<UnityEngine.UI.Image>();
-            
-            if (bg != null) 
-            {
-                // Subtle darkening of the existing fantasy background
-                bg.color = new Color(0.2f, 0.2f, 0.2f, 0.85f); 
-            }
-
-            // Fill
-            var fill = healthSlider.fillRect?.GetComponent<UnityEngine.UI.Image>();
-            if (fill != null) 
-            {
-                // Dynamic health color (Green -> Red)
-                Color c = Color.Lerp(Color.red, Color.green, hpPercent);
-                c.a = 1.0f;
-                fill.color = c;
-            }
-
-            // Border - Leave as-is or keep bright
-            var border = healthSlider.transform.Find("Border")?.GetComponent<UnityEngine.UI.Image>();
-            if (border != null)
-            {
-                border.color = Color.white;
-            }
+            Color c = Color.Lerp(Color.red, Color.green, hpPercent);
+            c.a = 1.0f;
+            healthFillImage.color = c;
         }
     }
 
@@ -704,16 +716,20 @@ public class Enemy : MonoBehaviour
 
         if (cachedHero != null)
         {
+            // Ensure hero state exits combat even if called from mid-roll or movement desync paths.
+            if (cachedHero.currentEnemy == gameObject)
+                cachedHero.currentEnemy = null;
             cachedHero.ExitCombat();
             cachedHero.OnPOIDefeated(GetComponentInParent<POINode>());
         }
 
+        CombatLog.Info($"[State] Enemy {gameObject.name} -> Dead (combat ended, POI resolve in 2s)");
         StartCoroutine(DelayedResolvePoi());
     }
 
     private void OnDestroy()
     {
-        if (cachedHero != null && cachedHero.currentEnemy == gameObject)
+        if (cachedHero != null && cachedHero.InCombat && cachedHero.currentEnemy == gameObject)
         {
             cachedHero.ExitCombat();
         }
@@ -730,6 +746,7 @@ public class Enemy : MonoBehaviour
         if (IsTreasureChest) return;
         if (isDead || currentHP <= 0) return;
         if (isAttacking) return;
+        if (hero == null || !hero.InCombat) return; // guard against state desync mid-sequence
         isAttacking = true;
         FaceTarget(hero.transform, false, 20f);
         StartCoroutine(AttackRoutine(hero));
@@ -765,7 +782,7 @@ public class Enemy : MonoBehaviour
         }
 
         yield return new WaitForSeconds(hitDelay);
-        if (!isDead && currentHP > 0 && hero != null)
+        if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
         {
             float damage = attackDamage;
             float critRoll = Random.Range(0f, 100f);

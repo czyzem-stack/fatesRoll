@@ -95,8 +95,9 @@ public class POIManager : GameServiceBehaviour<POIManager>
             ActivateVisitPOI(poi);
 
         HasInitialized = true;
-        GlobalSettings.LogGameplay($"POIManager: initialized {allVisitPOIs.Count} visit POI(s) in {gameplaySceneName}.");
-        Debug.Log($"POIManager: scan summary in {gameplaySceneName} => combat={allVisitPOIs.Count - chestCount}, chests={chestCount}.");
+        GlobalSettings.LogGameplay(
+            $"POIManager: initialized {allVisitPOIs.Count} visit POI(s) in {gameplaySceneName} " +
+            $"(combat={allVisitPOIs.Count - chestCount}, chests={chestCount}).");
 
         if (allVisitPOIs.Count == 0)
             Debug.LogWarning($"POIManager: no POINode objects found in {gameplaySceneName}.");
@@ -133,7 +134,7 @@ public class POIManager : GameServiceBehaviour<POIManager>
         var hero = GameServices.Hero;
         POINode node = poiObject != null ? poiObject.GetComponentInParent<POINode>() : null;
 
-        if (hero != null && hero.currentEnemy != null)
+        if (hero != null && hero.InCombat && hero.currentEnemy != null)
         {
             var go = hero.currentEnemy;
             if (go == poiObject || (node != null && go.transform.IsChildOf(node.transform)))
@@ -214,9 +215,8 @@ public class POIManager : GameServiceBehaviour<POIManager>
             return visit;
 
         // Never pick random SpawnNode encounters while visit POIs remain (was causing "random walk").
-        Debug.LogWarning(
-            $"POIManager: GetVisitPOIByOrder({visitOrder}) returned null with {allVisitPOIs.Count} POI(s) — falling back to lowest-order visit POI.",
-            this);
+        GlobalSettings.LogGameplayWarning(
+            $"POIManager: GetVisitPOIByOrder({visitOrder}) returned null with {allVisitPOIs.Count} POI(s) — falling back to lowest-order visit POI.");
         visit = GetVisitPOIByOrder(int.MinValue);
         return visit;
     }
