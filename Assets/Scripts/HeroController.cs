@@ -523,6 +523,10 @@ public class HeroController : MonoBehaviour
         if (combatState == newState) return;
         CombatState previous = combatState;
         combatState = newState;
+        
+        if (steveAnim != null)
+            steveAnim.SetInCombat(newState == CombatState.InCombat);
+
         CombatLog.Info($"[State] Hero {previous} -> {newState}" + (string.IsNullOrEmpty(reason) ? "" : $" ({reason})"));
     }
 

@@ -497,7 +497,7 @@ public class Enemy : MonoBehaviour
         if (locomotionDriver != null)
             locomotionDriver.PlayTaunt();
         else
-            HeroAnimatorParams.SetTriggerSafe(animator, "Taunting");
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Taunt);
 
         // Wait for taunt animation to finish (approx 2s)
         yield return new WaitForSeconds(2.2f);

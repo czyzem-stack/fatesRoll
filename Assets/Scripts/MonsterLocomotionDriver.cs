@@ -80,8 +80,15 @@ public class MonsterLocomotionDriver : MonoBehaviour
 
     public void PlayGetHit()
     {
-        if (animator == null || UsesParameterMode)
+        if (animator == null)
             return;
+
+        if (UsesParameterMode)
+        {
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.GetHit);
+            return;
+        }
+
         CrossFadeState(getHitHash, 0.06f);
     }
 
@@ -107,7 +114,7 @@ public class MonsterLocomotionDriver : MonoBehaviour
 
         if (UsesParameterMode)
         {
-            HeroAnimatorParams.SetTriggerSafe(animator, "Taunting");
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Taunt);
             return;
         }
 

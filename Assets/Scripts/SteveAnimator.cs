@@ -106,6 +106,11 @@ public class SteveAnimator : MonoBehaviour
         HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
     }
 
+    public void SetInCombat(bool inCombat)
+    {
+        HeroAnimatorParams.SetBoolSafe(animator, "InCombat", inCombat);
+    }
+
     public void ResetActionTriggers()
     {
         if (animator == null)

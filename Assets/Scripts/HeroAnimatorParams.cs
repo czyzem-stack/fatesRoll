@@ -10,6 +10,7 @@ public static class HeroAnimatorParams
     public const string GetHit = "GetHit";
     public const string Die = "Die";
     public const string Victory = "Victory";
+    public const string Taunt = "Taunt";
 
     public static bool HasParameter(Animator animator, string name)
     {
