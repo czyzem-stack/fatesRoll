@@ -440,9 +440,9 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: SenseSomethingST
+      name: SenseSomethingST_Orc_Anim
       takeName: Take 001
-      internalID: 0
+      internalID: 1827226128182048838
       firstFrame: 0
       lastFrame: 50
       wrapMode: 0
@@ -464,135 +464,7 @@ ModelImporter:
       bodyMask: 01000000010000000100000001000000010000000100000001000000010000000100000001000000010000000100000001000000
       curves: []
       events: []
-      transformMask:
-      - path: 
-        weight: 1
-      - path: Body
-        weight: 1
-      - path: Body/Spine01
-        weight: 1
-      - path: Body/Spine01/Spine02
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/BottomEye_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/BottomEye_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Ear01_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Ear01_L/Ear02_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Ear01_L/Ear02_L/Ear03_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Ear01_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Ear01_R/Ear02_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Ear01_R/Ear02_R/Ear03_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/JawRoot
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/JawRoot/BottomJaw
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/JawRoot/UpperJaw
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Nose_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/Nose_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/UpperEye_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/Neck/Head/UpperEye_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Index01_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Index01_L/Index02_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Index01_L/Index02_L/Index03_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Mid01_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Mid01_L/Mid02_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Mid01_L/Mid02_L/Mid03_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Pinky01_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Pinky01_L/Pinky02_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Pinky01_L/Pinky02_L/Pinky03_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Thumb01_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Thumb01_L/Thumb02_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_L/LowerArm_L/Hand_L/Thumb01_L/Thumb02_L/Thumb03_L
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Index01_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Index01_R/Index02_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Index01_R/Index02_R/Index03_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Mid01_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Mid01_R/Mid02_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Mid01_R/Mid02_R/Mid03_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Pinky01_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Pinky01_R/Pinky02_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Pinky01_R/Pinky02_R/Pinky03_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Thumb01_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Thumb01_R/Thumb02_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Thumb01_R/Thumb02_R/Thumb03_R
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/LowerArm_R/Hand_R/Weapon01
-        weight: 1
-      - path: Body/Spine01/Spine02/Spine03/UpperArm_R/ShouderPad
-        weight: 1
-      - path: Body/UpperLeg_L
-        weight: 1
-      - path: Body/UpperLeg_L/LowerLeg_L
-        weight: 1
-      - path: Body/UpperLeg_L/LowerLeg_L/Foot_L
-        weight: 1
-      - path: Body/UpperLeg_L/LowerLeg_L/Foot_L/Toe_L
-        weight: 1
-      - path: Body/UpperLeg_R
-        weight: 1
-      - path: Body/UpperLeg_R/LowerLeg_R
-        weight: 1
-      - path: Body/UpperLeg_R/LowerLeg_R/Foot_R
-        weight: 1
-      - path: Body/UpperLeg_R/LowerLeg_R/Foot_R/Toe_R
-        weight: 1
-      - path: Maul
-        weight: 0
-      - path: Orc
-        weight: 0
+      transformMask: []
       maskType: 3
       maskSource: {instanceID: 0}
       additiveReferencePoseFrame: 0

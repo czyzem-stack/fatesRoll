@@ -440,7 +440,7 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: GetHit
+      name: GetHit_Orc_Anim
       takeName: Take 001
       internalID: 7400000
       firstFrame: 0

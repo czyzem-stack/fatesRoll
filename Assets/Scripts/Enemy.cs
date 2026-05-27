@@ -121,18 +121,20 @@ public class Enemy : MonoBehaviour
     {
         if (animator == null) return;
 
+        bool isProtected = locomotionDriver != null && locomotionDriver.IsInProtectedAnimation;
+
         if (locomotionDriver != null && locomotionDriver.UsesStatePlay)
         {
             bool inCombat = cachedHero != null && IsFightingHero(cachedHero);
             float agentSpeed = 0f;
-            if (!navHeld && !isAttacking && !inCombat && IsLocomoting())
+            if (!navHeld && !isAttacking && !inCombat && !isProtected && IsLocomoting())
                 agentSpeed = agent.velocity.magnitude;
 
             locomotionDriver.UpdateLocomotion(agentSpeed, inCombat, isAttacking);
             return;
         }
 
-        if (navHeld || isAttacking || (cachedHero != null && IsFightingHero(cachedHero)))
+        if (navHeld || isAttacking || isProtected || (cachedHero != null && IsFightingHero(cachedHero)))
         {
             HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f, 0.15f, Time.deltaTime);
             return;
@@ -435,8 +437,10 @@ public class Enemy : MonoBehaviour
 
         UnlockCombatNavigation();
 
+        bool isProtected = locomotionDriver != null && locomotionDriver.IsInProtectedAnimation;
+
         // Steve walks in or is in melee range — stand still. Never chase; never walk off when he arrives.
-        if (cachedHero.IsEngageBusy || isAttacking ||
+        if (cachedHero.IsEngageBusy || isAttacking || isProtected ||
             IsSteveApproachingUs() || IsWithinEngageRange(cachedHero) ||
             (cachedHero.IsMoving && IsHeroInPatrolZone(cachedHero)))
         {
@@ -517,11 +521,13 @@ public class Enemy : MonoBehaviour
 
         Vector3 dir = target.position - transform.position;
         dir.y = 0f;
-        if (dir.sqrMagnitude < 0.001f) return;
+        if (dir.sqrMagnitude < 0.1f) return; // Dead-zone for stability
 
         Quaternion want = Quaternion.LookRotation(dir.normalized);
-        if (Quaternion.Angle(transform.rotation, want) > 2f)
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, want, speed * 20f * Time.deltaTime);
+        if (Quaternion.Angle(transform.rotation, want) > 5f) // Don't rotate for small angles
+        {
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, want, speed * 10f * Time.deltaTime);
+        }
     }
 
     public void SetHealthBarVisible(bool visible)
@@ -648,6 +654,28 @@ public class Enemy : MonoBehaviour
             return false;
 
         if (isDead || currentHP <= 0) return false;
+
+        // Skeleton unique ability: 50% block chance
+        if (ResolveMonsterType() == POIType.Skeleton)
+        {
+            float blockRoll = Random.Range(0f, 100f);
+            if (blockRoll < 50f)
+            {
+                CombatLog.Info($"{gameObject.name} BLOCKED the attack!");
+                if (locomotionDriver != null) locomotionDriver.PlayDefense();
+                else HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
+                
+                // Trigger floating text for block
+                if (Application.isPlaying)
+                {
+                    GameObject blockGo = new GameObject("BlockText");
+                    blockGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    var ft = blockGo.AddComponent<FloatingText>();
+                    ft.Setup("BLOCKED", Color.white);
+                }
+                return false;
+            }
+        }
 
         float dodgeRoll = Random.Range(0f, 100f);
         if (dodgeRoll < dodgeChance)
@@ -792,6 +820,8 @@ public class Enemy : MonoBehaviour
             if (!hit)
                 CombatLog.DamageMitigated(gameObject.name, hero.name, "Steve dodged or invulnerable");
         }
+
+        yield return new WaitForSeconds(settings != null ? settings.enemyAttackRecoverDelay : 0.4f);
         isAttacking = false;
     }
 }

@@ -43,7 +43,7 @@ public static class MonsterPOIDefinitions
         switch (type)
         {
             case POIType.Orc: return AnimatorRoot + "Orc.controller";
-            case POIType.Skeleton: return AnimatorRoot + "Skeleton.controller";
+            case POIType.Skeleton: return "Assets/Animators/Skeleton_New.controller";
             case POIType.Slime: return AnimatorRoot + "Slime.controller";
             case POIType.Bat: return AnimatorRoot + "Bat.controller";
             case POIType.Dragon: return AnimatorRoot + "Dragon.controller";

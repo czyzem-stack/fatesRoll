@@ -16,18 +16,23 @@ public class MonsterLocomotionDriver : MonoBehaviour
     private int getHitHash;
     private int dieHash;
     private int tauntHash;
+    private int defenseHash;
     private int currentLocomotionHash;
     private POIType poiType;
+    private float lastActionTime;
 
     public bool UsesParameterMode => profile.useAnimatorParameters;
     public bool UsesStatePlay => !profile.useAnimatorParameters;
     public bool HasTauntState => tauntHash != 0;
+
+    public bool IsInProtectedAnimation => Time.time - lastActionTime < (GlobalSettings.Instance != null ? GlobalSettings.Instance.getHitAnimationDuration : 0.5f);
 
     public void Bind(POIType type, Animator targetAnimator)
     {
         poiType = type;
         profile = MonsterAnimProfile.Get(type);
         animator = targetAnimator;
+        lastActionTime = -10f;
 
         if (animator == null || UsesParameterMode)
             return;
@@ -42,6 +47,7 @@ public class MonsterLocomotionDriver : MonoBehaviour
         getHitHash = ResolveStateHash(profile.getHitState);
         dieHash = ResolveStateHash(profile.dieState);
         tauntHash = ResolveStateHash(profile.tauntState, "Taunt", "Taunting");
+        defenseHash = ResolveStateHash("Defense", "Defence", "Block");
 
         if (idleHash != 0)
             CrossFadeLocomotion(idleHash, 0.05f);
@@ -49,7 +55,7 @@ public class MonsterLocomotionDriver : MonoBehaviour
 
     public void UpdateLocomotion(float agentSpeed, bool inCombat, bool isAttacking)
     {
-        if (animator == null || UsesParameterMode || isAttacking)
+        if (animator == null || UsesParameterMode || isAttacking || IsInProtectedAnimation)
             return;
 
         int target;
@@ -68,8 +74,16 @@ public class MonsterLocomotionDriver : MonoBehaviour
         if (animator == null)
             return;
 
+        lastActionTime = Time.time;
+
         if (UsesParameterMode)
         {
+            // For Skeletons and others with multiple attacks, set a random index
+            if (HeroAnimatorParams.HasParameter(animator, "AttackIndex"))
+            {
+                animator.SetInteger("AttackIndex", Random.Range(0, 2));
+            }
+
             HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
             HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
             return;
@@ -78,10 +92,29 @@ public class MonsterLocomotionDriver : MonoBehaviour
         CrossFadeState(attackHash, 0.08f);
     }
 
+    public void PlayDefense()
+    {
+        if (animator == null)
+            return;
+
+        lastActionTime = Time.time;
+
+        if (UsesParameterMode)
+        {
+            HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
+            return;
+        }
+
+        if (defenseHash != 0)
+            CrossFadeState(defenseHash, 0.1f);
+    }
+
     public void PlayGetHit()
     {
         if (animator == null)
             return;
+
+        lastActionTime = Time.time;
 
         if (UsesParameterMode)
         {

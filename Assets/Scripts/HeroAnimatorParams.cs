@@ -11,6 +11,16 @@ public static class HeroAnimatorParams
     public const string Die = "Die";
     public const string Victory = "Victory";
     public const string Taunt = "Taunt";
+    public const string Defense = "Defense";
+    public const string Drink = "Drink";
+    public const string PickUp = "PickUp";
+    public const string Interact = "Interact";
+    public const string Greeting = "Greeting";
+    public const string FoundSomething = "FoundSomething";
+    public const string InteractGate = "InteractGate";
+    public const string SenseStart = "SenseStart";
+    public const string SenseSearching = "SenseSearching";
+    public const string GetUp = "GetUp";
 
     public static bool HasParameter(Animator animator, string name)
     {

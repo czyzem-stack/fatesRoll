@@ -54,6 +54,13 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
             levelsGained++;
         }
 
+        if (levelsGained > 0)
+        {
+            var hero = GameServices.Hero;
+            if (hero != null)
+                hero.PlayLevelUpCelebration();
+        }
+
         UpdateUI();
         return levelsGained;
     }
@@ -68,10 +75,6 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
 
         if (RogueLiteManager.Instance != null)
             RogueLiteManager.Instance.EnqueueLevelUp(currentLevel);
-
-        var hero = GameServices.Hero;
-        if (hero != null)
-            hero.PlayLevelUpCelebration();
     }
 
     public int CurrentLevel => currentLevel;

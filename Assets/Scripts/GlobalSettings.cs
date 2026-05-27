@@ -62,9 +62,12 @@ public class GlobalSettings : GameServiceBehaviour<GlobalSettings>
     public float travelDiceReadDelay = 0.85f;
     public float combatFaceDelay = 0.06f;
     public float combatHeroHitDelay = 0.22f;
+    public float combatHeroAttackRecoverDelay = 0.45f;
     public float combatReactionDelay = 0.18f;
     public float enemyAttackWindUp = 0.14f;
     public float enemyAttackHitDelay = 0.26f;
+    public float enemyAttackRecoverDelay = 0.45f;
+    public float getHitAnimationDuration = 0.5f;
 
     [Header("XP & leveling")]
     public float baseXPForLevel1 = 50f;

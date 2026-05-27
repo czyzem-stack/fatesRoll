@@ -19,8 +19,11 @@ public class SteveAnimator : MonoBehaviour
 
     private Animator animator;
     private bool yawApplied;
+    private float lastActionTime;
 
     public Animator RigAnimator => animator;
+
+    public bool IsInProtectedAnimation => Time.time - lastActionTime < (GlobalSettings.Instance != null ? GlobalSettings.Instance.getHitAnimationDuration : 0.5f);
 
     public void Initialize(Transform agentRoot)
     {
@@ -41,6 +44,7 @@ public class SteveAnimator : MonoBehaviour
 
         SetSpeed(0f);
         ResetActionTriggers();
+        lastActionTime = -10f;
     }
 
     public void UpdateStance()
@@ -62,6 +66,7 @@ public class SteveAnimator : MonoBehaviour
         SetSpeed(lastSpeed);
         SetInCombat(inCombat);
         ResetActionTriggers();
+        lastActionTime = -10f;
 
         if (targetController != null)
             GlobalSettings.LogGameplay($"Steve Animator: Switched controller to {targetController.name}");
@@ -119,7 +124,7 @@ public class SteveAnimator : MonoBehaviour
 
     public void SetTravelSpeed(float speed)
     {
-        if (animator == null)
+        if (animator == null || IsInProtectedAnimation)
             return;
 
         HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, speed, speedDamp, Time.deltaTime);
@@ -127,7 +132,7 @@ public class SteveAnimator : MonoBehaviour
 
     public void SetSpeed(float speed)
     {
-        if (animator == null)
+        if (animator == null || IsInProtectedAnimation)
             return;
 
         HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, speed);
@@ -138,6 +143,7 @@ public class SteveAnimator : MonoBehaviour
         if (animator == null)
             return;
 
+        lastActionTime = Time.time;
         SetSpeed(0f);
         HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Throw);
     }
@@ -147,6 +153,7 @@ public class SteveAnimator : MonoBehaviour
         if (animator == null)
             return;
 
+        lastActionTime = Time.time;
         SetSpeed(0f);
         HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
         HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
@@ -154,6 +161,11 @@ public class SteveAnimator : MonoBehaviour
 
     public void PlayGetHit()
     {
+        lastActionTime = Time.time;
+        if (animator != null)
+        {
+            HeroAnimatorParams.SetFloatSafe(animator, "HitType", Random.Range(0, 2));
+        }
         HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.GetHit);
     }
 
@@ -170,7 +182,8 @@ public class SteveAnimator : MonoBehaviour
 
     public void PlayLevelUp()
     {
-        SetSpeed(0f);
+        lastActionTime = Time.time;
+        HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f);
         HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
         HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.LevelUp);
     }

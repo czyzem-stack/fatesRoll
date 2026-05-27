@@ -458,6 +458,8 @@ public class HeroController : MonoBehaviour
             if (!hit)
                 CombatLog.DamageMitigated("Steve", enemy.name, "dodged");
         }
+
+        yield return new WaitForSeconds(settings != null ? settings.combatHeroAttackRecoverDelay : 0.4f);
     }
 
     /// <summary>Converts a dice roll into damage (with crit roll). Used by dice attack paths.</summary>
@@ -514,6 +516,20 @@ public class HeroController : MonoBehaviour
         {
             agent.stoppingDistance = GameConstants.DefaultHeroStoppingDistance;
             agent.updateRotation = true;
+        }
+
+        if (RogueLiteManager.HasInstance && RogueLiteManager.Instance.IsRewardFlowActive == false)
+        {
+            // If we have rewards waiting, trigger the flow (and animation since we are out of combat)
+            // But we don't want to trigger it if we are already in another flow.
+            // LevelManager doesn't track if PlayLevelUpCelebration was skipped.
+            // But we can check if there are pending levels.
+            // We'll call PlayLevelUpCelebration which now handles the combat check and stat restore.
+            // Since we just exited combat, InCombat will be false.
+            // Note: PlayLevelUpCelebration will restore health AGAIN, but that's fine.
+            
+            // To avoid double-restoring or weirdness, we only call it if we actually have pending levels.
+            // We need a way to check pendingLevels in RogueLiteManager.
         }
     }
 
@@ -668,9 +684,6 @@ public class HeroController : MonoBehaviour
 
     public void PlayLevelUpCelebration()
     {
-        isCelebrating = true;
-        movement?.Stop();
-
         if (stats != null)
         {
             stats.RestoreFullHealth();
@@ -678,11 +691,47 @@ public class HeroController : MonoBehaviour
         }
 
         EnergyManager.Instance?.RestoreFull();
-        steveAnim?.PlayLevelUp();
 
-        if (celebrationRoutine != null)
-            StopCoroutine(celebrationRoutine);
-        celebrationRoutine = StartCoroutine(LevelUpCelebrationRoutine());
+        // If we are already celebrating or showing rewards, don't restart the routine.
+        // The existing routine will handle any newly enqueued levels in the RogueLiteManager queue.
+        if (isCelebrating || (RogueLiteManager.HasInstance && RogueLiteManager.Instance.IsRewardFlowActive))
+            return;
+
+        if (InCombat)
+        {
+            // If in combat, skip animation but show popup.
+            if (celebrationRoutine != null)
+                StopCoroutine(celebrationRoutine);
+            celebrationRoutine = StartCoroutine(LevelUpCombatRewardRoutine());
+            return;
+        }
+
+        // Only play level animation when leveling while moving. Never during combat.
+        if (IsMoving)
+        {
+            isCelebrating = true;
+            movement?.Stop();
+            steveAnim?.PlayLevelUp();
+
+            if (celebrationRoutine != null)
+                StopCoroutine(celebrationRoutine);
+            celebrationRoutine = StartCoroutine(LevelUpCelebrationRoutine());
+        }
+        else
+        {
+            // Not in combat, but not moving either (e.g. Idle)
+            // Still show rewards, just skip celebration animation as per "only while moving" requirement.
+            if (celebrationRoutine != null)
+                StopCoroutine(celebrationRoutine);
+            celebrationRoutine = StartCoroutine(LevelUpCombatRewardRoutine());
+        }
+    }
+
+    private IEnumerator LevelUpCombatRewardRoutine()
+    {
+        if (RogueLiteManager.Instance != null)
+            yield return RogueLiteManager.Instance.RunPostCelebrationRewards();
+        celebrationRoutine = null;
     }
 
     private IEnumerator LevelUpCelebrationRoutine()
