@@ -219,7 +219,9 @@ public class SteveMovement : MonoBehaviour
         approachingChest = isChest ? enemy : null;
         approachingEnemy = isChest ? null : enemy;
         agent.speed = settings.heroTravelSpeed;
-        agent.stoppingDistance = isChest ? 0.35f : enemy != null ? 0.12f : 1f;
+        agent.stoppingDistance = isChest ? GameConstants.ChestPathStoppingDistance 
+            : enemy != null ? GameConstants.EnemyMeleeStoppingDistance 
+            : GameConstants.EnemyPathStoppingDistance;
         agent.isStopped = false;
         agent.updateRotation = true;
 
@@ -260,7 +262,7 @@ public class SteveMovement : MonoBehaviour
                 return;
             }
 
-            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.25f)
+            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + GameConstants.DistanceTolerance)
                 FinishMove();
 
             return;
@@ -276,7 +278,7 @@ public class SteveMovement : MonoBehaviour
                 return;
             }
 
-            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + 0.2f)
+            if (!agent.pathPending && agent.remainingDistance <= agent.stoppingDistance + GameConstants.DistanceTolerance)
             {
                 FinishMove();
                 hero?.OnMovementArrivedAtEnemy(enemy);
@@ -312,7 +314,7 @@ public class SteveMovement : MonoBehaviour
             return;
         }
 
-        if (agent.remainingDistance <= agent.stoppingDistance + 0.2f)
+        if (agent.remainingDistance <= agent.stoppingDistance + GameConstants.DistanceTolerance)
         {
             steveAnim.SetSpeed(0f);
             return;
@@ -498,7 +500,7 @@ public class SteveMovement : MonoBehaviour
         if (agent.pathPending)
             return false;
 
-        return agent.remainingDistance <= agent.stoppingDistance + 0.25f;
+        return agent.remainingDistance <= agent.stoppingDistance + GameConstants.DistanceTolerance;
     }
 
     private float HorizontalDistance(Vector3 worldPos)

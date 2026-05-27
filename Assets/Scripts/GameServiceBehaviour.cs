@@ -44,6 +44,9 @@ public abstract class GameServiceBehaviour<T> : MonoBehaviour where T : GameServ
 
     protected virtual void OnDestroy()
     {
+        // Central place to stop coroutines for all services. Derived classes can still
+        // override and call base.OnDestroy() after their own cleanup.
+        StopAllCoroutines();
         GameServices.Unregister((T)this);
     }
 

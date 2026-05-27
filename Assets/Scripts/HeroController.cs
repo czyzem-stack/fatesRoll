@@ -41,8 +41,13 @@ public class HeroController : MonoBehaviour
     public enum CombatState { Idle, Moving, InCombat, Dead }
 
     private CombatState combatState = CombatState.Idle;
+    /// <summary>Current combat state. Single source of truth for Hero/Enemy/POI interactions.</summary>
     public CombatState State => combatState;
+
+    /// <summary>True when the hero is actively engaged with an enemy.</summary>
     public bool InCombat => combatState == CombatState.InCombat;
+
+    /// <summary>Current enemy being fought (cleared on exit/death).</summary>
     public GameObject currentEnemy;
 
     public UnityEngine.UI.Slider healthSlider;
@@ -195,8 +200,8 @@ public class HeroController : MonoBehaviour
         var settings = GlobalSettings.Instance;
         if (settings != null)
             agent.speed = settings.heroTravelSpeed;
-        agent.acceleration = 30f;
-        agent.stoppingDistance = 1f;
+        agent.acceleration = GameConstants.DefaultHeroAcceleration;
+        agent.stoppingDistance = GameConstants.DefaultHeroStoppingDistance;
         agent.autoBraking = true;
         agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
 
@@ -432,6 +437,7 @@ public class HeroController : MonoBehaviour
         engageRoutine = null;
     }
 
+    /// <summary>Core attack coroutine used by both arrival and dice-triggered attacks.</summary>
     public IEnumerator HeroAttackRoutine(Enemy enemy, int damage)
     {
         if (enemy == null || enemy.isDead)
@@ -454,27 +460,26 @@ public class HeroController : MonoBehaviour
         }
     }
 
+    /// <summary>Converts a dice roll into damage (with crit roll). Used by dice attack paths.</summary>
     public int CalculateRollDamage(int rollTotal, out bool isCrit)
     {
-        isCrit = false;
         float baseDamage = stats != null ? stats.AttackDamage : 20f;
         float heroDamage = baseDamage * (rollTotal / 7.0f);
-        float critRoll = stats != null ? Random.Range(0f, 100f) : 100f;
 
-        if (stats != null && critRoll < stats.CritChance)
-        {
-            isCrit = true;
-            heroDamage *= 1f + stats.CritDamage / 100f;
-        }
+        float critChance = stats != null ? stats.CritChance : 0f;
+        float critMult = stats != null ? stats.CritDamage : 0f;
+
+        heroDamage = CombatLog.RollAndApplyCrit(heroDamage, critChance, critMult, out isCrit);
 
         if (stats != null)
-            CombatLog.CritCheck("Steve", stats.CritChance, critRoll, isCrit);
+            CombatLog.CritCheck("Steve", critChance, Random.Range(0f, 100f), isCrit); // roll shown for logging only
 
         int finalDamage = Mathf.Max(1, Mathf.RoundToInt(heroDamage));
         CombatLog.DamageCalc("Steve", $"dice roll {rollTotal} | base {baseDamage:F0} × roll/7 → {finalDamage}" + (isCrit ? " (crit)" : ""));
         return finalDamage;
     }
 
+    /// <summary>Public entry point to begin combat with a target enemy.</summary>
     public void EnterCombat(GameObject enemy)
     {
         Enemy ec = GetEnemyFromTarget(enemy);
@@ -507,7 +512,7 @@ public class HeroController : MonoBehaviour
         currentEnemy = null;
         if (agent != null && agent.isOnNavMesh)
         {
-            agent.stoppingDistance = 1f;
+            agent.stoppingDistance = GameConstants.DefaultHeroStoppingDistance;
             agent.updateRotation = true;
         }
     }

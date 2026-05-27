@@ -784,11 +784,8 @@ public class Enemy : MonoBehaviour
         yield return new WaitForSeconds(hitDelay);
         if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
         {
-            float damage = attackDamage;
-            float critRoll = Random.Range(0f, 100f);
-            bool isCrit = critRoll < critChance;
-            CombatLog.CritCheck(gameObject.name, critChance, critRoll, isCrit);
-            if (isCrit) damage *= (1f + (critDamage / 100f));
+            float damage = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
+            CombatLog.CritCheck(gameObject.name, critChance, Random.Range(0f, 100f), isCrit);
 
             CombatLog.DamageCalc(gameObject.name, $"base {attackDamage:F0}" + (isCrit ? $" × crit {critDamage:F0}%" : "") + $" → {(int)damage}");
             bool hit = hero.TakeDamage((int)damage, gameObject.name, isCrit);

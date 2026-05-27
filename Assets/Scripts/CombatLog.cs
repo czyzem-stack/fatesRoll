@@ -77,4 +77,27 @@ public static class CombatLog
         if (!IsEnabled) return;
         Debug.Log($"{Tag} Engaged | {hero} vs {enemy}");
     }
+
+    /// <summary>
+    /// Rolls for crit and applies the multiplier if successful. Returns final damage and whether it crit.
+    /// </summary>
+    public static float RollAndApplyCrit(float baseDamage, float critChance, float critMultiplierPercent, out bool isCrit)
+    {
+        isCrit = false;
+        if (critChance <= 0f) return baseDamage;
+
+        float roll = Random.Range(0f, 100f);
+        isCrit = roll < critChance;
+
+        if (isCrit)
+            return baseDamage * (1f + critMultiplierPercent / 100f);
+
+        return baseDamage;
+    }
+
+    /// <summary>Applies crit multiplier only if the flag is true.</summary>
+    public static float ApplyCritMultiplier(float baseDamage, bool isCrit, float critMultiplierPercent)
+    {
+        return isCrit ? baseDamage * (1f + critMultiplierPercent / 100f) : baseDamage;
+    }
 }
