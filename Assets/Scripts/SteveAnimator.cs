@@ -11,9 +11,10 @@ using UnityEditor;
 [AddComponentMenu("FatesRoll/Steve Animator")]
 public class SteveAnimator : MonoBehaviour
 {
-    private const string GameplayControllerPath = "Assets/Heroes/Animator/SwordAndShieldStance.controller";
-
-    [SerializeField] private RuntimeAnimatorController gameplayController;
+    [Header("Stance controllers")]
+    [SerializeField] private RuntimeAnimatorController swordAndShieldStance;
+    [SerializeField] private RuntimeAnimatorController dualSwordStance;
+    [SerializeField] private RuntimeAnimatorController noWeaponStance;
     [SerializeField] private float speedDamp = 0.12f;
 
     private Animator animator;
@@ -30,13 +31,7 @@ public class SteveAnimator : MonoBehaviour
         if (animator == null)
             return;
 
-#if UNITY_EDITOR
-        if (gameplayController == null)
-            gameplayController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(GameplayControllerPath);
-#endif
-
-        if (gameplayController != null)
-            animator.runtimeAnimatorController = gameplayController;
+        UpdateStance();
 
         animator.applyRootMotion = false;
         animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
@@ -47,6 +42,80 @@ public class SteveAnimator : MonoBehaviour
         SetSpeed(0f);
         ResetActionTriggers();
     }
+
+    public void UpdateStance()
+    {
+        if (animator == null) return;
+
+        var equipment = GetComponent<HeroEquipment>();
+        RuntimeAnimatorController targetController = ResolveTargetController(equipment);
+        
+        if (animator.runtimeAnimatorController == targetController && targetController != null) return;
+
+        // Capture current state
+        float lastSpeed = animator.gameObject.activeInHierarchy ? animator.GetFloat(HeroAnimatorParams.Speed) : 0f;
+        bool inCombat = animator.gameObject.activeInHierarchy ? animator.GetBool("InCombat") : false;
+
+        animator.runtimeAnimatorController = targetController;
+        
+        // Restore params
+        SetSpeed(lastSpeed);
+        SetInCombat(inCombat);
+        ResetActionTriggers();
+
+        if (targetController != null)
+            GlobalSettings.LogGameplay($"Steve Animator: Switched controller to {targetController.name}");
+    }
+
+    private RuntimeAnimatorController ResolveTargetController(HeroEquipment equipment)
+    {
+        if (equipment == null) return null;
+
+        var main = equipment.GetEquipped(EquipmentSlotType.MainHand);
+        var off = equipment.GetEquipped(EquipmentSlotType.OffHand);
+
+        // 1. Check for Sword and Shield combo
+        if (main != null && off != null)
+        {
+            string mName = main.definition.name.ToLower();
+            string oName = off.definition.name.ToLower();
+            if ((mName.Contains("ohs") || mName.Contains("sword")) && 
+                (oName.Contains("shield") || oName.Contains("defend")))
+            {
+                return swordAndShieldStance;
+            }
+
+            // 2. Check for Dual Wield
+            if ((mName.Contains("ohs") || mName.Contains("sword")) && 
+                (oName.Contains("ohs") || oName.Contains("sword")))
+            {
+                return dualSwordStance;
+            }
+        }
+
+        // 3. Use Main Hand's override if specified
+        if (main != null && main.definition.animatorOverride != null)
+            return main.definition.animatorOverride;
+
+        // 4. Fallback to NoWeapon controller
+        return noWeaponStance;
+    }
+
+#if UNITY_EDITOR
+    private void OnValidate()
+    {
+        AssignStanceIfEmpty(ref swordAndShieldStance, "Assets/Heroes/Animator/SwordAndShieldStance.controller");
+        AssignStanceIfEmpty(ref dualSwordStance, "Assets/Heroes/Animator/DoubleSwordStance.controller");
+        AssignStanceIfEmpty(ref noWeaponStance, "Assets/Heroes/Animator/NoWeaponStance.controller");
+    }
+
+    static void AssignStanceIfEmpty(ref RuntimeAnimatorController field, string assetPath)
+    {
+        if (field != null)
+            return;
+        field = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(assetPath);
+    }
+#endif
 
     public void SetTravelSpeed(float speed)
     {
@@ -126,7 +195,7 @@ public class SteveAnimator : MonoBehaviour
 #if UNITY_EDITOR
     public void EditorAssignController()
     {
-        gameplayController = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(GameplayControllerPath);
+        UpdateStance();
         EditorUtility.SetDirty(this);
     }
 #endif

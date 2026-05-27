@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.072` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.073` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.073** | Sync animator controllers and wire Taunt, GetHit, and InCombat parameters |
 | **v0.0.072** | Add GameConstants, shared crit helpers, and service coroutine cleanup on destroy |
 | **v0.0.071** | Remove unused health slider cache fields and update main scene |
 | **v0.0.070** | Reduce health bar UI churn, gate spawn logs, and harden combat dice flow |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.045** | Sync README version and changelog for v0.0.044 |
 | **v0.0.044** | Sync README version and changelog for v0.0.043 |
 | **v0.0.043** | Tighten melee spacing, stabilize combat movement, and fix skeleton sword attack |
-| **v0.0.041** | Sync README version and changelog for v0.0.040 |
 <!-- CHANGELOG:END -->
 
 ---

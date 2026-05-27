@@ -20,6 +20,10 @@ public class EquipmentItemDefinition : ScriptableObject
     [Tooltip("Use rig child toggle instead of spawning visualPrefab.")]
     public bool useRigChildToggle;
 
+    [Header("Animation")]
+    [Tooltip("Animator controller to use when this item is equipped (usually for weapons).")]
+    public RuntimeAnimatorController animatorOverride;
+
     public bool IsStatOnlySlot =>
         slot == EquipmentSlotType.Ring ||
         slot == EquipmentSlotType.Necklace ||

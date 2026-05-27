@@ -146,6 +146,8 @@ public class HeroEquipment : MonoBehaviour
         equipped[slot] = instance;
         ApplyVisual(instance);
         RefreshStatBonuses();
+        if (slot == EquipmentSlotType.MainHand || slot == EquipmentSlotType.OffHand)
+            hero?.GetComponent<SteveAnimator>()?.UpdateStance();
         GlobalSettings.LogGameplay($"Equipped {instance.BuildChoiceLabel()} in {slot}.");
         return true;
     }
@@ -155,6 +157,9 @@ public class HeroEquipment : MonoBehaviour
         UnequipVisual(slot);
         equipped.Remove(slot);
         RefreshStatBonuses();
+
+        if (slot == EquipmentSlotType.MainHand || slot == EquipmentSlotType.OffHand)
+            hero?.GetComponent<SteveAnimator>()?.UpdateStance();
     }
 
     private void UnequipVisual(EquipmentSlotType slot)

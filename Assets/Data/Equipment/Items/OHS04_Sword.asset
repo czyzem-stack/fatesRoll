@@ -19,3 +19,4 @@ MonoBehaviour:
   visualPrefab: {fileID: 5564305034757115275, guid: bf390cd197216324cb82145dfad20c52, type: 3}
   rigChildName: 
   useRigChildToggle: 0
+  animatorOverride: {fileID: 9100000, guid: eeb03336cf400814fa8004e090f3bf70, type: 2}
