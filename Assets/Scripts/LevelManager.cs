@@ -14,8 +14,9 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     private float currentXP = 0f;
     private float xpToNextLevel;
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
         CalculateXPRequirement();
         UpdateUI();
     }

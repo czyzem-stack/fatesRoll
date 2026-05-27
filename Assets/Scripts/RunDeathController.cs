@@ -22,8 +22,9 @@ public class RunDeathController : GameServiceBehaviour<RunDeathController>
 
     public bool IsDeathInProgress => deathInProgress;
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
         StartCoroutine(CacheSpawnNextFrame());
     }
 

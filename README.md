@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.066` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.067` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.067** | Defer heavy bootstrap to next frame and harden domain reload resets |
 | **v0.0.066** | Polish GameServices hero registration, IsInitialized, and manager docs |
 | **v0.0.065** | Add GameServices bootstrap, fix domain reload and chest travel polish |
 | **v0.0.064** | Rebuild Steve movement and animation; fix treasure chest travel and path performance |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.038** | Simplify combat engage and fix POI progression after kills |
 | **v0.0.037** | Sync README version and changelog for v0.0.036 |
 | **v0.0.036** | Add level-up celebration with full HP and energy restore |
-| **v0.0.034** | Stabilize enemy animators and add isometric camera setup |
 <!-- CHANGELOG:END -->
 
 ---

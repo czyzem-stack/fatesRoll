@@ -368,7 +368,8 @@ public class Enemy : MonoBehaviour
 
     private bool IsLocomoting()
     {
-        return agent != null && agent.enabled && !agent.isStopped && !navHeld && !isDead && !combatNavLocked;
+        return agent != null && agent.enabled && agent.isOnNavMesh && !agent.isStopped && !navHeld && !isDead &&
+               !combatNavLocked;
     }
 
     private void LockCombatNavigation()

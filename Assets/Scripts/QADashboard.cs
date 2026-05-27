@@ -13,7 +13,7 @@ public class QADashboard : MonoBehaviour
     void Start()
     {
         hero = GameServices.Hero;
-        spawner = DiceSpawner.Instance;
+        spawner = GameServices.TryGet(out DiceSpawner dice) ? dice : null;
     }
 
     void Update()

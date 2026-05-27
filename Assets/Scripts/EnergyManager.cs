@@ -15,8 +15,9 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
     private int currentEnergy;
     private float nextRegenTime;
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
         var settings = GlobalSettings.Instance;
         currentEnergy = settings != null ? settings.startingEnergy : 60;
         nextRegenTime = Time.time + GetEffectiveRegenInterval();

@@ -15,16 +15,17 @@ public static class TitleSceneSetup
 {
     const string TitleScenePath = "Assets/Scenes/title.unity";
     const string MainScenePath = "Assets/Scenes/main.unity";
+    internal const string BootstrapScenePath = "Assets/Scenes/Bootstrap.unity";
     const string PlayFromActiveScenePref = "FatesRoll_PlayFromActiveScene";
 
     static TitleSceneSetup()
     {
         if (EditorPrefs.GetBool(PlayFromActiveScenePref, false))
             return;
-        if (!File.Exists(TitleScenePath))
+        if (!File.Exists(TitleScenePath) && !File.Exists(BootstrapScenePath))
             return;
 
-        ApplyPlayModeStartScene(silent: true);
+        ApplyPlayModeStartBootstrap(silent: true);
     }
     const string TitlePrefabPath =
         "Assets/UI/GUI Pro-FantasyRPG/Prefabs/Prefabs_DemoScene_Panels/Title.prefab";
@@ -74,7 +75,7 @@ public static class TitleSceneSetup
         so.FindProperty("tapToStartPanel").objectReferenceValue = tap;
         so.FindProperty("sharedBranding").objectReferenceValue = branding;
         so.FindProperty("mainSceneName").stringValue = "main";
-        so.FindProperty("mainSceneBuildIndex").intValue = 1;
+        so.FindProperty("mainSceneBuildIndex").intValue = ResolveMainSceneBuildIndex();
         so.ApplyModifiedPropertiesWithoutUndo();
 
         Directory.CreateDirectory("Assets/Scenes");
@@ -91,12 +92,15 @@ public static class TitleSceneSetup
     public static void SetBuildScenesMenu()
     {
         SetBuildScenes();
-        Debug.Log("Build Settings: title first, then main.");
+        Debug.Log("Build Settings: Bootstrap → title → main.");
     }
 
-    static void SetBuildScenes()
+    public static void SetBuildScenes()
     {
         var scenes = new List<EditorBuildSettingsScene>();
+
+        if (File.Exists(BootstrapScenePath))
+            scenes.Add(new EditorBuildSettingsScene(BootstrapScenePath, true));
 
         if (File.Exists(TitleScenePath))
             scenes.Add(new EditorBuildSettingsScene(TitleScenePath, true));
@@ -106,12 +110,66 @@ public static class TitleSceneSetup
 
         if (scenes.Count == 0)
         {
-            Debug.LogWarning("No title or main scene found to add to Build Settings.");
+            Debug.LogWarning("No scenes found to add to Build Settings.");
             return;
         }
 
         EditorBuildSettings.scenes = scenes.ToArray();
-        ApplyPlayModeStartScene(silent: true);
+        SyncTitleMainSceneBuildIndex(silent: true);
+        ApplyPlayModeStartBootstrap(silent: true);
+    }
+
+    public static int ResolveMainSceneBuildIndex()
+    {
+        var scenes = EditorBuildSettings.scenes;
+        for (int i = 0; i < scenes.Length; i++)
+        {
+            if (scenes[i].path.EndsWith("/main.unity", System.StringComparison.OrdinalIgnoreCase)
+                || scenes[i].path.EndsWith("\\main.unity", System.StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+
+        return File.Exists(BootstrapScenePath) ? 2 : 1;
+    }
+
+    static void SyncTitleMainSceneBuildIndex(bool silent = false)
+    {
+        if (!File.Exists(TitleScenePath))
+            return;
+
+        int mainIndex = ResolveMainSceneBuildIndex();
+        var titleScene = EditorSceneManager.OpenScene(TitleScenePath, OpenSceneMode.Additive);
+        var flow = UnityEngine.Object.FindAnyObjectByType<TitleFlowController>();
+        if (flow != null)
+        {
+            var so = new SerializedObject(flow);
+            var prop = so.FindProperty("mainSceneBuildIndex");
+            if (prop != null && prop.intValue != mainIndex)
+            {
+                prop.intValue = mainIndex;
+                so.ApplyModifiedPropertiesWithoutUndo();
+                EditorSceneManager.SaveScene(titleScene);
+                if (!silent)
+                    Debug.Log($"TitleFlowController.mainSceneBuildIndex → {mainIndex}.");
+            }
+        }
+
+        if (titleScene.IsValid())
+            EditorSceneManager.CloseScene(titleScene, true);
+    }
+
+    public static void ApplyPlayModeStartBootstrap(bool silent = false)
+    {
+        var bootstrap = AssetDatabase.LoadAssetAtPath<SceneAsset>(BootstrapScenePath);
+        if (bootstrap != null)
+        {
+            EditorSceneManager.playModeStartScene = bootstrap;
+            if (!silent)
+                Debug.Log("Play Mode will start from Bootstrap.unity.");
+            return;
+        }
+
+        ApplyPlayModeStartScene(silent);
     }
 
     public static void EnablePlayModeStartSceneMenu()

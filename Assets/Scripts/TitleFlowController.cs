@@ -280,6 +280,15 @@ public class TitleFlowController : MonoBehaviour
 
         _startedMain = true;
         _mainLoadOp.allowSceneActivation = true;
+        StartCoroutine(WaitForMainSceneReadyAfterActivation());
+    }
+
+    private IEnumerator WaitForMainSceneReadyAfterActivation()
+    {
+        while (!_mainLoadOp.isDone)
+            yield return null;
+
+        yield return MainSceneGameplayGate.WaitUntilReady(mainSceneName);
     }
 
     private void Update()

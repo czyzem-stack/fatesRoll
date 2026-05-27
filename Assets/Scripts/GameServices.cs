@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using Unity.Cinemachine;
 
 /// <summary>
 /// Bootstrap for gameplay services — runs before other scripts, holds references, no FindAnyObjectByType in hot paths.
@@ -161,6 +162,7 @@ public class GameServices : MonoBehaviour
             return;
 
         RefreshHeroSpawnFromChildren();
+        TryRegisterHeroFromScene(scene);
     }
 
     /// <summary>Strict lookup — throws if the service was never registered in Awake.</summary>
@@ -258,6 +260,10 @@ public class GameServices : MonoBehaviour
 
         Current.hero = controller;
         Register(controller);
+
+        CinemachineCamera vcam = UnityEngine.Object.FindAnyObjectByType<CinemachineCamera>();
+        if (vcam != null)
+            vcam.Follow = controller.transform;
     }
 
     public static void UnregisterHero(HeroController controller)
@@ -353,14 +359,29 @@ public class GameServices : MonoBehaviour
         }
     }
 
+    /// <summary>Bootstrap-scoped services only. Hero lives in the gameplay scene and registers via <see cref="RegisterHero"/>.</summary>
     private void ValidateRequiredServices()
     {
         if (!TryGet<GlobalSettings>(out _))
             Debug.LogWarning("GameServices: GlobalSettings missing. Add one under the bootstrap object.", this);
         if (!TryGet<DiceSpawner>(out _))
             Debug.LogWarning("GameServices: DiceSpawner missing.", this);
-        if (Hero == null)
-            Debug.LogWarning("GameServices: HeroController missing.", this);
+    }
+
+    private static void TryRegisterHeroFromScene(Scene scene)
+    {
+        if (!scene.IsValid() || !scene.isLoaded || Current == null)
+            return;
+
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            var controller = root.GetComponentInChildren<HeroController>(true);
+            if (controller == null)
+                continue;
+
+            RegisterHero(controller);
+            return;
+        }
     }
 
     private static InvalidOperationException BuildMissingServiceException(Type type)

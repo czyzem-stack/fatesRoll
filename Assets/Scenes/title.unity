@@ -316,7 +316,7 @@ MonoBehaviour:
   loadingSlider: {fileID: 0}
   loadingText: {fileID: 0}
   mainSceneName: main
-  mainSceneBuildIndex: 1
+  mainSceneBuildIndex: 2
   minLoadingSeconds: 1.25
   sliderLerpSpeed: 2.5
   ribbonLabelOverride: 

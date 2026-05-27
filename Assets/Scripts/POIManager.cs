@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 
 /// <summary>Visit-order POIs only. When all are consumed, enables SpawnManager (SpawnNode markers).</summary>
@@ -7,16 +8,53 @@ using System.Collections.Generic;
 [DefaultExecutionOrder(-50)]
 public class POIManager : GameServiceBehaviour<POIManager>
 {
+    [SerializeField] private string gameplaySceneName = MainSceneGameplayGate.DefaultMainSceneName;
 
     private readonly List<POINode> activeVisitPOIs = new List<POINode>();
     private readonly List<POINode> allVisitPOIs = new List<POINode>();
 
     public bool HasInitialized { get; private set; }
     public int ActiveVisitCount => activeVisitPOIs.Count;
+    public int VisitPoiCount => allVisitPOIs.Count;
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
+        TryRefreshForScene(SceneManager.GetActiveScene());
+    }
+
+    private void OnEnable()
+    {
+        SceneManager.sceneLoaded += HandleSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        TryRefreshForScene(scene);
+    }
+
+    private void TryRefreshForScene(Scene scene)
+    {
+        if (!IsGameplayScene(scene))
+            return;
+
         StartCoroutine(InitializeVisitPOIsNextFrame());
+    }
+
+    private bool IsGameplayScene(Scene scene) =>
+        scene.IsValid() &&
+        scene.name.Equals(gameplaySceneName, System.StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Re-scan main scene POIs (bootstrap Awake runs before main exists).</summary>
+    public void RefreshFromScene()
+    {
+        if (IsGameplayScene(SceneManager.GetActiveScene()))
+            StartCoroutine(InitializeVisitPOIsNextFrame());
     }
 
     private IEnumerator InitializeVisitPOIsNextFrame()
@@ -29,11 +67,18 @@ public class POIManager : GameServiceBehaviour<POIManager>
     {
         activeVisitPOIs.Clear();
         allVisitPOIs.Clear();
+        HasInitialized = false;
+
+        if (!GameServices.IsInitialized)
+        {
+            Debug.LogWarning("POIManager: GameServices not ready — deferring POI scan.");
+            return;
+        }
 
         var found = Object.FindObjectsByType<POINode>(FindObjectsInactive.Include);
         foreach (var poi in found)
         {
-            if (poi != null)
+            if (poi != null && IsGameplayScene(poi.gameObject.scene))
                 allVisitPOIs.Add(poi);
         }
 
@@ -41,20 +86,33 @@ public class POIManager : GameServiceBehaviour<POIManager>
             ActivateVisitPOI(poi);
 
         HasInitialized = true;
+        GlobalSettings.LogGameplay($"POIManager: initialized {allVisitPOIs.Count} visit POI(s) in {gameplaySceneName}.");
 
-        if (!HasRemainingVisitPOI())
+        if (allVisitPOIs.Count == 0)
+            Debug.LogWarning($"POIManager: no POINode objects found in {gameplaySceneName}.");
+
+        if (allVisitPOIs.Count > 0 && !HasRemainingVisitPOI())
             TryEnableRandomVisitTargeting();
     }
 
     public void RegisterPOI(POINode poi)
     {
-        if (poi == null || activeVisitPOIs.Contains(poi)) return;
+        if (poi == null)
+            return;
+
+        if (!allVisitPOIs.Contains(poi))
+            allVisitPOIs.Add(poi);
+
+        if (activeVisitPOIs.Contains(poi))
+            return;
+
         activeVisitPOIs.Add(poi);
     }
 
     public void UnregisterPOI(POINode poi)
     {
         activeVisitPOIs.Remove(poi);
+        allVisitPOIs.Remove(poi);
     }
 
     public void ResolveVisitPOI(GameObject poiObject)
@@ -71,19 +129,20 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
         if (node == null)
         {
-            if (poiObject != null) Destroy(poiObject);
+            if (poiObject != null)
+                Destroy(poiObject);
             return;
         }
 
         UnregisterPOI(node);
-        allVisitPOIs.Remove(node);
         Destroy(node.gameObject);
         TryEnableRandomVisitTargeting();
     }
 
     private void ActivateVisitPOI(POINode poi)
     {
-        if (poi == null) return;
+        if (poi == null)
+            return;
 
         poi.gameObject.SetActive(true);
 
@@ -100,9 +159,11 @@ public class POIManager : GameServiceBehaviour<POIManager>
     {
         foreach (var poi in allVisitPOIs)
         {
-            if (poi == null || poi == excludeDefeated) continue;
+            if (poi == null || poi == excludeDefeated)
+                continue;
             return true;
         }
+
         return false;
     }
 
@@ -110,8 +171,11 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
     public void TryEnableRandomVisitTargeting()
     {
-        if (!HasRemainingVisitPOI() && SpawnManager.Instance != null)
-            SpawnManager.Instance.EnableRandomVisitTargeting();
+        if (HasRemainingVisitPOI())
+            return;
+
+        if (GameServices.TryGet(out SpawnManager spawnManager))
+            spawnManager.EnableRandomVisitTargeting();
     }
 
     public GameObject GetNextPOITarget(int visitOrder)
@@ -123,8 +187,8 @@ public class POIManager : GameServiceBehaviour<POIManager>
                 return visit;
         }
 
-        return SpawnManager.Instance != null
-            ? SpawnManager.Instance.GetRandomSpawnTarget()
+        return GameServices.TryGet(out SpawnManager spawnManager)
+            ? spawnManager.GetRandomSpawnTarget()
             : null;
     }
 
@@ -135,7 +199,9 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
         foreach (var poi in activeVisitPOIs)
         {
-            if (poi == null || !poi.gameObject.activeInHierarchy) continue;
+            if (poi == null || !poi.gameObject.activeInHierarchy)
+                continue;
+
             float dist = Vector3.Distance(position, poi.transform.position);
             if (dist < minDist)
             {
@@ -147,8 +213,8 @@ public class POIManager : GameServiceBehaviour<POIManager>
         if (nearest != null)
             return nearest.gameObject;
 
-        return SpawnManager.Instance != null
-            ? SpawnManager.Instance.GetNearestSpawn(position)
+        return GameServices.TryGet(out SpawnManager spawnManager)
+            ? spawnManager.GetNearestSpawn(position)
             : null;
     }
 
@@ -162,7 +228,8 @@ public class POIManager : GameServiceBehaviour<POIManager>
 
         foreach (var poi in allVisitPOIs)
         {
-            if (poi == null) continue;
+            if (poi == null)
+                continue;
 
             if (poi.order < lowestOrder)
             {
@@ -180,7 +247,8 @@ public class POIManager : GameServiceBehaviour<POIManager>
         }
 
         POINode pick = exact ?? nextHigher ?? lowestRemaining;
-        if (pick == null) return null;
+        if (pick == null)
+            return null;
 
         if (!pick.gameObject.activeInHierarchy)
             ActivateVisitPOI(pick);
@@ -191,20 +259,21 @@ public class POIManager : GameServiceBehaviour<POIManager>
     public GameObject GetPOIByOrder(int order) => GetVisitPOIByOrder(order);
     public GameObject GetSequentialPOIByOrder(int order) => GetVisitPOIByOrder(order);
 
-    /// <summary>Revive and re-scale visit POI enemies still in the scene (spawn pool handled separately).</summary>
     public void RefreshRemainingVisitEnemies()
     {
         foreach (var poi in allVisitPOIs)
         {
-            if (poi == null || poi.IsTreasureChest) continue;
+            if (poi == null || poi.IsTreasureChest)
+                continue;
 
             var enemy = poi.GetComponent<Enemy>();
-            if (enemy == null) continue;
+            if (enemy == null)
+                continue;
 
             enemy.ReviveForRunReset(poi);
         }
     }
 
-    // Back-compat for any callers
     public void ResolveSequentialPOI(GameObject go) => ResolveVisitPOI(go);
 }
+

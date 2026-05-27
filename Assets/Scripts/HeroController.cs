@@ -539,7 +539,8 @@ public class HeroController : MonoBehaviour
         if (RunDeathController.Instance == null)
             new GameObject("RunDeathController").AddComponent<RunDeathController>();
 
-        DiceSpawner.Instance?.CancelActiveRoll();
+        if (GameServices.TryGet(out DiceSpawner diceSpawner))
+            diceSpawner.CancelActiveRoll();
         RunDeathController.Instance.HandleHeroDeath(this);
     }
 

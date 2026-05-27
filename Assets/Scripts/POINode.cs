@@ -45,19 +45,19 @@ public class POINode : MonoBehaviour
         if (IsTreasureChest && currentVisual != null)
             PoiVisualPlacer.PlaceTreasureChestVisual(transform, currentVisual);
 
-        if (POIManager.Instance != null && POIManager.Instance.HasInitialized)
+        if (GameServices.TryGet(out POIManager manager) && manager.HasInitialized)
         {
             if (gameObject.activeInHierarchy)
             {
-                POIManager.Instance.RegisterPOI(this);
+                manager.RegisterPOI(this);
                 InitializeEnemy();
             }
             return;
         }
 
-        if (gameObject.activeInHierarchy && POIManager.Instance != null)
+        if (gameObject.activeInHierarchy && GameServices.TryGet(out POIManager fallback))
         {
-            POIManager.Instance.RegisterPOI(this);
+            fallback.RegisterPOI(this);
             InitializeEnemy();
         }
     }
@@ -75,15 +75,15 @@ public class POINode : MonoBehaviour
 
         if (enemyData != null)
             enemy.InitializeFromData(enemyData);
-        else if (EnemyStatManager.Instance != null)
-            EnemyStatManager.Instance.ApplyFtueStepStats(enemy, order);
+        else if (GameServices.TryGet(out EnemyStatManager statManager))
+            statManager.ApplyFtueStepStats(enemy, order);
         else
             enemy.Initialize();
     }
 
     void OnDestroy()
     {
-        if (POIManager.Instance != null)
-            POIManager.Instance.UnregisterPOI(this);
+        if (GameServices.TryGet(out POIManager manager))
+            manager.UnregisterPOI(this);
     }
 }

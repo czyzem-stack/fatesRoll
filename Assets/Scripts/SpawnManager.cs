@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -27,6 +28,12 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
     [Tooltip("On monster spawn nodes, chance to spawn a treasure chest instead.")]
     [SerializeField] [Range(0f, 1f)] private float spawnChestChance = 0.12f;
 
+    [Header("Hero (main scene)")]
+    [Tooltip("Steve prefab (Assets/Heroes/Prefab/Steve.prefab). Used only if no HeroController exists when main loads.")]
+    [SerializeField] private GameObject heroPrefab;
+    [SerializeField] private string gameplaySceneName = MainSceneGameplayGate.DefaultMainSceneName;
+    [SerializeField] private HeroSpawnPoint heroSpawnPoint;
+
     private readonly List<SpawnNode> allSpawnNodes = new List<SpawnNode>();
     private readonly List<SpawnNode> activeSpawnNodes = new List<SpawnNode>();
     private int randomPoolKillCounter;
@@ -40,40 +47,196 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
     protected override void Awake()
     {
         base.Awake();
-        if (poiManager == null)
-            poiManager = POIManager.Instance;
-        if (statManager == null)
-            statManager = EnemyStatManager.Instance;
+        ResolveManagerReferences();
     }
 
-    private void Start()
+    private void ResolveManagerReferences()
     {
-        StartCoroutine(InitializeSpawnNodesNextFrame());
+        if (poiManager == null && GameServices.TryGet(out POIManager poi))
+            poiManager = poi;
+        if (statManager == null && GameServices.TryGet(out EnemyStatManager stats))
+            statManager = stats;
     }
 
-    private IEnumerator InitializeSpawnNodesNextFrame()
+    private void OnEnable()
     {
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDisable()
+    {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+    }
+
+    protected override void Start()
+    {
+        base.Start();
+        TryRefreshMainScene(SceneManager.GetActiveScene());
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        TryRefreshMainScene(scene);
+    }
+
+    private Coroutine refreshRoutine;
+
+    private void TryRefreshMainScene(Scene scene)
+    {
+        if (!IsGameplayScene(scene))
+            return;
+
+        if (refreshRoutine != null)
+            StopCoroutine(refreshRoutine);
+
+        refreshRoutine = StartCoroutine(RefreshMainSceneRoutine(scene));
+    }
+
+    private IEnumerator RefreshMainSceneRoutine(Scene scene)
+    {
+        yield return new WaitUntil(() => GameServices.IsInitialized);
         yield return null;
 
-        if (poiManager == null)
-            poiManager = POIManager.Instance;
+        yield return EnsureHeroRegistered(scene);
 
-        if (poiManager != null)
+        ResolveManagerReferences();
+
+        if (GameServices.TryGet(out POIManager poiMgr))
         {
-            while (!poiManager.HasInitialized)
+            if (!poiMgr.HasInitialized || poiMgr.VisitPoiCount == 0)
+                poiMgr.RefreshFromScene();
+
+            float poiWait = 8f;
+            while (poiWait > 0f && !poiMgr.HasInitialized)
+            {
+                poiWait -= Time.unscaledDeltaTime;
                 yield return null;
+            }
         }
 
         InitializeSpawnNodes();
+        refreshRoutine = null;
+    }
+
+    private IEnumerator EnsureHeroRegistered(Scene scene)
+    {
+        if (GameServices.Hero != null)
+            yield break;
+
+        HeroController existing = FindHeroInScene(scene);
+        if (existing != null)
+        {
+            GameServices.RegisterHero(existing);
+            GlobalSettings.LogGameplay("SpawnManager: registered Steve from main scene.");
+            yield break;
+        }
+
+        if (heroPrefab == null)
+        {
+            Debug.LogError(
+                "SpawnManager: Steve is missing in main and heroPrefab is not assigned. " +
+                "Run FatesRoll → Setup → Restore Steve In Main Scene.",
+                this);
+            yield break;
+        }
+
+        if (!TryResolveHeroSpawn(scene, out Vector3 position, out Quaternion rotation))
+        {
+            Debug.LogError("SpawnManager: could not resolve a spawn position for Steve.", this);
+            yield break;
+        }
+
+        GameObject steveObject = Instantiate(heroPrefab, position, rotation);
+        steveObject.name = "Steve";
+        if (steveObject.scene != scene)
+            SceneManager.MoveGameObjectToScene(steveObject, scene);
+
+        HeroController hero = steveObject.GetComponent<HeroController>();
+        if (hero == null)
+            hero = steveObject.AddComponent<HeroController>();
+
+        GameServices.RegisterHero(hero);
+        GlobalSettings.LogGameplay("SpawnManager: instantiated Steve in main (heroPrefab fallback).");
+        yield return null;
+    }
+
+    private bool IsGameplayScene(Scene scene) =>
+        scene.IsValid() &&
+        scene.name.Equals(gameplaySceneName, System.StringComparison.OrdinalIgnoreCase);
+
+    private HeroController FindHeroInScene(Scene scene)
+    {
+        if (!scene.IsValid())
+            return null;
+
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            if (root == null)
+                continue;
+
+            if (root.TryGetComponent(out HeroController onRoot))
+                return onRoot;
+
+            HeroController inChildren = root.GetComponentInChildren<HeroController>(true);
+            if (inChildren != null)
+                return inChildren;
+        }
+
+        return null;
+    }
+
+    private bool TryResolveHeroSpawn(Scene scene, out Vector3 position, out Quaternion rotation)
+    {
+        position = Vector3.zero;
+        rotation = Quaternion.identity;
+
+        if (heroSpawnPoint == null)
+            heroSpawnPoint = FindHeroSpawnInScene(scene);
+        if (heroSpawnPoint == null)
+            heroSpawnPoint = GameServices.HeroSpawn;
+
+        if (heroSpawnPoint != null)
+        {
+            heroSpawnPoint.SnapToPlaySpawnSurface();
+            position = heroSpawnPoint.transform.position;
+            rotation = heroSpawnPoint.transform.rotation;
+            return true;
+        }
+
+        if (HeroSpawnUtility.TryResolveSpawnPosition(position, out Vector3 resolved))
+        {
+            position = resolved;
+            return true;
+        }
+
+        return false;
+    }
+
+    private static HeroSpawnPoint FindHeroSpawnInScene(Scene scene)
+    {
+        foreach (GameObject root in scene.GetRootGameObjects())
+        {
+            var marker = root.GetComponentInChildren<HeroSpawnPoint>(true);
+            if (marker != null)
+                return marker;
+        }
+
+        return null;
     }
 
     public void InitializeSpawnNodes()
     {
+        if (!IsGameplayScene(SceneManager.GetActiveScene()))
+            return;
+
+        ResolveManagerReferences();
+
         activeSpawnNodes.Clear();
         allSpawnNodes.Clear();
         randomPoolKillCounter = 0;
         spawnPoolInitialized = false;
         randomVisitTargetingEnabled = false;
+        HasInitialized = false;
 
         if (monsterCatalog == null)
         {
@@ -82,7 +245,7 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         }
 
         var found = Object.FindObjectsByType<SpawnNode>(FindObjectsInactive.Include);
-        allSpawnNodes.AddRange(found.Where(n => n != null));
+        allSpawnNodes.AddRange(found.Where(n => n != null && IsGameplayScene(n.gameObject.scene)));
 
         spawnPoolInitialized = true;
         HasInitialized = true;
@@ -90,7 +253,14 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         if (fillSpawnsOnLoad)
             FillSpawnNodes();
 
-        if (poiManager != null && !poiManager.HasRemainingVisitPOI())
+        GlobalSettings.LogGameplay(
+            $"SpawnManager: {allSpawnNodes.Count} spawn node(s) in {gameplaySceneName}, " +
+            $"{activeSpawnNodes.Count} active encounter(s).");
+
+        if (allSpawnNodes.Count == 0)
+            Debug.LogWarning($"SpawnManager: no SpawnNode markers found in {gameplaySceneName}.");
+
+        if (poiManager != null && poiManager.VisitPoiCount > 0 && !poiManager.HasRemainingVisitPOI())
             EnableRandomVisitTargeting();
     }
 
@@ -168,6 +338,11 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
             {
                 if (statManager != null)
                     statManager.ApplyScaledStats(enemy);
+                else if (GameServices.TryGet(out EnemyStatManager fallbackStats))
+                {
+                    statManager = fallbackStats;
+                    statManager.ApplyScaledStats(enemy);
+                }
                 else
                     enemy.Initialize();
             }

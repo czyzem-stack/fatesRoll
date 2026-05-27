@@ -56,7 +56,8 @@ public class SteveMovement : MonoBehaviour
             return;
 
         nextPoiOrder = Mathf.Max(nextPoiOrder, node.order + 1);
-        POIManager.Instance?.TryEnableRandomVisitTargeting();
+        if (GameServices.TryGet(out POIManager poiManager))
+            poiManager.TryEnableRandomVisitTargeting();
     }
 
     /// <summary>Stops showing the route to the current POI (arrival, combat start, reset).</summary>
@@ -134,7 +135,12 @@ public class SteveMovement : MonoBehaviour
         }
 
         if (!PickTarget(out GameObject target))
+        {
+            GlobalSettings.LogGameplayWarning("SteveMovement: no POI target available for movement.");
             return;
+        }
+
+        GlobalSettings.LogGameplay($"Moving toward POI: {target.name}");
 
         lockedTarget = target;
         routeTarget = target;
@@ -410,8 +416,8 @@ public class SteveMovement : MonoBehaviour
         if (!IsTargetUsable(currentTarget))
             currentTarget = null;
 
-        if (currentTarget == null && POIManager.Instance != null)
-            currentTarget = POIManager.Instance.GetNextPOITarget(nextPoiOrder);
+        if (currentTarget == null && GameServices.TryGet(out POIManager poiManager))
+            currentTarget = poiManager.GetNextPOITarget(nextPoiOrder);
 
         target = currentTarget;
         if (target != null)

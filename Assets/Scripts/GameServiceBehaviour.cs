@@ -13,14 +13,28 @@ public abstract class GameServiceBehaviour<T> : MonoBehaviour where T : GameServ
 
     protected virtual void Awake()
     {
+        TryRegisterWithBootstrap();
+    }
+
+    protected virtual void Start()
+    {
+        TryRegisterWithBootstrap();
+    }
+
+    bool TryRegisterWithBootstrap()
+    {
         if (GameServices.TryGet(out T existing) && existing != null && !ReferenceEquals(existing, this))
         {
             Debug.LogWarning($"Duplicate {typeof(T).Name} on '{name}' — destroying.", this);
             Destroy(gameObject);
-            return;
+            return false;
         }
 
+        if (GameServices.Current == null)
+            return true;
+
         GameServices.Register((T)this);
+        return true;
     }
 
     protected virtual void OnDestroy()

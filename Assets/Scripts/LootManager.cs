@@ -105,8 +105,9 @@ public class LootManager : GameServiceBehaviour<LootManager>
             Debug.LogWarning("LootManager: assign coin_04 prefab on LootManager in the scene.");
     }
 
-    private void Start()
+    protected override void Start()
     {
+        base.Start();
         currentGold = GlobalSettings.GetStartingCoinBalance();
         cachedHero = GameServices.Hero;
         UpdateGoldUI();
