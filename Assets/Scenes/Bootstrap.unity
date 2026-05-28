@@ -1333,13 +1333,26 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpecialController
   specialSettings:
   - enemyType: 1
-    specialChance: 100
-    effectValue: 50
-    effectDuration: 0
-  - enemyType: 3
     specialChance: 25
-    effectValue: 25
+    effectValue: 50
+    buffTurns: 3
     effectDuration: 2
+    floatingText: BLOCKED
+    textColor: {r: 1, g: 1, b: 1, a: 1}
+  - enemyType: 3
+    specialChance: 30
+    effectValue: 25
+    buffTurns: 3
+    effectDuration: 2
+    floatingText: FEAR!
+    textColor: {r: 1, g: 0, b: 1, a: 1}
+  - enemyType: 0
+    specialChance: 25
+    effectValue: 1.5
+    buffTurns: 3
+    effectDuration: 2
+    floatingText: BATTLE SHOUT!
+    textColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

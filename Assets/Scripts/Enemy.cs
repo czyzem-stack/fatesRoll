@@ -27,6 +27,8 @@ public class Enemy : MonoBehaviour
     public float currentHP;
     public bool isDead = false;
     public bool isAttacking = false;
+    private int battleShoutTurnsRemaining = 0;
+    private float battleShoutMultiplier = 1.0f;
 
     [Header("Derived Stats (Read-Only)")]
     public float maxHP;
@@ -668,16 +670,22 @@ public class Enemy : MonoBehaviour
             if (blockRoll < blockChance)
             {
                 CombatLog.Info($"{gameObject.name} BLOCKED the attack!");
-if (locomotionDriver != null) locomotionDriver.PlayDefense();
+                if (locomotionDriver != null) locomotionDriver.PlayDefense();
                 else HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
-                
-                // Trigger floating text for block
+
                 if (Application.isPlaying)
                 {
+                    string txt = "BLOCKED";
+                    Color col = Color.white;
+                    if (GameServices.TryGet(out EnemySpecialController esc))
+                    {
+                        txt = esc.GetFloatingText(POIType.Skeleton, txt);
+                        col = esc.GetTextColor(POIType.Skeleton, col);
+                    }
+
                     GameObject blockGo = new GameObject("BlockText");
                     blockGo.transform.position = transform.position + Vector3.up * 2.8f;
-                    var ft = blockGo.AddComponent<FloatingText>();
-                    ft.Setup("BLOCKED", Color.white);
+                    blockGo.AddComponent<FloatingText>().Setup(txt, col);
                 }
                 return false;
             }
@@ -801,6 +809,55 @@ if (locomotionDriver != null) locomotionDriver.PlayDefense();
         var settings = GlobalSettings.Instance;
         POIType type = ResolveMonsterType();
 
+        // Orc special: Battle Shout (increase damage multiplier)
+        if (type == POIType.Orc && battleShoutTurnsRemaining <= 0)
+        {
+            float shoutChance = 25f;
+            float multiplier = 1.5f;
+            int turns = 3;
+            float duration = 2.0f;
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                shoutChance = esc.GetSpecialChance(POIType.Orc, 25f);
+                var s = esc.GetSettings(POIType.Orc);
+                multiplier = s != null ? s.effectValue : 1.5f;
+                turns = s != null ? s.buffTurns : 3;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float shoutRoll = UnityEngine.Random.Range(0f, 100f);
+            if (shoutRoll < shoutChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses <color=orange>BATTLE SHOUT</color>! (+{((multiplier - 1) * 100):F0}% DMG for {turns} turns)");
+                battleShoutMultiplier = multiplier;
+                battleShoutTurnsRemaining = turns;
+
+                if (Application.isPlaying)
+                {
+                    string txt = "BATTLE SHOUT!";
+                    Color col = Color.yellow;
+                    if (GameServices.TryGet(out EnemySpecialController esc))
+                    {
+                        txt = esc.GetFloatingText(POIType.Orc, txt);
+                        col = esc.GetTextColor(POIType.Orc, col);
+                    }
+
+                    GameObject shoutGo = new GameObject("ShoutText");
+                    shoutGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    shoutGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                if (locomotionDriver != null)
+                    locomotionDriver.PlayTaunt();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Taunt);
+
+                yield return new WaitForSeconds(duration);
+                isAttacking = false;
+                yield break;
+            }
+        }
+
         // Bat special: chance to cast Fear (Taunt) from EnemySpecialController
         if (type == POIType.Bat && !hero.HasFearEffect)
         {
@@ -824,6 +881,21 @@ if (locomotionDriver != null) locomotionDriver.PlayDefense();
 
                 hero.ApplyFearEffect();
                 
+                if (Application.isPlaying)
+                {
+                    string txt = "FEAR!";
+                    Color col = Color.magenta;
+                    if (GameServices.TryGet(out EnemySpecialController esc))
+                    {
+                        txt = esc.GetFloatingText(POIType.Bat, txt);
+                        col = esc.GetTextColor(POIType.Bat, col);
+                    }
+
+                    GameObject fearGo = new GameObject("FearText");
+                    fearGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    fearGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
                 // Taunt usually takes longer
                 yield return new WaitForSeconds(duration);
                 isAttacking = false;
@@ -851,6 +923,17 @@ if (locomotionDriver != null) locomotionDriver.PlayDefense();
         if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
         {
             float damage = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
+            
+            if (battleShoutTurnsRemaining > 0)
+            {
+                damage *= battleShoutMultiplier;
+                battleShoutTurnsRemaining--;
+                if (battleShoutTurnsRemaining <= 0)
+                {
+                    battleShoutMultiplier = 1.0f;
+                }
+            }
+
             CombatLog.CritCheck(gameObject.name, critChance, Random.Range(0f, 100f), isCrit);
 
             CombatLog.DamageCalc(gameObject.name, $"base {attackDamage:F0}" + (isCrit ? $" × crit {critDamage:F0}%" : "") + $" → {(int)damage}");

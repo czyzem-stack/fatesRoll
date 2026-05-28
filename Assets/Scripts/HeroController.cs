@@ -469,12 +469,19 @@ public bool IsMoving => movement != null && movement.IsMoving;
                 if (missRoll < missChance)
                 {
                     CombatLog.Info("<color=red>Steve MISSED due to Fear!</color>");
-if (Application.isPlaying)
+                    if (Application.isPlaying)
                     {
+                        string txt = "MISS!";
+                        Color col = Color.red;
+                        if (GameServices.TryGet(out EnemySpecialController esc))
+                        {
+                            txt = esc.GetFloatingText(POIType.Bat, txt);
+                            col = esc.GetTextColor(POIType.Bat, col);
+                        }
+
                         GameObject missGo = new GameObject("MissText");
                         missGo.transform.position = transform.position + Vector3.up * 2.8f;
-                        var ft = missGo.AddComponent<FloatingText>();
-                        ft.Setup("MISS!", Color.red);
+                        missGo.AddComponent<FloatingText>().Setup(txt, col);
                     }
                     yield return new WaitForSeconds(settings != null ? settings.combatHeroAttackRecoverDelay : 0.4f);
                     yield break;
@@ -482,7 +489,7 @@ if (Application.isPlaying)
             }
 
             CombatLog.AttackStart("Steve", enemy.name, "hero melee");
-bool hit = enemy.TakeDamage(damage, "Steve");
+            bool hit = enemy.TakeDamage(damage, "Steve");
             if (!hit)
                 CombatLog.DamageMitigated("Steve", enemy.name, "dodged");
         }
