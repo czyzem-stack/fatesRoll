@@ -12,20 +12,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 59dccecc5970e3b4e9a86c9be9dda28d, type: 3}
   m_Name: MonsterPrefabCatalog
   m_EditorClassIdentifier: Assembly-CSharp::MonsterPrefabCatalog
-  gameplayFallback: {fileID: 9100000, guid: d46d70a411faa4a4b8d0d4208dc42740, type: 2}
   entries:
   - type: 0
     prefab: {fileID: 8511647367374691266, guid: 090745f32e1740478c948efbbba21c5a, type: 3}
-    gameplayAnimator: {fileID: 9100000, guid: d46d70a411faa4a4b8d0d4208dc42740, type: 2}
+    gameplayAnimator: {fileID: 9100000, guid: 10211501388d4bfba42a1281194503ec, type: 2}
   - type: 1
     prefab: {fileID: 6285209290496832306, guid: 67ddb690e8bc43439efb218ba32a3d45, type: 3}
-    gameplayAnimator: {fileID: 9100000, guid: 96cd4059e6ba4beca732f444b57a1789, type: 2}
+    gameplayAnimator: {fileID: 9100000, guid: ff7232f5b43d27245bfbf286d56b8cac, type: 2}
   - type: 2
     prefab: {fileID: 1931298151966786, guid: 596dc7dadc19403380aa123308e5fd8a, type: 3}
     gameplayAnimator: {fileID: 9100000, guid: 6843926defe641e58b9e0ea8fdc4c9c5, type: 2}
   - type: 3
     prefab: {fileID: 5122791751604650877, guid: 9540b37624f44ab092e166a9bc78d58c, type: 3}
-    gameplayAnimator: {fileID: 9100000, guid: 861eaa107c294bde819afc3bda1694cb, type: 2}
+    gameplayAnimator: {fileID: 9100000, guid: 55036f7c701c76e4e96950c12afe89a1, type: 2}
   - type: 4
     prefab: {fileID: 5611543388551634691, guid: a7d06dfb21da417b9d7b1e04350feec1, type: 3}
     gameplayAnimator: {fileID: 9100000, guid: da041994a0b340cca2b079d4ead4585e, type: 2}
@@ -44,3 +43,4 @@ MonoBehaviour:
   - type: 9
     prefab: {fileID: 1524411113276028, guid: e039ba28c6ec4e1f8dc538cdefcaf55e, type: 3}
     gameplayAnimator: {fileID: 9100000, guid: 0f31f809fb564e5a9c75b4e00b833fb9, type: 2}
+  gameplayFallback: {fileID: 0}

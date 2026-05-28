@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// Scales enemy primary stats from Steve's current build. Used for spawn slots and optional FTUE tuning.
@@ -7,8 +8,24 @@ using UnityEngine;
 public class EnemyStatManager : GameServiceBehaviour<EnemyStatManager>
 {
 
-    [Header("Difficulty")]
-    [Tooltip("100 = enemy primaries match Steve's effective stats. 0–200 for easier/harder infinite scaling.")]
+    [System.Serializable]
+    public class EnemyStatDefinition
+    {
+        public POIType type;
+        public float baseStrength = 8f;
+        public float baseAgility = 8f;
+        public float baseVitality = 8f;
+        public float baseLuck = 5f;
+        [Tooltip("Multiplied by Steve's stats when scaling (1.0 = match Steve's level).")]
+        public float scalingMultiplier = 1.0f;
+    }
+
+    [Header("Enemy Specific Stats")]
+    [SerializeField] private List<EnemyStatDefinition> enemyDefinitions = new List<EnemyStatDefinition>();
+    [SerializeField] private EnemyStatDefinition defaultDefinition = new EnemyStatDefinition();
+
+    [Header("Difficulty Scaling")]
+    [Tooltip("Global base multiplier for scaling (100 = 100% of defined scaling).")]
     [Range(0f, 200f)]
     [SerializeField] private float difficultyPercent = 100f;
 
@@ -22,35 +39,75 @@ public class EnemyStatManager : GameServiceBehaviour<EnemyStatManager>
     [SerializeField] private float ftuePercentPerVisitOrder = 8f;
 
     private float randomKillBonus;
+    private int totalRandomKills;
 
     public float DifficultyPercent => difficultyPercent + randomKillBonus;
 
     public void NotifyRandomPoolKill()
     {
         randomKillBonus += difficultyPerRandomKill;
+        totalRandomKills++;
     }
 
     public void ResetRunBonuses()
     {
         randomKillBonus = 0f;
+        totalRandomKills = 0;
     }
 
     public void ApplyScaledStats(Enemy enemy)
     {
         if (enemy == null) return;
 
-        if (!TryGetSteveStats(out float str, out float agi, out float vit, out float luck))
+        POIType type = enemy.MonsterType;
+        EnemyStatDefinition def = GetDefinition(type);
+
+        // If no kills yet, use base stats for the initial world setup.
+        if (totalRandomKills == 0)
         {
-            enemy.Initialize();
-            return;
+            enemy.strength = def.baseStrength;
+            enemy.agility = def.baseAgility;
+            enemy.vitality = def.baseVitality;
+            enemy.luck = def.baseLuck;
+        }
+        else
+        {
+            // Respawned enemies scale with Steve's current power.
+            if (!TryGetSteveStats(out float str, out float agi, out float vit, out float luck))
+            {
+                enemy.strength = def.baseStrength;
+                enemy.agility = def.baseAgility;
+                enemy.vitality = def.baseVitality;
+                enemy.luck = def.baseLuck;
+            }
+            else
+            {
+                float globalScale = DifficultyPercent / 100f;
+                float finalScale = globalScale * def.scalingMultiplier;
+
+                enemy.strength = str * finalScale;
+                enemy.agility = agi * finalScale;
+                enemy.vitality = vit * finalScale;
+                enemy.luck = luck * finalScale;
+            }
         }
 
-        float scale = DifficultyPercent / 100f;
-        enemy.strength = str * scale;
-        enemy.agility = agi * scale;
-        enemy.vitality = vit * scale;
-        enemy.luck = luck * scale;
         enemy.Initialize();
+    }
+
+    private EnemyStatDefinition GetDefinition(POIType type)
+    {
+        foreach (var def in enemyDefinitions)
+        {
+            if (def.type == type)
+            {
+                // Safety: if the definition is all zeros (uninitialized in inspector), use default.
+                if (def.baseStrength <= 0f && def.baseVitality <= 0f)
+                    continue;
+                return def;
+            }
+        }
+        return defaultDefinition;
     }
 
     /// <summary>Sequential POI without authored EnemyData.</summary>
@@ -58,17 +115,26 @@ public class EnemyStatManager : GameServiceBehaviour<EnemyStatManager>
     {
         if (enemy == null) return;
 
+        POIType type = enemy.MonsterType;
+        EnemyStatDefinition def = GetDefinition(type);
+
         if (!TryGetSteveStats(out float str, out float agi, out float vit, out float luck))
         {
+            enemy.strength = def.baseStrength;
+            enemy.agility = def.baseAgility;
+            enemy.vitality = def.baseVitality;
+            enemy.luck = def.baseLuck;
             enemy.Initialize();
             return;
         }
 
         float stepScale = (ftueBasePercent + visitOrder * ftuePercentPerVisitOrder) / 100f;
-        enemy.strength = str * stepScale;
-        enemy.agility = agi * stepScale;
-        enemy.vitality = vit * stepScale;
-        enemy.luck = luck * stepScale;
+        float finalScale = stepScale * def.scalingMultiplier;
+
+        enemy.strength = str * finalScale;
+        enemy.agility = agi * finalScale;
+        enemy.vitality = vit * finalScale;
+        enemy.luck = luck * finalScale;
         enemy.Initialize();
     }
 

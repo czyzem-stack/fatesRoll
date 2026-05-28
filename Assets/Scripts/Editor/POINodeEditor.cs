@@ -13,6 +13,23 @@ public class POINodeEditor : Editor
         node.type = (POIType)EditorGUILayout.EnumPopup("Enemy Type", node.type);
         node.order = EditorGUILayout.IntField("Visit Order", node.order);
 
+        if (!node.IsTreasureChest)
+        {
+            EditorGUILayout.Space();
+            node.enemyData = (EnemyData)EditorGUILayout.ObjectField("Enemy Data asset", node.enemyData, typeof(EnemyData), false);
+            
+            node.useManualStats = EditorGUILayout.Toggle("Use Manual Stats", node.useManualStats);
+            if (node.useManualStats)
+            {
+                EditorGUI.indentLevel++;
+                node.baseStrength = EditorGUILayout.FloatField("Base Strength", node.baseStrength);
+                node.baseAgility = EditorGUILayout.FloatField("Base Agility", node.baseAgility);
+                node.baseVitality = EditorGUILayout.FloatField("Base Vitality", node.baseVitality);
+                node.baseLuck = EditorGUILayout.FloatField("Base Luck", node.baseLuck);
+                EditorGUI.indentLevel--;
+            }
+        }
+
         if (EditorGUI.EndChangeCheck())
         {
             EditorUtility.SetDirty(node);

@@ -58,9 +58,10 @@ public class GameServices : MonoBehaviour
     [SerializeField] private RogueLiteManager rogueLiteManager;
     [SerializeField] private RunDeathController runDeathController;
     [SerializeField] private EnemyStatManager enemyStatManager;
+    [SerializeField] private EnemySpecialController enemySpecialController;
 
     [Header("Hero")]
-    [SerializeField] private HeroController hero;
+[SerializeField] private HeroController hero;
     [SerializeField] private HeroSpawnPoint heroSpawnPoint;
 
     private readonly Dictionary<Type, object> registry = new Dictionary<Type, object>();
@@ -312,8 +313,9 @@ public class GameServices : MonoBehaviour
         rogueLiteManager ??= GetComponentInChildren<RogueLiteManager>(true);
         runDeathController ??= GetComponentInChildren<RunDeathController>(true);
         enemyStatManager ??= GetComponentInChildren<EnemyStatManager>(true);
+        enemySpecialController ??= GetComponentInChildren<EnemySpecialController>(true);
         hero ??= GetComponentInChildren<HeroController>(true);
-        heroSpawnPoint ??= GetComponentInChildren<HeroSpawnPoint>(true);
+heroSpawnPoint ??= GetComponentInChildren<HeroSpawnPoint>(true);
     }
 
     private void PublishInspectorReferences()
@@ -329,8 +331,9 @@ public class GameServices : MonoBehaviour
         RegisterIfPresent(rogueLiteManager);
         RegisterIfPresent(runDeathController);
         RegisterIfPresent(enemyStatManager);
+        RegisterIfPresent(enemySpecialController);
         RegisterIfPresent(hero);
-        RegisterIfPresent(heroSpawnPoint);
+RegisterIfPresent(heroSpawnPoint);
     }
 
     private void RegisterIfPresent<T>(T service) where T : class
@@ -354,8 +357,9 @@ public class GameServices : MonoBehaviour
             case RogueLiteManager rlm: rogueLiteManager = rlm; break;
             case RunDeathController rdc: runDeathController = rdc; break;
             case EnemyStatManager esm: enemyStatManager = esm; break;
+            case EnemySpecialController esc: enemySpecialController = esc; break;
             case HeroController h: hero = h; break;
-            case HeroSpawnPoint sp: heroSpawnPoint = sp; break;
+case HeroSpawnPoint sp: heroSpawnPoint = sp; break;
         }
     }
 

@@ -286,7 +286,6 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
             Debug.LogWarning($"SpawnManager: no SpawnNode markers found in {gameplaySceneName}.");
 
         if (GameServices.TryGet(out POIManager poi) &&
-            poi.VisitPoiCount > 0 &&
             !poi.HasRemainingVisitPOI())
         {
             EnableRandomVisitTargeting();
@@ -431,13 +430,23 @@ public class SpawnManager : GameServiceBehaviour<SpawnManager>
         return spawnChestChance > 0f && Random.value < spawnChestChance;
     }
 
-    public static POIType PickRandomType(POIType? exclude)
+    private POIType PickRandomType(POIType? exclude)
     {
-        var pool = new List<POIType>(MonsterPOIDefinitions.CombatTypes);
+        var pool = monsterCatalog != null
+            ? new List<POIType>(monsterCatalog.GetTypesWithPrefabs())
+            : new List<POIType>(MonsterPOIDefinitions.CombatTypes);
+
         if (exclude.HasValue)
             pool.RemoveAll(t => t == exclude.Value);
+
         if (pool.Count == 0)
-            pool = new List<POIType>(MonsterPOIDefinitions.CombatTypes);
+        {
+            pool = monsterCatalog != null
+                ? new List<POIType>(monsterCatalog.GetTypesWithPrefabs())
+                : new List<POIType>(MonsterPOIDefinitions.CombatTypes);
+        }
+
+        if (pool.Count == 0) return POIType.Orc;
         return pool[Random.Range(0, pool.Count)];
     }
 

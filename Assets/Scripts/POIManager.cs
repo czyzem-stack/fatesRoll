@@ -102,7 +102,7 @@ public class POIManager : GameServiceBehaviour<POIManager>
         if (allVisitPOIs.Count == 0)
             Debug.LogWarning($"POIManager: no POINode objects found in {gameplaySceneName}.");
 
-        if (allVisitPOIs.Count > 0 && !HasRemainingVisitPOI())
+        if (!HasRemainingVisitPOI())
             TryEnableRandomVisitTargeting();
     }
 

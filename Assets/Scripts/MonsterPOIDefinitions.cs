@@ -45,7 +45,7 @@ public static class MonsterPOIDefinitions
             case POIType.Orc: return AnimatorRoot + "Orc.controller";
             case POIType.Skeleton: return "Assets/Animators/Skeleton_New.controller";
             case POIType.Slime: return AnimatorRoot + "Slime.controller";
-            case POIType.Bat: return AnimatorRoot + "Bat.controller";
+            case POIType.Bat: return "Assets/Animators/BatAnimator.controller";
             case POIType.Dragon: return AnimatorRoot + "Dragon.controller";
             case POIType.EvilMage: return AnimatorRoot + "EvilMage.controller";
             case POIType.Golem: return AnimatorRoot + "Golem.controller";

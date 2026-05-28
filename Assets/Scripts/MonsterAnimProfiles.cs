@@ -42,17 +42,10 @@ public readonly struct MonsterAnimProfile
             case POIType.Orc:
             case POIType.Skeleton:
             case POIType.Slime:
+            case POIType.Bat:
                 return new MonsterAnimProfile(true, false, null, null, null, null);
 
-            case POIType.Bat:
             case POIType.Dragon:
-                return new MonsterAnimProfile(
-                    false,
-                    true,
-                    "IdleNormal",
-                    "FlyFWD",
-                    "IdleBattle",
-                    "Attack01");
 
             case POIType.MonsterPlant:
             case POIType.TurtleShell:

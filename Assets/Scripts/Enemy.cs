@@ -180,6 +180,8 @@ public class Enemy : MonoBehaviour
         UpdateHealthUI();
     }
 
+    public POIType MonsterType => ResolveMonsterType();
+
     private POIType ResolveMonsterType()
     {
         var poi = GetComponent<POINode>() ?? GetComponentInParent<POINode>();
@@ -655,14 +657,18 @@ public class Enemy : MonoBehaviour
 
         if (isDead || currentHP <= 0) return false;
 
-        // Skeleton unique ability: 50% block chance
+        // Skeleton unique ability: block chance from EnemySpecialController
         if (ResolveMonsterType() == POIType.Skeleton)
         {
+            float blockChance = 50f;
+            if (GameServices.TryGet(out EnemySpecialController esc))
+                blockChance = esc.GetEffectValue(POIType.Skeleton, 50f);
+
             float blockRoll = Random.Range(0f, 100f);
-            if (blockRoll < 50f)
+            if (blockRoll < blockChance)
             {
                 CombatLog.Info($"{gameObject.name} BLOCKED the attack!");
-                if (locomotionDriver != null) locomotionDriver.PlayDefense();
+if (locomotionDriver != null) locomotionDriver.PlayDefense();
                 else HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
                 
                 // Trigger floating text for block
@@ -793,6 +799,38 @@ public class Enemy : MonoBehaviour
     private System.Collections.IEnumerator AttackRoutine(HeroController hero)
     {
         var settings = GlobalSettings.Instance;
+        POIType type = ResolveMonsterType();
+
+        // Bat special: chance to cast Fear (Taunt) from EnemySpecialController
+        if (type == POIType.Bat && !hero.HasFearEffect)
+        {
+            float castChance = 25f;
+            float duration = 2.0f;
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                castChance = esc.GetSpecialChance(POIType.Bat, 25f);
+                duration = esc.GetSettings(POIType.Bat)?.effectDuration ?? 2.0f;
+            }
+
+            float fearRoll = Random.Range(0f, 100f);
+            if (fearRoll < castChance)
+            {
+                CombatLog.Info($"{gameObject.name} casts <color=purple>FEAR</color>!");
+                isAttacking = true;
+                if (locomotionDriver != null)
+                    locomotionDriver.PlayTaunt();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Taunt);
+
+                hero.ApplyFearEffect();
+                
+                // Taunt usually takes longer
+                yield return new WaitForSeconds(duration);
+                isAttacking = false;
+                yield break;
+            }
+        }
+
         CombatLog.AttackStart(gameObject.name, hero != null ? hero.name : "Steve", "enemy melee");
 
         float windUp = settings != null ? settings.enemyAttackWindUp : 0.14f;

@@ -15,10 +15,12 @@ public class HeroController : MonoBehaviour
     private bool isCelebrating;
     private bool isDead;
     private bool isRespawning;
+    private bool hasFearEffect = false;
     public bool IsCelebrating => isCelebrating;
     public bool IsDead => isDead;
     public bool IsRespawning => isRespawning;
-    public bool IsMoving => movement != null && movement.IsMoving;
+    public bool HasFearEffect => hasFearEffect;
+public bool IsMoving => movement != null && movement.IsMoving;
     public Enemy ApproachingEnemy => movement != null ? movement.ApproachingEnemy : null;
     public bool IsBlockedForDice =>
         isDead ||
@@ -315,7 +317,11 @@ public class HeroController : MonoBehaviour
 
     public void ResetDiceMovement() => movement?.ResetAll();
 
-    public void OnPOIDefeated(POINode node) => movement?.NotifyPoiDefeated(node);
+    public void OnPOIDefeated(POINode node) 
+    {
+        ClearFearEffect();
+        movement?.NotifyPoiDefeated(node);
+    }
 
     public Enemy GetPendingCombatEnemy() => movement != null ? movement.GetPendingCombatEnemy() : null;
 
@@ -453,8 +459,30 @@ public class HeroController : MonoBehaviour
 
         if (enemy != null && !enemy.isDead && InCombat && State != CombatState.Dead)
         {
+            if (hasFearEffect)
+            {
+                float missChance = 25f;
+                if (GameServices.TryGet(out EnemySpecialController esc))
+                    missChance = esc.GetEffectValue(POIType.Bat, 25f);
+
+                float missRoll = Random.Range(0f, 100f);
+                if (missRoll < missChance)
+                {
+                    CombatLog.Info("<color=red>Steve MISSED due to Fear!</color>");
+if (Application.isPlaying)
+                    {
+                        GameObject missGo = new GameObject("MissText");
+                        missGo.transform.position = transform.position + Vector3.up * 2.8f;
+                        var ft = missGo.AddComponent<FloatingText>();
+                        ft.Setup("MISS!", Color.red);
+                    }
+                    yield return new WaitForSeconds(settings != null ? settings.combatHeroAttackRecoverDelay : 0.4f);
+                    yield break;
+                }
+            }
+
             CombatLog.AttackStart("Steve", enemy.name, "hero melee");
-            bool hit = enemy.TakeDamage(damage, "Steve");
+bool hit = enemy.TakeDamage(damage, "Steve");
             if (!hit)
                 CombatLog.DamageMitigated("Steve", enemy.name, "dodged");
         }
@@ -507,8 +535,9 @@ public class HeroController : MonoBehaviour
 
     public void ExitCombat()
     {
+        ClearFearEffect();
         if (combatState == CombatState.InCombat)
-        {
+{
             TransitionCombatState(CombatState.Idle, "exit combat");
         }
         currentEnemy = null;
@@ -583,9 +612,10 @@ public class HeroController : MonoBehaviour
         if (isDead)
             return;
         isDead = true;
+        ClearFearEffect();
 
         if (engageRoutine != null)
-        {
+{
             StopCoroutine(engageRoutine);
             engageRoutine = null;
         }
@@ -682,8 +712,28 @@ public class HeroController : MonoBehaviour
 
     public void VictoryFlourish() => steveAnim?.PlayVictory();
 
-    public void PlayLevelUpCelebration()
+    public void ApplyFearEffect()
     {
+        if (hasFearEffect) return;
+        hasFearEffect = true;
+        CombatLog.Info("<color=purple>Steve is AFRAID! (25% miss chance)</color>");
+        
+        if (Application.isPlaying)
+        {
+            GameObject go = new GameObject("FearText");
+            go.transform.position = transform.position + Vector3.up * 2.8f;
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup("FEAR!", Color.magenta);
+        }
+    }
+
+    public void ClearFearEffect()
+    {
+        hasFearEffect = false;
+    }
+
+    public void PlayLevelUpCelebration()
+{
         if (stats != null)
         {
             stats.RestoreFullHealth();
