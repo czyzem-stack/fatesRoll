@@ -35,6 +35,37 @@ public class TalentManager : MonoBehaviour
         return baseCost + (currentUpgradeLevel * costIncrease);
     }
 
+    public int GetAffordableUpgradeCount()
+    {
+        if (LootManager.Instance == null) return 0;
+        
+        int count = 0;
+        int tempLevel = currentUpgradeLevel;
+        long remainingGold = LootManager.Instance.CurrentGold;
+        
+        while (true)
+        {
+            int cost = baseCost + (tempLevel * costIncrease);
+            if (remainingGold >= cost)
+            {
+                remainingGold -= cost;
+                tempLevel++;
+                count++;
+            }
+            else
+            {
+                break;
+            }
+
+            // Safety break to prevent infinite loop if cost is 0 or negative
+            if (cost <= 0) break;
+            // Also limit to a reasonable number if gold is massive
+            if (count > 999) break;
+        }
+        
+        return count;
+    }
+
     public bool CanAffordUpgrade()
     {
         return LootManager.Instance != null && LootManager.Instance.CurrentGold >= GetCurrentCost();
