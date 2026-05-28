@@ -64,6 +64,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
     public GameObject currentEnemy;
 
     public UnityEngine.UI.Slider healthSlider;
+    public float healthLerpSpeed = 5f;
 
     private Coroutine engageRoutine;
     public bool IsEngageBusy => engageRoutine != null;
@@ -253,7 +254,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         if (healthSlider == null)
         {
-            GameObject sliderGO = GameObject.Find("MainUI_Canvas/HUD_Profile/Slider_Bottom");
+            GameObject sliderGO = GameObject.Find("MainUI_Canvas/Profile/Slider_Bottom");
             if (sliderGO != null)
                 healthSlider = sliderGO.GetComponent<UnityEngine.UI.Slider>();
         }
@@ -265,8 +266,19 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         if (healthSlider != null && stats != null)
         {
-            healthSlider.maxValue = stats.MaxHP;
-            healthSlider.value = stats.currentHP;
+            if (healthSlider.maxValue != stats.MaxHP)
+                healthSlider.maxValue = stats.MaxHP;
+
+            if (Application.isPlaying)
+            {
+                healthSlider.value = Mathf.Lerp(healthSlider.value, stats.currentHP, Time.deltaTime * healthLerpSpeed);
+                if (Mathf.Abs(healthSlider.value - stats.currentHP) < 0.01f)
+                    healthSlider.value = stats.currentHP;
+            }
+            else
+            {
+                healthSlider.value = stats.currentHP;
+            }
         }
     }
 
@@ -288,6 +300,8 @@ public bool IsMoving => movement != null && movement.IsMoving;
 
     private void Update()
     {
+        UpdateHealthUI();
+
         if (agent == null || isDead || isRespawning)
             return;
 

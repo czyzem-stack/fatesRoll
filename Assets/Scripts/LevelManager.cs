@@ -11,6 +11,9 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     public Slider xpSlider;
     public TextMeshProUGUI levelText;
 
+    [Header("UI Smoothing")]
+    public float xpLerpSpeed = 5f;
+
     private int currentLevel = 1;
     private float currentXP = 0f;
     private float xpToNextLevel;
@@ -39,6 +42,11 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         AutoAssignUI();
+        UpdateUI();
+    }
+
+    private void Update()
+    {
         UpdateUI();
     }
 
@@ -91,15 +99,22 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     {
         if (xpSlider != null)
         {
-            if (Mathf.Abs(currentXP - lastDisplayedXP) > 0.01f ||
-                Mathf.Abs(xpToNextLevel - lastDisplayedXpMax) > 0.01f)
+            if (xpSlider.maxValue != xpToNextLevel)
+                xpSlider.maxValue = xpToNextLevel;
+
+            if (Application.isPlaying)
             {
-                if (xpSlider.maxValue != xpToNextLevel)
-                    xpSlider.maxValue = xpToNextLevel;
-                xpSlider.value = currentXP;
-                lastDisplayedXP = currentXP;
-                lastDisplayedXpMax = xpToNextLevel;
+                xpSlider.value = Mathf.Lerp(xpSlider.value, currentXP, Time.deltaTime * xpLerpSpeed);
+                if (Mathf.Abs(xpSlider.value - currentXP) < 0.01f)
+                    xpSlider.value = currentXP;
             }
+            else
+            {
+                xpSlider.value = currentXP;
+            }
+
+            lastDisplayedXP = xpSlider.value;
+            lastDisplayedXpMax = xpToNextLevel;
         }
 
         if (levelText != null && currentLevel != lastDisplayedLevel)
@@ -114,6 +129,7 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     {
         string[] sliderPaths =
         {
+            "MainUI_Canvas/Profile/Slider_Top",
             "MainUI_Canvas/HUD_Profile/Slider_Top",
             "MainUI_Canvas/HUD_Profile/Slider_LevelProfile/Slider_Top",
         };
@@ -130,6 +146,7 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
 
         string[] levelTextPaths =
         {
+            "MainUI_Canvas/Profile/LevelBadge/Text",
             "MainUI_Canvas/HUD_Profile/LevelBadge/Text",
             "MainUI_Canvas/HUD_Profile/LevelBadge/Text (TMP)",
         };

@@ -39,6 +39,9 @@ private float battleShoutMultiplier = 1.0f;
     public bool IsRegenerating => regenTurnsRemaining > 0;
     public bool IsHardened => hardenedTurnsRemaining > 0;
 
+    [Header("UI Smoothing")]
+    public float healthLerpSpeed = 5f;
+
     [Header("Derived Stats (Read-Only)")]
     public float maxHP;
     public float attackDamage;
@@ -103,6 +106,7 @@ private float battleShoutMultiplier = 1.0f;
 
         HandleAI();
         UpdateAnimation();
+        UpdateHealthUI();
     }
 
     private void LateUpdate()
@@ -597,14 +601,27 @@ private float battleShoutMultiplier = 1.0f;
         if (healthSlider == null)
             return;
 
-        if (Mathf.Abs(currentHP - lastDisplayedHP) <= 0.01f &&
-            Mathf.Abs(maxHP - lastDisplayedMaxHP) <= 0.01f)
-            return;
-
         if (healthSlider.maxValue != maxHP)
             healthSlider.maxValue = maxHP;
-        healthSlider.value = currentHP;
-        lastDisplayedHP = currentHP;
+
+        bool needsUpdate = Mathf.Abs(healthSlider.value - currentHP) > 0.01f ||
+                          Mathf.Abs(maxHP - lastDisplayedMaxHP) > 0.01f;
+
+        if (!needsUpdate)
+            return;
+
+        if (Application.isPlaying)
+        {
+            healthSlider.value = Mathf.Lerp(healthSlider.value, currentHP, Time.deltaTime * healthLerpSpeed);
+            if (Mathf.Abs(healthSlider.value - currentHP) < 0.01f)
+                healthSlider.value = currentHP;
+        }
+        else
+        {
+            healthSlider.value = currentHP;
+        }
+
+        lastDisplayedHP = healthSlider.value;
         lastDisplayedMaxHP = maxHP;
 
         if (!healthBarVisualsCached)
@@ -612,7 +629,7 @@ private float battleShoutMultiplier = 1.0f;
 
         if (healthFillImage != null && maxHP > 0f)
         {
-            float hpPercent = Mathf.Clamp01(currentHP / maxHP);
+            float hpPercent = Mathf.Clamp01(healthSlider.value / maxHP);
             Color c = Color.Lerp(Color.red, Color.green, hpPercent);
             c.a = 1.0f;
             healthFillImage.color = c;
