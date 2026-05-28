@@ -28,10 +28,12 @@ public class TalentUIController : MonoBehaviour
 
     private GameObject[] roleHighlights;
     private bool isSpinning = false;
+    private PowerScoreDisplay powerScoreDisplay;
 
     private void Awake()
     {
         InitializeRoles();
+        powerScoreDisplay = GetComponentInChildren<PowerScoreDisplay>(true);
     }
 
     private void OnEnable()
@@ -134,6 +136,8 @@ public class TalentUIController : MonoBehaviour
     {
         if (isSpinning) return;
         
+        if (powerScoreDisplay != null) powerScoreDisplay.Lock();
+
         int resultCategory = TalentManager.Instance.PerformUpgrade();
         if (resultCategory != -1)
         {
@@ -172,6 +176,7 @@ public class TalentUIController : MonoBehaviour
 
         // Finish
         isSpinning = false;
+        if (powerScoreDisplay != null) powerScoreDisplay.UnlockAndShowDelta();
         UpdateUI();
     }
 }

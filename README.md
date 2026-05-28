@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.082` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.083` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.083** | Bug resolution for upgrades: affordable upgrade count and alert badge |
 | **v0.0.082** | Talent tree is in |
 | **v0.0.081** | Set up to implement talent tree: Profile HUD paths, panel toggle, and shop UI |
 | **v0.0.080** | HP and XP bar smoothing with corrected Profile HUD slider paths |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.056** | Fix melee engage: single distance, Steve initiates, no enemy aggro |
 | **v0.0.055** | Fix README sync in pre-commit to stop version-only commits |
 | **v0.0.054** | Sync README version and changelog for v0.0.052 |
-| **v0.0.053** | Sync README version and changelog for v0.0.052 |
 <!-- CHANGELOG:END -->
 
 ---
