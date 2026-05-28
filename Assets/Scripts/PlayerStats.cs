@@ -56,7 +56,7 @@ public class PlayerStats : MonoBehaviour
             float effVit = vitality + equipmentVitality + talentVitality;
             float effLuck = luck + equipmentLuck + talentLuck;
             float sumBaseStats = effStr + effAgi + effVit + effLuck;
-            return (maxHP + sumBaseStats) * (critChance + dodgeChance);
+            return ((maxHP * (dodgeChance / 100f)) + sumBaseStats) * ((critChance + critDamage) / 100f);
         }
     }
 

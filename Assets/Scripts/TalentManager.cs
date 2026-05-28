@@ -1,10 +1,8 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class TalentManager : MonoBehaviour
+public class TalentManager : GameServiceBehaviour<TalentManager>
 {
-    public static TalentManager Instance { get; private set; }
-
     [Header("Cost Settings")]
     public int baseCost = 25;
     public int costIncrease = 10;
@@ -22,11 +20,9 @@ public class TalentManager : MonoBehaviour
     // Track total bonuses applied
     public Dictionary<int, float> totalBonuses = new Dictionary<int, float>();
 
-    private void Awake()
+    protected override void Awake()
     {
-        if (Instance == null) Instance = this;
-        else Destroy(gameObject);
-
+        base.Awake();
         for (int i = 0; i < 10; i++) totalBonuses[i] = 0;
     }
 

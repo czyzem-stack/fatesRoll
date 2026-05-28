@@ -56,12 +56,13 @@ public class GameServices : MonoBehaviour
     [SerializeField] private LootManager lootManager;
     [SerializeField] private EquipmentLootManager equipmentLootManager;
     [SerializeField] private RogueLiteManager rogueLiteManager;
+    [SerializeField] private TalentManager talentManager;
     [SerializeField] private RunDeathController runDeathController;
     [SerializeField] private EnemyStatManager enemyStatManager;
     [SerializeField] private EnemySpecialController enemySpecialController;
 
     [Header("Hero")]
-[SerializeField] private HeroController hero;
+    [SerializeField] private HeroController hero;
     [SerializeField] private HeroSpawnPoint heroSpawnPoint;
 
     private readonly Dictionary<Type, object> registry = new Dictionary<Type, object>();
@@ -295,6 +296,7 @@ public class GameServices : MonoBehaviour
         if (lootManager == null) lootManager = incoming.lootManager;
         if (equipmentLootManager == null) equipmentLootManager = incoming.equipmentLootManager;
         if (rogueLiteManager == null) rogueLiteManager = incoming.rogueLiteManager;
+        if (talentManager == null) talentManager = incoming.talentManager;
         if (runDeathController == null) runDeathController = incoming.runDeathController;
         if (enemyStatManager == null) enemyStatManager = incoming.enemyStatManager;
         if (enemySpecialController == null) enemySpecialController = incoming.enemySpecialController;
@@ -327,11 +329,12 @@ public class GameServices : MonoBehaviour
         lootManager ??= GetComponentInChildren<LootManager>(true);
         equipmentLootManager ??= GetComponentInChildren<EquipmentLootManager>(true);
         rogueLiteManager ??= GetComponentInChildren<RogueLiteManager>(true);
+        talentManager ??= GetComponentInChildren<TalentManager>(true);
         runDeathController ??= GetComponentInChildren<RunDeathController>(true);
         enemyStatManager ??= GetComponentInChildren<EnemyStatManager>(true);
         enemySpecialController ??= GetComponentInChildren<EnemySpecialController>(true);
         hero ??= GetComponentInChildren<HeroController>(true);
-heroSpawnPoint ??= GetComponentInChildren<HeroSpawnPoint>(true);
+        heroSpawnPoint ??= GetComponentInChildren<HeroSpawnPoint>(true);
     }
 
     private void PublishInspectorReferences()
@@ -345,11 +348,12 @@ heroSpawnPoint ??= GetComponentInChildren<HeroSpawnPoint>(true);
         RegisterIfPresent(lootManager);
         RegisterIfPresent(equipmentLootManager);
         RegisterIfPresent(rogueLiteManager);
+        RegisterIfPresent(talentManager);
         RegisterIfPresent(runDeathController);
         RegisterIfPresent(enemyStatManager);
         RegisterIfPresent(enemySpecialController);
         RegisterIfPresent(hero);
-RegisterIfPresent(heroSpawnPoint);
+        RegisterIfPresent(heroSpawnPoint);
     }
 
     private void RegisterIfPresent<T>(T service) where T : class
@@ -371,6 +375,7 @@ RegisterIfPresent(heroSpawnPoint);
             case LootManager loot: lootManager = loot; break;
             case EquipmentLootManager elm: equipmentLootManager = elm; break;
             case RogueLiteManager rlm: rogueLiteManager = rlm; break;
+            case TalentManager tm: talentManager = tm; break;
             case RunDeathController rdc: runDeathController = rdc; break;
             case EnemyStatManager esm: enemyStatManager = esm; break;
             case EnemySpecialController esc: enemySpecialController = esc; break;
