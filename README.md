@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.079` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.080` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.080** | HP and XP bar smoothing with corrected Profile HUD slider paths |
 | **v0.0.079** | UI foundation QAed: new home screen |
 | **v0.0.078** | Save point: character panel prefab state at stable break boundary |
 | **v0.0.077** | Orc battle shout buff, configurable special floating text, and fear miss labels |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.053** | Sync README version and changelog for v0.0.052 |
 | **v0.0.052** | Sync README version and changelog for v0.0.051 |
 | **v0.0.051** | Clean up GlobalSettings and add combat log toggle |
-| **v0.0.049** | Sync README version and changelog for v0.0.048 |
 <!-- CHANGELOG:END -->
 
 ---

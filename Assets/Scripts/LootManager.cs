@@ -320,10 +320,12 @@ public class LootManager : GameServiceBehaviour<LootManager>
     {
         string[] paths =
         {
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Gold/Gold/Text (TMP)",
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Gold/Text (TMP)",
+            "MainUI_Canvas/Resources/HUD_Item_Coin/Coin/Text (TMP)",
+            "MainUI_Canvas/Resources/HUD_Item_Coin/Text (TMP)",
+            "MainUI_Canvas/Resources/HUD_Item_Gold/Gold/Text (TMP)",
+            "MainUI_Canvas/Resources/HUD_Item_Gold/Text (TMP)",
             "MainUI_Canvas/HUD_Resources/HUD_Item_Coin/Coin/Text (TMP)",
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Coin/Text (TMP)",
+            "MainUI_Canvas/HUD_Resources/HUD_Item_Gold/Gold/Text (TMP)",
         };
 
         foreach (string path in paths)

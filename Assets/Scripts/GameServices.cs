@@ -282,8 +282,24 @@ public class GameServices : MonoBehaviour
         if (incoming == null)
             return;
 
+        // Discovery without auto-registration to Current
         incoming.ResolveReferences();
-        incoming.PublishInspectorReferences();
+        
+        // Only take what we are missing
+        if (globalSettings == null) globalSettings = incoming.globalSettings;
+        if (diceSpawner == null) diceSpawner = incoming.diceSpawner;
+        if (poiManager == null) poiManager = incoming.poiManager;
+        if (spawnManager == null) spawnManager = incoming.spawnManager;
+        if (energyManager == null) energyManager = incoming.energyManager;
+        if (levelManager == null) levelManager = incoming.levelManager;
+        if (lootManager == null) lootManager = incoming.lootManager;
+        if (equipmentLootManager == null) equipmentLootManager = incoming.equipmentLootManager;
+        if (rogueLiteManager == null) rogueLiteManager = incoming.rogueLiteManager;
+        if (runDeathController == null) runDeathController = incoming.runDeathController;
+        if (enemyStatManager == null) enemyStatManager = incoming.enemyStatManager;
+        if (enemySpecialController == null) enemySpecialController = incoming.enemySpecialController;
+
+        PublishInspectorReferences();
         RefreshHeroSpawnFromChildren();
     }
 

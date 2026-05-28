@@ -40,18 +40,18 @@ public class EnemySpecialSettings
 /// Central hub for tuning enemy special abilities (Fear, Block, Burn, Curse, etc.)
 /// instead of hardcoding values in Enemy or HeroController.
 /// </summary>
-public class EnemySpecialController : MonoBehaviour
+public class EnemySpecialController : GameServiceBehaviour<EnemySpecialController>
 {
     public List<EnemySpecialSettings> specialSettings = new List<EnemySpecialSettings>();
 
-    private void Awake()
+    protected override void Awake()
     {
-        GameServices.Register(this);
+        base.Awake();
     }
 
-    private void OnDestroy()
+    protected override void OnDestroy()
     {
-        GameServices.Unregister(this);
+        base.OnDestroy();
     }
 
     public EnemySpecialSettings GetSettings(POIType type)
