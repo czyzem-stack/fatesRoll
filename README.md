@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.085` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.086` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.086** | Added hero select panel with gems and heroes UI |
 | **v0.0.085** | Power score formula update and register TalentManager in GameServices |
 | **v0.0.084** | Working stable build: talent upgrades, power score delta feedback, unpolished but playable |
 | **v0.0.083** | Bug resolution for upgrades: affordable upgrade count and alert badge |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.059** | Add title loading screen with tap-to-start flow and editor setup |
 | **v0.0.058** | Add LootManager to main play scene |
 | **v0.0.057** | Add LootManager celebration coin drops and gold pickup |
-| **v0.0.056** | Fix melee engage: single distance, Steve initiates, no enemy aggro |
 <!-- CHANGELOG:END -->
 
 ---
