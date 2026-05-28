@@ -14,6 +14,10 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     [Header("UI Smoothing")]
     public float xpLerpSpeed = 5f;
 
+    public int CurrentLevel => currentLevel;
+    public float CurrentXP => currentXP;
+    public float XPToNextLevel => xpToNextLevel;
+
     private int currentLevel = 1;
     private float currentXP = 0f;
     private float xpToNextLevel;
@@ -84,8 +88,6 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
         if (RogueLiteManager.Instance != null)
             RogueLiteManager.Instance.EnqueueLevelUp(currentLevel);
     }
-
-    public int CurrentLevel => currentLevel;
 
     private void CalculateXPRequirement()
     {

@@ -47,8 +47,21 @@ public class PlayerStats : MonoBehaviour
     public float CritDamage => critDamage;
     public float DodgeChance => dodgeChance;
 
-    private void Start()
+    public float PowerScore
     {
+        get
+        {
+            float effStr = strength + equipmentStrength + talentStrength;
+            float effAgi = agility + equipmentAgility + talentAgility;
+            float effVit = vitality + equipmentVitality + talentVitality;
+            float effLuck = luck + equipmentLuck + talentLuck;
+            float sumBaseStats = effStr + effAgi + effVit + effLuck;
+            return (maxHP + sumBaseStats) * (critChance + dodgeChance);
+        }
+    }
+
+    private void Start()
+{
         CalculateAllDerivedStats();
         // Fully heal on start
         currentHP = maxHP;
@@ -97,15 +110,25 @@ public class PlayerStats : MonoBehaviour
         luck = this.luck + equipmentLuck;
     }
 
+    [Header("Talent bonuses (applied by TalentManager)")]
+    public float talentStrength;
+    public float talentAgility;
+    public float talentVitality;
+    public float talentLuck;
+    public float talentMaxHP;
+    public float talentDodge;
+    public float talentCritChance;
+    public float talentCritDamage;
+
     public void CalculateAllDerivedStats()
     {
-        float effStr = strength + equipmentStrength;
-        float effAgi = agility + equipmentAgility;
-        float effVit = vitality + equipmentVitality;
-        float effLuck = luck + equipmentLuck;
+        float effStr = strength + equipmentStrength + talentStrength;
+        float effAgi = agility + equipmentAgility + talentAgility;
+        float effVit = vitality + equipmentVitality + talentVitality;
+        float effLuck = luck + equipmentLuck + talentLuck;
 
-        // Max HP = Vitality * 10 + 100
-        maxHP = effVit * 10f + 100f;
+        // Max HP = Vitality * 10 + 100 + Talent Bonus
+        maxHP = effVit * 10f + 100f + talentMaxHP;
 
         // Attack Damage = Strength * 4 + 20
         attackDamage = effStr * 4f + 20f;
@@ -113,14 +136,14 @@ public class PlayerStats : MonoBehaviour
         // Attack Speed = 1.0 + (Agility * 0.03)
         attackSpeed = 1.0f + (effAgi * 0.03f);
 
-        // Crit Chance (%) = Luck * 0.8
-        critChance = effLuck * 0.8f;
+        // Crit Chance (%) = Luck * 0.8 + Talent Bonus
+        critChance = effLuck * 0.8f + talentCritChance;
 
-        // Crit Damage (%) = 50 + (Luck * 1.5)
-        critDamage = 50f + (luck * 1.5f);
+        // Crit Damage (%) = 50 + (Luck * 1.5) + Talent Bonus
+        critDamage = 50f + (luck * 1.5f) + talentCritDamage;
 
-        // Dodge Chance (%) = Agility * 0.6
-        dodgeChance = effAgi * 0.6f;
+        // Dodge Chance (%) = Agility * 0.6 + Talent Bonus
+        dodgeChance = effAgi * 0.6f + talentDodge;
 
         // Ensure current HP doesn't exceed new Max HP
         if (currentHP > maxHP) currentHP = maxHP;

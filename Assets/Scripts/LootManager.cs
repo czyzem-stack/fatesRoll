@@ -72,6 +72,19 @@ public class LootManager : GameServiceBehaviour<LootManager>
     [Tooltip("HUD text that shows Steve's current gold total. Use Auto-Assign UI if empty.")]
     public TextMeshProUGUI goldText;
 
+    public int CurrentGold => currentGold;
+
+    public bool TrySpendGold(int amount)
+    {
+        if (currentGold >= amount)
+        {
+            currentGold -= amount;
+            UpdateGoldUI();
+            return true;
+        }
+        return false;
+    }
+
     private int currentGold;
     private readonly List<DroppedCoin> activeCoins = new List<DroppedCoin>();
     private int pendingBatchCoins;

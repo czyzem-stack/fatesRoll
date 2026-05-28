@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.080` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.081` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.081** | Set up to implement talent tree: Profile HUD paths, panel toggle, and shop UI |
 | **v0.0.080** | HP and XP bar smoothing with corrected Profile HUD slider paths |
 | **v0.0.079** | UI foundation QAed: new home screen |
 | **v0.0.078** | Save point: character panel prefab state at stable break boundary |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.054** | Sync README version and changelog for v0.0.052 |
 | **v0.0.053** | Sync README version and changelog for v0.0.052 |
 | **v0.0.052** | Sync README version and changelog for v0.0.051 |
-| **v0.0.051** | Clean up GlobalSettings and add combat log toggle |
 <!-- CHANGELOG:END -->
 
 ---
