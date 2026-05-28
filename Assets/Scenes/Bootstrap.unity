@@ -652,23 +652,65 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EnemyStatManager
   enemyDefinitions:
   - type: 0
-    baseStrength: 0
-    baseAgility: 0
-    baseVitality: 0
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
     baseLuck: 0
     scalingMultiplier: 0
   - type: 1
-    baseStrength: 0
-    baseAgility: 0
-    baseVitality: 0
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
     baseLuck: 0
     scalingMultiplier: 0
   - type: 3
-    baseStrength: 0
-    baseAgility: 0
-    baseVitality: 0
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
     baseLuck: 0
     scalingMultiplier: 0
+  - type: 2
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
+  - type: 4
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
+  - type: 5
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
+  - type: 6
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
+  - type: 7
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
+  - type: 8
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
+  - type: 9
+    baseStrength: 8
+    baseAgility: 8
+    baseVitality: 8
+    baseLuck: 0
+    scalingMultiplier: 1
   defaultDefinition:
     type: 0
     baseStrength: 8
@@ -1332,6 +1374,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EnemySpecialController
   specialSettings:
+  - enemyType: 9
+    specialChance: 25
+    effectValue: 50
+    buffTurns: 2
+    effectDuration: 2
+    floatingText: HARDENED!
+    textColor: {r: 0, g: 0, b: 1, a: 1}
   - enemyType: 1
     specialChance: 25
     effectValue: 50
@@ -1353,6 +1402,48 @@ MonoBehaviour:
     effectDuration: 2
     floatingText: BATTLE SHOUT!
     textColor: {r: 1, g: 0.92156863, b: 0.015686275, a: 1}
+  - enemyType: 4
+    specialChance: 25
+    effectValue: 10
+    buffTurns: 3
+    effectDuration: 2
+    floatingText: BURN!
+    textColor: {r: 1, g: 0.5, b: 0, a: 1}
+  - enemyType: 5
+    specialChance: 25
+    effectValue: 25
+    buffTurns: 3
+    effectDuration: 2
+    floatingText: CURSE!
+    textColor: {r: 0.5, g: 0, b: 0.5, a: 1}
+  - enemyType: 2
+    specialChance: 15
+    effectValue: 10
+    buffTurns: 3
+    effectDuration: 2
+    floatingText: REGEN!
+    textColor: {r: 0, g: 1, b: 0, a: 1}
+  - enemyType: 6
+    specialChance: 10
+    effectValue: 5
+    buffTurns: 0
+    effectDuration: 2
+    floatingText: EARTHEN SURGE!
+    textColor: {r: 0.6, g: 0.4, b: 0.2, a: 1}
+  - enemyType: 7
+    specialChance: 20
+    effectValue: 8
+    buffTurns: 4
+    effectDuration: 3.33
+    floatingText: POISON!
+    textColor: {r: 0, g: 1, b: 0, a: 1}
+  - enemyType: 8
+    specialChance: 35
+    effectValue: 5
+    buffTurns: 0
+    effectDuration: 2
+    floatingText: SKITTER!
+    textColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

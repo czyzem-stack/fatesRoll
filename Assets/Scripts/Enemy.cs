@@ -27,8 +27,17 @@ public class Enemy : MonoBehaviour
     public float currentHP;
     public bool isDead = false;
     public bool isAttacking = false;
+    private bool isRunningAway = false;
     private int battleShoutTurnsRemaining = 0;
-    private float battleShoutMultiplier = 1.0f;
+private float battleShoutMultiplier = 1.0f;
+    private int regenTurnsRemaining = 0;
+    private float regenPercentPerTurn = 0f;
+    private Color regenTextColor = Color.green;
+    private int hardenedTurnsRemaining = 0;
+    private float hardenedReductionPercent = 0f;
+
+    public bool IsRegenerating => regenTurnsRemaining > 0;
+    public bool IsHardened => hardenedTurnsRemaining > 0;
 
     [Header("Derived Stats (Read-Only)")]
     public float maxHP;
@@ -129,14 +138,14 @@ public class Enemy : MonoBehaviour
         {
             bool inCombat = cachedHero != null && IsFightingHero(cachedHero);
             float agentSpeed = 0f;
-            if (!navHeld && !isAttacking && !inCombat && !isProtected && IsLocomoting())
+            if (isRunningAway || (!navHeld && !isAttacking && !inCombat && !isProtected && IsLocomoting()))
                 agentSpeed = agent.velocity.magnitude;
 
             locomotionDriver.UpdateLocomotion(agentSpeed, inCombat, isAttacking);
             return;
         }
 
-        if (navHeld || isAttacking || isProtected || (cachedHero != null && IsFightingHero(cachedHero)))
+        if (!isRunningAway && (navHeld || isAttacking || isProtected || (cachedHero != null && IsFightingHero(cachedHero))))
         {
             HeroAnimatorParams.SetFloatSafe(animator, HeroAnimatorParams.Speed, 0f, 0.15f, Time.deltaTime);
             return;
@@ -156,6 +165,13 @@ public class Enemy : MonoBehaviour
 
     public void Initialize()
     {
+        battleShoutTurnsRemaining = 0;
+        battleShoutMultiplier = 1.0f;
+        regenTurnsRemaining = 0;
+        regenPercentPerTurn = 0f;
+        hardenedTurnsRemaining = 0;
+        hardenedReductionPercent = 0f;
+
         animator = GetComponentInChildren<Animator>();
         if (animator != null)
         {
@@ -188,11 +204,17 @@ public class Enemy : MonoBehaviour
     {
         var poi = GetComponent<POINode>() ?? GetComponentInParent<POINode>();
         if (poi != null)
+        {
+            if (poi.type == POIType.MonsterPlant) GlobalSettings.LogGameplay($"[Enemy] {gameObject.name} identified as MonsterPlant.");
             return poi.type;
+        }
 
         var spawnNode = GetComponentInParent<SpawnNode>();
         if (spawnNode != null && spawnNode.hasSpawnedType)
+        {
+            if (spawnNode.lastSpawnedType == POIType.MonsterPlant) GlobalSettings.LogGameplay($"[Enemy] {gameObject.name} (spawned) identified as MonsterPlant.");
             return spawnNode.lastSpawnedType;
+        }
 
         return POIType.Orc;
     }
@@ -444,9 +466,9 @@ public class Enemy : MonoBehaviour
         bool isProtected = locomotionDriver != null && locomotionDriver.IsInProtectedAnimation;
 
         // Steve walks in or is in melee range — stand still. Never chase; never walk off when he arrives.
-        if (cachedHero.IsEngageBusy || isAttacking || isProtected ||
+        if (!isRunningAway && (cachedHero.IsEngageBusy || isAttacking || isProtected ||
             IsSteveApproachingUs() || IsWithinEngageRange(cachedHero) ||
-            (cachedHero.IsMoving && IsHeroInPatrolZone(cachedHero)))
+            (cachedHero.IsMoving && IsHeroInPatrolZone(cachedHero))))
         {
             HoldPosition();
             return;
@@ -652,8 +674,55 @@ public class Enemy : MonoBehaviour
         POIResolve.Resolve(gameObject);
     }
 
-    public bool TakeDamage(float amount, string attackerName = "Steve")
+    public void ApplyRegenEffect(float percent, int turns, Color textColor)
     {
+        regenPercentPerTurn = percent;
+        regenTurnsRemaining = turns;
+        regenTextColor = textColor;
+    }
+
+    public void TickRegenEffect()
+    {
+        if (regenTurnsRemaining <= 0 || isDead) return;
+
+        float amount = maxHP * (regenPercentPerTurn / 100f);
+        currentHP = Mathf.Min(maxHP, currentHP + amount);
+        UpdateHealthUI();
+
+        if (Application.isPlaying)
+        {
+            GameObject go = new GameObject("HealText");
+            go.transform.position = transform.position + Vector3.up * 3.2f;
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup($"+{amount:F0}", regenTextColor);
+        }
+
+        regenTurnsRemaining--;
+        if (regenTurnsRemaining <= 0)
+        {
+            CombatLog.Info($"{gameObject.name} REGEN finished.");
+        }
+    }
+
+    public void ApplyHardenedEffect(float percent, int turns)
+    {
+        hardenedReductionPercent = percent;
+        hardenedTurnsRemaining = turns;
+    }
+
+    public void TickHardenedEffect()
+    {
+        if (hardenedTurnsRemaining <= 0 || isDead) return;
+
+        hardenedTurnsRemaining--;
+        if (hardenedTurnsRemaining <= 0)
+        {
+            CombatLog.Info($"{gameObject.name} HARDENED effect wore off.");
+        }
+    }
+
+    public bool TakeDamage(float amount, string attackerName = "Steve")
+{
         if (IsTreasureChest)
             return false;
 
@@ -664,24 +733,25 @@ public class Enemy : MonoBehaviour
         {
             float blockChance = 50f;
             if (GameServices.TryGet(out EnemySpecialController esc))
+            {
                 blockChance = esc.GetEffectValue(POIType.Skeleton, 50f);
 
-            float blockRoll = Random.Range(0f, 100f);
-            if (blockRoll < blockChance)
-            {
-                CombatLog.Info($"{gameObject.name} BLOCKED the attack!");
-                if (locomotionDriver != null) locomotionDriver.PlayDefense();
-                else HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
-
-                if (Application.isPlaying)
+                float blockRoll = Random.Range(0f, 100f);
+                if (blockRoll < blockChance)
                 {
-                    string txt = "BLOCKED";
-                    Color col = Color.white;
-                    if (GameServices.TryGet(out EnemySpecialController esc))
+                    CombatLog.Info($"{gameObject.name} BLOCKED the attack!");
+                    if (locomotionDriver != null) locomotionDriver.PlayDefense();
+                    else HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
+
+                    if (Application.isPlaying)
                     {
-                        txt = esc.GetFloatingText(POIType.Skeleton, txt);
-                        col = esc.GetTextColor(POIType.Skeleton, col);
-                    }
+                        string txt = "BLOCKED";
+                        Color col = Color.white;
+                        if (GameServices.TryGet(out EnemySpecialController escTxt))
+                        {
+                            txt = escTxt.GetFloatingText(POIType.Skeleton, txt);
+                            col = escTxt.GetTextColor(POIType.Skeleton, col);
+                        }
 
                     GameObject blockGo = new GameObject("BlockText");
                     blockGo.transform.position = transform.position + Vector3.up * 2.8f;
@@ -690,6 +760,7 @@ public class Enemy : MonoBehaviour
                 return false;
             }
         }
+    }
 
         float dodgeRoll = Random.Range(0f, 100f);
         if (dodgeRoll < dodgeChance)
@@ -701,9 +772,17 @@ public class Enemy : MonoBehaviour
 
         float hpBefore = currentHP;
         SetHealthBarVisible(true);
+
+        if (IsHardened)
+        {
+            float reduction = amount * (hardenedReductionPercent / 100f);
+            CombatLog.Info($"{gameObject.name} reduced damage by {reduction:F0} (HARDENED)!");
+            amount -= reduction;
+        }
+
         currentHP -= amount;
         UpdateHealthUI();
-        CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
+CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
         
         if (Application.isPlaying)
         {
@@ -809,6 +888,9 @@ public class Enemy : MonoBehaviour
         var settings = GlobalSettings.Instance;
         POIType type = ResolveMonsterType();
 
+        TickRegenEffect();
+        TickHardenedEffect();
+
         // Orc special: Battle Shout (increase damage multiplier)
         if (type == POIType.Orc && battleShoutTurnsRemaining <= 0)
         {
@@ -836,10 +918,10 @@ public class Enemy : MonoBehaviour
                 {
                     string txt = "BATTLE SHOUT!";
                     Color col = Color.yellow;
-                    if (GameServices.TryGet(out EnemySpecialController esc))
+                    if (GameServices.TryGet(out EnemySpecialController escText))
                     {
-                        txt = esc.GetFloatingText(POIType.Orc, txt);
-                        col = esc.GetTextColor(POIType.Orc, col);
+                        txt = escText.GetFloatingText(POIType.Orc, txt);
+                        col = escText.GetTextColor(POIType.Orc, col);
                     }
 
                     GameObject shoutGo = new GameObject("ShoutText");
@@ -885,10 +967,10 @@ public class Enemy : MonoBehaviour
                 {
                     string txt = "FEAR!";
                     Color col = Color.magenta;
-                    if (GameServices.TryGet(out EnemySpecialController esc))
+                    if (GameServices.TryGet(out EnemySpecialController escTxt))
                     {
-                        txt = esc.GetFloatingText(POIType.Bat, txt);
-                        col = esc.GetTextColor(POIType.Bat, col);
+                        txt = escTxt.GetFloatingText(POIType.Bat, txt);
+                        col = escTxt.GetTextColor(POIType.Bat, col);
                     }
 
                     GameObject fearGo = new GameObject("FearText");
@@ -897,6 +979,433 @@ public class Enemy : MonoBehaviour
                 }
 
                 // Taunt usually takes longer
+                yield return new WaitForSeconds(duration);
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // Dragon special: BURN
+        if (type == POIType.Dragon)
+        {
+            float burnChance = 10f;
+            int damage = 10;
+            int turns = 3;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                burnChance = esc.GetSpecialChance(POIType.Dragon, 10f);
+                var s = esc.GetSettings(POIType.Dragon);
+                damage = s != null ? (int)s.effectValue : 10;
+                turns = s != null ? s.buffTurns : 3;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float burnRoll = Random.Range(0f, 100f);
+            if (burnRoll < burnChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses <color=orange>BURN</color>!");
+                isAttacking = true;
+                
+                if (locomotionDriver != null)
+                {
+                    locomotionDriver.PlayAttack(1); // 1 = Attack02 (usually breath)
+                }
+                else
+                {
+                    if (HeroAnimatorParams.HasParameter(animator, "AttackIndex"))
+                        animator.SetInteger("AttackIndex", 1);
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
+                }
+
+                hero.ApplyBurnEffect(damage, turns);
+
+                if (Application.isPlaying)
+                {
+                    string txt = "BURN!";
+                    Color col = new Color(1f, 0.5f, 0f);
+                    if (GameServices.TryGet(out EnemySpecialController escTxt))
+                    {
+                        txt = escTxt.GetFloatingText(POIType.Dragon, txt);
+                        col = escTxt.GetTextColor(POIType.Dragon, col);
+                    }
+
+                    // Show above STEVE since he is the one burning
+                    GameObject burnGo = new GameObject("BurnText");
+                    burnGo.transform.position = hero.transform.position + Vector3.up * 2.8f;
+                    burnGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                // Deal initial damage so Steve flinches/reacts
+                yield return new WaitForSeconds(0.25f);
+                if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
+                {
+                    float initDmg = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
+                    hero.TakeDamage((int)initDmg, gameObject.name, isCrit);
+                }
+
+                yield return new WaitForSeconds(Mathf.Max(0, duration - 0.25f));
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // EvilMage special: CURSE
+        if (type == POIType.EvilMage)
+        {
+            float curseChance = 25f;
+            float reductionPercent = 25f;
+            int turns = 3;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                curseChance = esc.GetSpecialChance(POIType.EvilMage, 25f);
+                var s = esc.GetSettings(POIType.EvilMage);
+                reductionPercent = s != null ? s.effectValue : 25f;
+                turns = s != null ? s.buffTurns : 3;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float curseRoll = Random.Range(0f, 100f);
+            if (curseRoll < curseChance)
+            {
+                CombatLog.Info($"{gameObject.name} casts CURSE! (Turns: {turns})");
+                isAttacking = true;
+
+                if (locomotionDriver != null)
+                {
+                    locomotionDriver.PlayAttack(1); // Use Attack02 for casting
+                }
+                else
+                {
+                    if (HeroAnimatorParams.HasParameter(animator, "AttackIndex"))
+                        animator.SetInteger("AttackIndex", 1);
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Attack);
+                }
+
+                hero.ApplyCurseEffect(reductionPercent, turns);
+
+                if (Application.isPlaying)
+                {
+                    string txt = "CURSE!";
+                    Color col = new Color(0.5f, 0f, 0.5f);
+                    if (GameServices.TryGet(out EnemySpecialController escTxt))
+                    {
+                        txt = escTxt.GetFloatingText(POIType.EvilMage, txt);
+                        col = escTxt.GetTextColor(POIType.EvilMage, col);
+                    }
+
+                    GameObject curseGo = new GameObject("CurseText");
+                    curseGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    curseGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                // Deal initial damage so Steve flinches/reacts
+                yield return new WaitForSeconds(0.25f);
+                if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
+                {
+                    float initDmg = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
+                    hero.TakeDamage((int)initDmg, gameObject.name, isCrit);
+                }
+
+                yield return new WaitForSeconds(Mathf.Max(0, duration - 0.25f));
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // Slime special: REGEN
+        if (type == POIType.Slime && !IsRegenerating)
+        {
+            float regenChance = 15f;
+            float healPercent = 10f;
+            int turns = 3;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                regenChance = esc.GetSpecialChance(POIType.Slime, 15f);
+                var s = esc.GetSettings(POIType.Slime);
+                healPercent = s != null ? s.effectValue : 10f;
+                turns = s != null ? s.buffTurns : 3;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float regenRoll = Random.Range(0f, 100f);
+            if (regenRoll < regenChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses REGEN!");
+                isAttacking = true;
+
+                if (locomotionDriver != null)
+                    locomotionDriver.PlaySpecial();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
+
+                string txt = "REGEN!";
+                Color col = Color.green;
+                if (GameServices.TryGet(out EnemySpecialController escTxt))
+                {
+                    txt = escTxt.GetFloatingText(POIType.Slime, txt);
+                    col = escTxt.GetTextColor(POIType.Slime, col);
+                }
+
+                ApplyRegenEffect(healPercent, turns, col);
+
+                if (Application.isPlaying)
+                {
+                    GameObject regenGo = new GameObject("RegenText");
+                    regenGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    regenGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                yield return new WaitForSeconds(duration);
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // Golem special: EARTHEN SURGE
+        if (type == POIType.Golem)
+        {
+            float surgeChance = 10f;
+            float diceValueMeters = 10f;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                surgeChance = esc.GetSpecialChance(POIType.Golem, 10f);
+                var s = esc.GetSettings(POIType.Golem);
+                diceValueMeters = s != null ? s.effectValue : 10f;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float surgeRoll = Random.Range(0f, 100f);
+            if (surgeRoll < surgeChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses EARTHEN SURGE!");
+                isAttacking = true;
+
+                if (locomotionDriver != null)
+                    locomotionDriver.PlaySpecial();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
+
+                float meters = diceValueMeters * (GlobalSettings.Instance != null ? GlobalSettings.Instance.metersPerStep : 3.0f);
+                hero.ApplyKnockback(transform.position, meters);
+
+                if (Application.isPlaying)
+                {
+                    string txt = "EARTHEN SURGE!";
+                    Color col = new Color(0.6f, 0.4f, 0.2f);
+                    if (GameServices.TryGet(out EnemySpecialController escTxt))
+                    {
+                        txt = escTxt.GetFloatingText(POIType.Golem, txt);
+                        col = escTxt.GetTextColor(POIType.Golem, col);
+                    }
+
+                    GameObject surgeGo = new GameObject("SurgeText");
+                    surgeGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    surgeGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                yield return new WaitForSeconds(duration);
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // MonsterPlant special: POISON
+        if (type == POIType.MonsterPlant)
+        {
+            float poisonChance = 20f;
+            int damage = 8;
+            int turns = 4;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                poisonChance = esc.GetSpecialChance(POIType.MonsterPlant, 20f);
+                var s = esc.GetSettings(POIType.MonsterPlant);
+                damage = s != null ? (int)s.effectValue : 8;
+                turns = s != null ? s.buffTurns : 4;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float poisonRoll = Random.Range(0f, 100f);
+            if (poisonRoll < poisonChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses <color=green>POISON</color>!");
+                isAttacking = true;
+
+                if (locomotionDriver != null)
+                    locomotionDriver.PlaySpecial();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
+
+                hero.ApplyPoisonEffect(damage, turns);
+
+                if (Application.isPlaying)
+                {
+                    string txt = "POISON!";
+                    Color col = Color.green;
+                    if (GameServices.TryGet(out EnemySpecialController escTxt))
+                    {
+                        txt = escTxt.GetFloatingText(POIType.MonsterPlant, txt);
+                        col = escTxt.GetTextColor(POIType.MonsterPlant, col);
+                    }
+
+                    // Show above STEVE since he is the one poisoned
+                    GameObject poisonGo = new GameObject("PoisonText");
+                    poisonGo.transform.position = hero.transform.position + Vector3.up * 2.8f;
+                    poisonGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                // Deal initial damage so Steve flinches/reacts
+                yield return new WaitForSeconds(0.75f);
+                if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
+                {
+                    float initDmg = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
+                    hero.TakeDamage((int)initDmg, gameObject.name, isCrit);
+                }
+
+                yield return new WaitForSeconds(Mathf.Max(0, duration - 0.75f));
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // Spider special: RUN
+        if (type == POIType.Spider)
+        {
+            float runChance = 50f;
+            float diceSteps = 7f;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                runChance = esc.GetSpecialChance(POIType.Spider, 50f);
+                var s = esc.GetSettings(POIType.Spider);
+                diceSteps = s != null ? s.effectValue : 7f;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float runRoll = Random.Range(0f, 100f);
+            if (runRoll < runChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses <color=white>SKITTER</color>!");
+                isAttacking = true;
+                isRunningAway = true;
+
+                if (locomotionDriver != null)
+                    locomotionDriver.PlaySpecial();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
+
+                float meters = diceSteps * (GlobalSettings.Instance != null ? GlobalSettings.Instance.metersPerStep : 3.0f);
+                
+                // Steve exits combat
+                hero.ExitCombat();
+
+                // Calculate runaway position (directly away from hero)
+                Vector3 awayDir = (transform.position - hero.transform.position).normalized;
+                if (awayDir.sqrMagnitude < 0.001f) awayDir = transform.forward;
+                awayDir.y = 0f;
+                
+                Vector3 targetPos = transform.position + awayDir.normalized * meters;
+                
+                // Find valid point on NavMesh
+                if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, meters * 0.7f, NavMesh.AllAreas))
+                {
+                    targetPos = hit.position;
+                }
+
+                // Unlock and move
+                UnlockCombatNavigation();
+                if (agent != null && agent.enabled)
+                {
+                    agent.isStopped = false;
+                    agent.speed = patrolSpeed * 2.5f; // Scurry away!
+                    agent.SetDestination(targetPos);
+                }
+
+                if (Application.isPlaying)
+                {
+                    string txt = "SKITTER!";
+                    Color col = Color.white;
+                    if (GameServices.TryGet(out EnemySpecialController escTxt))
+                    {
+                        txt = escTxt.GetFloatingText(POIType.Spider, txt);
+                        col = escTxt.GetTextColor(POIType.Spider, col);
+                    }
+
+                    GameObject runGo = new GameObject("RunText");
+                    runGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    runGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
+                // Wait for the scurry duration
+                yield return new WaitForSeconds(duration);
+                
+                if (agent != null && agent.enabled)
+                {
+                    agent.speed = patrolSpeed;
+                    // Note: destination remains set so it finishes moving to the runaway spot
+                }
+
+                isRunningAway = false;
+                isAttacking = false;
+                yield break;
+            }
+        }
+
+        // TurtleShell special: HARDENED
+        if (type == POIType.TurtleShell && !IsHardened)
+        {
+            float hardenChance = 25f;
+            float reductionPercent = 50f;
+            int turns = 2;
+            float duration = 2.0f;
+
+            if (GameServices.TryGet(out EnemySpecialController esc))
+            {
+                hardenChance = esc.GetSpecialChance(POIType.TurtleShell, 25f);
+                var s = esc.GetSettings(POIType.TurtleShell);
+                reductionPercent = s != null ? s.effectValue : 50f;
+                turns = s != null ? s.buffTurns : 2;
+                duration = s != null ? s.effectDuration : 2.0f;
+            }
+
+            float hardenRoll = Random.Range(0f, 100f);
+            if (hardenRoll < hardenChance)
+            {
+                CombatLog.Info($"{gameObject.name} uses <color=blue>HARDENED</color>!");
+                isAttacking = true;
+
+                if (locomotionDriver != null)
+                    locomotionDriver.PlaySpecial();
+                else
+                    HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
+
+                string txt = "HARDENED!";
+                Color col = Color.blue;
+                if (GameServices.TryGet(out EnemySpecialController escTxt))
+                {
+                    txt = escTxt.GetFloatingText(POIType.TurtleShell, txt);
+                    col = escTxt.GetTextColor(POIType.TurtleShell, col);
+                }
+
+                ApplyHardenedEffect(reductionPercent, turns);
+
+                if (Application.isPlaying)
+                {
+                    GameObject hardenGo = new GameObject("HardenedText");
+                    hardenGo.transform.position = transform.position + Vector3.up * 2.8f;
+                    hardenGo.AddComponent<FloatingText>().Setup(txt, col);
+                }
+
                 yield return new WaitForSeconds(duration);
                 isAttacking = false;
                 yield break;

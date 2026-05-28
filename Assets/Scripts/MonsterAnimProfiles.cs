@@ -43,20 +43,13 @@ public readonly struct MonsterAnimProfile
             case POIType.Skeleton:
             case POIType.Slime:
             case POIType.Bat:
-                return new MonsterAnimProfile(true, false, null, null, null, null);
-
             case POIType.Dragon:
-
+            case POIType.EvilMage:
+            case POIType.Golem:
             case POIType.MonsterPlant:
+            case POIType.Spider:
             case POIType.TurtleShell:
-                return new MonsterAnimProfile(
-                    false,
-                    false,
-                    "IdleNormal",
-                    "WalkFWD",
-                    "IdleBattle",
-                    "Attack01",
-                    tauntState: "Taunt");
+                return new MonsterAnimProfile(true, false, null, null, null, null);
 
             default:
                 return new MonsterAnimProfile(

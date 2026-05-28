@@ -21,6 +21,7 @@ public static class HeroAnimatorParams
     public const string SenseStart = "SenseStart";
     public const string SenseSearching = "SenseSearching";
     public const string GetUp = "GetUp";
+    public const string Special = "Special";
 
     public static bool HasParameter(Animator animator, string name)
     {

@@ -69,7 +69,7 @@ public class MonsterLocomotionDriver : MonoBehaviour
         CrossFadeLocomotion(target, 0.18f);
     }
 
-    public void PlayAttack()
+    public void PlayAttack(int index = -1)
     {
         if (animator == null)
             return;
@@ -81,7 +81,8 @@ public class MonsterLocomotionDriver : MonoBehaviour
             // For Skeletons and others with multiple attacks, set a random index
             if (HeroAnimatorParams.HasParameter(animator, "AttackIndex"))
             {
-                animator.SetInteger("AttackIndex", Random.Range(0, 2));
+                int finalIndex = index >= 0 ? index : Random.Range(0, 2);
+                animator.SetInteger("AttackIndex", finalIndex);
             }
 
             HeroAnimatorParams.ResetTriggerSafe(animator, HeroAnimatorParams.Attack);
@@ -152,6 +153,24 @@ public class MonsterLocomotionDriver : MonoBehaviour
         }
 
         CrossFadeState(tauntHash, 0.1f);
+    }
+
+    public void PlaySpecial()
+    {
+        if (animator == null)
+            return;
+
+        if (UsesParameterMode)
+        {
+            HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
+            return;
+        }
+
+        int specialHash = Animator.StringToHash("Special");
+        if (animator.HasState(AnimLayer, specialHash))
+            CrossFadeState(specialHash, 0.1f);
+        else
+            PlayTaunt();
     }
 
     private int ResolveStateHash(string primary, params string[] alternates)

@@ -16,10 +16,21 @@ public class HeroController : MonoBehaviour
     private bool isDead;
     private bool isRespawning;
     private bool hasFearEffect = false;
+    private int burnTurnsRemaining = 0;
+    private int burnDamagePerTurn = 0;
+    private int curseTurnsRemaining = 0;
+    private float curseReductionPercent = 0f;
+    private int poisonTurnsRemaining = 0;
+    private int poisonDamagePerTurn = 0;
+
     public bool IsCelebrating => isCelebrating;
     public bool IsDead => isDead;
     public bool IsRespawning => isRespawning;
     public bool HasFearEffect => hasFearEffect;
+    public bool IsBurned => burnTurnsRemaining > 0;
+    public bool IsCursed => curseTurnsRemaining > 0;
+    public bool IsPoisoned => poisonTurnsRemaining > 0;
+    public float CurseReductionPercent => curseReductionPercent;
 public bool IsMoving => movement != null && movement.IsMoving;
     public Enemy ApproachingEnemy => movement != null ? movement.ApproachingEnemy : null;
     public bool IsBlockedForDice =>
@@ -320,6 +331,9 @@ public bool IsMoving => movement != null && movement.IsMoving;
     public void OnPOIDefeated(POINode node) 
     {
         ClearFearEffect();
+        ClearBurnEffect();
+        ClearCurseEffect();
+        ClearPoisonEffect();
         movement?.NotifyPoiDefeated(node);
     }
 
@@ -473,10 +487,10 @@ public bool IsMoving => movement != null && movement.IsMoving;
                     {
                         string txt = "MISS!";
                         Color col = Color.red;
-                        if (GameServices.TryGet(out EnemySpecialController esc))
+                        if (GameServices.TryGet(out EnemySpecialController escText))
                         {
-                            txt = esc.GetFloatingText(POIType.Bat, txt);
-                            col = esc.GetTextColor(POIType.Bat, col);
+                            txt = escText.GetFloatingText(POIType.Bat, txt);
+                            col = escText.GetTextColor(POIType.Bat, col);
                         }
 
                         GameObject missGo = new GameObject("MissText");
@@ -582,7 +596,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
         CombatLog.Info($"[State] Hero {previous} -> {newState}" + (string.IsNullOrEmpty(reason) ? "" : $" ({reason})"));
     }
 
-    public bool TakeDamage(int amount, string attackerName = "Enemy", bool attackerCrit = false)
+    public bool TakeDamage(int amount, string attackerName = "Enemy", bool attackerCrit = false, bool ignoreDodge = false)
     {
         if (isDead || stats == null || stats.currentHP <= 0)
             return false;
@@ -590,10 +604,32 @@ public bool IsMoving => movement != null && movement.IsMoving;
         if (attackerCrit)
             CombatLog.DamageCalc(attackerName, $"hit Steve for {amount} (critical)");
 
-        bool tookDamage = stats.TakeDamage(amount);
+        bool tookDamage = false;
+        if (ignoreDodge)
+        {
+            stats.currentHP -= amount;
+            if (stats.currentHP < 0) stats.currentHP = 0;
+            CombatLog.DamageTaken(gameObject.name, amount, stats.currentHP + amount, stats.currentHP);
+            tookDamage = true;
+        }
+        else
+        {
+            tookDamage = stats.TakeDamage(amount);
+        }
+
         UpdateHealthUI();
+        
         if (!tookDamage)
+        {
+            if (Application.isPlaying)
+            {
+                GameObject go = new GameObject("DodgeText");
+                go.transform.position = transform.position + Vector3.up * 2.8f;
+                var ft = go.AddComponent<FloatingText>();
+                ft.Setup("DODGE!", Color.cyan);
+            }
             return false;
+        }
 
         if (Application.isPlaying)
         {
@@ -737,6 +773,144 @@ public bool IsMoving => movement != null && movement.IsMoving;
     public void ClearFearEffect()
     {
         hasFearEffect = false;
+    }
+
+    public void ApplyBurnEffect(int damage, int turns)
+    {
+        burnDamagePerTurn = damage;
+        burnTurnsRemaining = turns;
+        CombatLog.Info($"<color=orange>Steve is BURNING! ({damage} DMG per turn for {turns} turns)</color>");
+
+        if (Application.isPlaying)
+        {
+            GameObject go = new GameObject("BurnText");
+            go.transform.position = transform.position + Vector3.up * 2.8f;
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup("BURN!", new Color(1f, 0.5f, 0f));
+        }
+    }
+
+    public void ClearBurnEffect()
+    {
+        burnTurnsRemaining = 0;
+    }
+
+    public void ApplyCurseEffect(float reductionPercent, int turns)
+    {
+        curseReductionPercent = reductionPercent;
+        curseTurnsRemaining = turns;
+        CombatLog.Info($"<color=purple>Steve is CURSED! (Only ONE die per roll for {turns} turns)</color>");
+
+        if (Application.isPlaying)
+        {
+            GameObject go = new GameObject("CurseText");
+            go.transform.position = transform.position + Vector3.up * 2.8f;
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup("CURSE!", new Color(0.5f, 0f, 0.5f));
+        }
+    }
+
+    public void ClearCurseEffect()
+    {
+        curseTurnsRemaining = 0;
+    }
+
+    public void ApplyPoisonEffect(int damage, int turns)
+    {
+        poisonDamagePerTurn = damage;
+        poisonTurnsRemaining = turns;
+        CombatLog.Info($"<color=green>Steve is POISONED! ({damage} DMG per turn for {turns} turns)</color>");
+
+        if (Application.isPlaying)
+        {
+            GameObject go = new GameObject("PoisonText");
+            go.transform.position = transform.position + Vector3.up * 2.8f;
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup("POISON!", Color.green);
+        }
+    }
+
+    public void ClearPoisonEffect()
+    {
+        poisonTurnsRemaining = 0;
+    }
+
+    public void TickPoisonEffect()
+    {
+        if (poisonTurnsRemaining <= 0) return;
+
+        CombatLog.Info($"<color=green>Poison ticks for {poisonDamagePerTurn} damage.</color>");
+        TakeDamage(poisonDamagePerTurn, "Poison", false, true);
+        poisonTurnsRemaining--;
+        
+        if (poisonTurnsRemaining <= 0)
+        {
+            CombatLog.Info("<color=green>Poison effect wore off.</color>");
+        }
+    }
+
+    public void ApplyKnockback(Vector3 fromPosition, float meters)
+{
+        if (isDead) return;
+
+        ExitCombat();
+        
+        Vector3 dir = (transform.position - fromPosition).normalized;
+        if (dir.sqrMagnitude < 0.001f) dir = -transform.forward;
+        dir.y = 0f;
+        dir.Normalize();
+
+        Vector3 targetPos = transform.position + dir * meters;
+        
+        // Find valid point on NavMesh
+        if (NavMesh.SamplePosition(targetPos, out NavMeshHit hit, meters * 0.5f, NavMesh.AllAreas))
+        {
+            targetPos = hit.position;
+        }
+
+        if (agent != null && agent.isOnNavMesh)
+        {
+            agent.Warp(targetPos);
+        }
+        else
+        {
+            transform.position = targetPos;
+        }
+
+        CombatLog.Info($"<color=brown>Steve is KNOCKED BACK {meters:F1}m!</color>");
+
+        if (Application.isPlaying)
+        {
+            GameObject go = new GameObject("KnockbackText");
+            go.transform.position = transform.position + Vector3.up * 2.8f;
+            var ft = go.AddComponent<FloatingText>();
+            ft.Setup("KNOCKBACK!", new Color(0.6f, 0.4f, 0.2f));
+        }
+    }
+
+    public void TickCurseEffect()
+{
+        if (curseTurnsRemaining <= 0) return;
+
+        curseTurnsRemaining--;
+        if (curseTurnsRemaining <= 0)
+        {
+            CombatLog.Info("<color=purple>Curse effect wore off.</color>");
+        }
+    }
+
+    public void TickBurnEffect()
+{
+        if (burnTurnsRemaining <= 0) return;
+
+        CombatLog.Info($"<color=orange>Burn ticks for {burnDamagePerTurn} damage.</color>");
+        TakeDamage(burnDamagePerTurn, "Burn", false, true);
+        burnTurnsRemaining--;
+        
+        if (burnTurnsRemaining <= 0)
+        {
+            CombatLog.Info("<color=orange>Burn effect wore off.</color>");
+        }
     }
 
     public void PlayLevelUpCelebration()

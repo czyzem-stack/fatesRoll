@@ -44,14 +44,14 @@ public static class MonsterPOIDefinitions
         {
             case POIType.Orc: return AnimatorRoot + "Orc.controller";
             case POIType.Skeleton: return "Assets/Animators/Skeleton_New.controller";
-            case POIType.Slime: return AnimatorRoot + "Slime.controller";
+            case POIType.Slime: return "Assets/Animators/SlimeAnimator.controller";
             case POIType.Bat: return "Assets/Animators/BatAnimator.controller";
-            case POIType.Dragon: return AnimatorRoot + "Dragon.controller";
-            case POIType.EvilMage: return AnimatorRoot + "EvilMage.controller";
-            case POIType.Golem: return AnimatorRoot + "Golem.controller";
-            case POIType.MonsterPlant: return AnimatorRoot + "MonsterPlant.controller";
-            case POIType.Spider: return AnimatorRoot + "Spider.controller";
-            case POIType.TurtleShell: return AnimatorRoot + "TurtleShell.controller";
+            case POIType.Dragon: return "Assets/Animators/DragonAnimator.controller";
+            case POIType.EvilMage: return "Assets/Animators/EvilMageAnimator.controller";
+            case POIType.Golem: return "Assets/Animators/GolemAnimator.controller";
+            case POIType.MonsterPlant: return "Assets/Animators/MonsterPlantAnimator.controller";
+            case POIType.Spider: return "Assets/Animators/SpiderAnimator.controller";
+            case POIType.TurtleShell: return "Assets/Animators/TurtleShellAnimator.controller";
             default: return null;
         }
     }

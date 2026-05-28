@@ -361,6 +361,13 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
             if (cachedHero == null)
                 cachedHero = GameServices.Hero;
             var hero = cachedHero;
+
+            if (hero != null)
+            {
+                hero.TickBurnEffect();
+                hero.TickPoisonEffect();
+            }
+
             Transform aim = GetRollAimTransform(hero);
 
             if (hero != null && !hero.InCombat)
@@ -389,7 +396,11 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
 
             Collider heroCollider = hero != null ? hero.GetComponent<Collider>() : null;
 
-            for (int i = 0; i < 2; i++)
+            int diceCount = (hero != null && hero.IsCursed) ? 1 : 2;
+            if (hero != null && hero.IsCursed)
+                CombatLog.Info("<color=purple>Steve is CURSED! Rolling only ONE die.</color>");
+
+            for (int i = 0; i < diceCount; i++)
             {
                 Vector3 spawnOrigin = hero != null ? hero.transform.position + Vector3.up * 1.2f : spawnPoint.position;
                 Vector3 offset = new Vector3(i * 0.2f - 0.1f, 0.2f, 0.5f);
@@ -496,6 +507,8 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
 
             if (hero != null)
             {
+                hero.TickCurseEffect();
+
                 Enemy combatEnemy = hero.GetCurrentEnemy();
 
                 bool handledCombat = false;

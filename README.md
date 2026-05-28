@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.076` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.077` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.077** | Orc battle shout buff, configurable special floating text, and fear miss labels |
 | **v0.0.076** | Add EnemySpecialController, Bat animator, and tunable skeleton block and bat fear |
 | **v0.0.075** | Relocate Steve and Orc animators, add skeleton block and protected attack recovery windows |
 | **v0.0.074** | Equipment-driven hero stance animators and synced weapon animator controllers |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.049** | Sync README version and changelog for v0.0.048 |
 | **v0.0.048** | Sync README version and changelog for v0.0.047 |
 | **v0.0.047** | Sync README version and changelog for v0.0.046 |
-| **v0.0.046** | Sync README version and changelog for v0.0.045 |
 <!-- CHANGELOG:END -->
 
 ---
