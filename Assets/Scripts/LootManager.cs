@@ -71,8 +71,11 @@ public class LootManager : GameServiceBehaviour<LootManager>
     [Header("UI References")]
     [Tooltip("HUD text that shows Steve's current gold total. Use Auto-Assign UI if empty.")]
     public TextMeshProUGUI goldText;
+    [Tooltip("HUD text that shows Steve's current gem total. Use Auto-Assign UI if empty.")]
+    public TextMeshProUGUI gemText;
 
     public int CurrentGold => currentGold;
+    public int CurrentGems => currentGems;
 
     public bool TrySpendGold(int amount)
     {
@@ -85,7 +88,19 @@ public class LootManager : GameServiceBehaviour<LootManager>
         return false;
     }
 
+    public bool TrySpendGems(int amount)
+    {
+        if (currentGems >= amount)
+        {
+            currentGems -= amount;
+            UpdateGemUI();
+            return true;
+        }
+        return false;
+    }
+
     private int currentGold;
+    private int currentGems;
     private readonly List<DroppedCoin> activeCoins = new List<DroppedCoin>();
     private int pendingBatchCoins;
     private int pendingBatchGold;
@@ -126,11 +141,13 @@ public class LootManager : GameServiceBehaviour<LootManager>
         if (!hasInitializedGold)
         {
             currentGold = GlobalSettings.GetStartingCoinBalance();
+            currentGems = GlobalSettings.GetStartingGemBalance();
             hasInitializedGold = true;
         }
         cachedHero = GameServices.Hero;
         AutoAssignUI();
         UpdateGoldUI();
+        UpdateGemUI();
     }
 
     private void OnEnable()
@@ -148,6 +165,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         // DDOL manager must rebind main-scene HUD references after Bootstrap/Title transitions.
         AutoAssignUI();
         UpdateGoldUI();
+        UpdateGemUI();
     }
 
     public void OnEnemyDied(Enemy enemy)
@@ -321,17 +339,25 @@ public class LootManager : GameServiceBehaviour<LootManager>
             goldText.text = currentGold.ToString("N0");
     }
 
+    private void UpdateGemUI()
+    {
+        if (gemText != null)
+            gemText.text = currentGems.ToString("N0");
+    }
+
     public void ResetGoldToStarting()
     {
         currentGold = GlobalSettings.GetStartingCoinBalance();
+        currentGems = GlobalSettings.GetStartingGemBalance();
         hasInitializedGold = true;
         UpdateGoldUI();
+        UpdateGemUI();
     }
 
     [ContextMenu("Auto-Assign UI")]
     public void AutoAssignUI()
     {
-        string[] paths =
+        string[] goldPaths =
         {
             "MainUI_Canvas/Resources/HUD_Item_Coin/Coin/Text (TMP)",
             "MainUI_Canvas/Resources/HUD_Item_Coin/Text (TMP)",
@@ -341,7 +367,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
             "MainUI_Canvas/HUD_Resources/HUD_Item_Gold/Gold/Text (TMP)",
         };
 
-        foreach (string path in paths)
+        foreach (string path in goldPaths)
         {
             GameObject go = GameObject.Find(path);
             if (go == null) continue;
@@ -349,6 +375,22 @@ public class LootManager : GameServiceBehaviour<LootManager>
             if (goldText != null) break;
         }
 
+        string[] gemPaths =
+        {
+            "MainUI_Canvas/Resources/HUD_Item_Gem/Gem/Text (TMP)",
+            "MainUI_Canvas/Resources/HUD_Item_Gem/Text (TMP)",
+            "MainUI_Canvas/HUD_Resources/HUD_Item_Gem/Gem/Text (TMP)",
+        };
+
+        foreach (string path in gemPaths)
+        {
+            GameObject go = GameObject.Find(path);
+            if (go == null) continue;
+            gemText = go.GetComponent<TextMeshProUGUI>();
+            if (gemText != null) break;
+        }
+
         UpdateGoldUI();
+        UpdateGemUI();
     }
 }

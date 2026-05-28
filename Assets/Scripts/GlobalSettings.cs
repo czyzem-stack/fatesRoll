@@ -31,11 +31,19 @@ public class GlobalSettings : GameServiceBehaviour<GlobalSettings>
     [Header("Loot")]
     [Tooltip("Steve's coin/gold balance when a run starts.")]
     public int startingCoinBalance = 100;
+    [Tooltip("Steve's gem balance when a run starts.")]
+    public int startingGemBalance = 0;
 
     public static int GetStartingCoinBalance()
     {
         var s = Instance;
         return s != null ? s.startingCoinBalance : 100;
+    }
+
+    public static int GetStartingGemBalance()
+    {
+        var s = Instance;
+        return s != null ? s.startingGemBalance : 0;
     }
 
     [Header("Combat — spacing")]

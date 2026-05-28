@@ -108,14 +108,17 @@ public class GameServices : MonoBehaviour
 
     private void Awake()
     {
+        Debug.Log($"[GameServices] Awake on {gameObject.name}");
         if (Current != null && Current != this)
         {
+            Debug.Log($"[GameServices] Found existing Current: {Current.name}. Absorbing and destroying self.");
             Current.AbsorbBootstrap(this);
             Destroy(gameObject);
             return;
         }
 
         Current = this;
+        Debug.Log($"[GameServices] I am now Current. Initializing...");
         registry.Clear();
         hero = null;
         heroSpawnPoint = null;

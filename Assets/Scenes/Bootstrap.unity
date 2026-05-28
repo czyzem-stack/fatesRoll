@@ -177,7 +177,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::GameServices
   persistAcrossScenes: 1
-  deferHeavyBootstrap: 1
+  deferHeavyBootstrap: 0
   targetFrameRateOnStart: 0
   discoverOnChildren: 1
   globalSettings: {fileID: 0}
