@@ -27,6 +27,8 @@ public class HeroController : MonoBehaviour
     public bool IsDead => isDead;
     public bool IsRespawning => isRespawning;
     public bool HasFearEffect => hasFearEffect;
+
+    public float CurrentHealth => stats != null ? stats.currentHP : 0f;
     public bool IsBurned => burnTurnsRemaining > 0;
     public bool IsCursed => curseTurnsRemaining > 0;
     public bool IsPoisoned => poisonTurnsRemaining > 0;
@@ -428,7 +430,8 @@ public bool IsMoving => movement != null && movement.IsMoving;
 
     public bool TryBeginMeleeWithRoll(Enemy enemy, int rollTotal, float engageExtraBuffer = 0.35f)
     {
-        if (enemy == null || enemy.isDead || IsEngageBusy || InCombat || State == CombatState.Dead)
+        if (enemy == null || enemy.isDead || enemy.currentHP <= 0f || IsEngageBusy || InCombat ||
+            State == CombatState.Dead)
             return false;
 
         if (enemy.IsTreasureChest)
@@ -503,7 +506,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
                 float missRoll = Random.Range(0f, 100f);
                 if (missRoll < missChance)
                 {
-                    CombatLog.Info("<color=red>Steve MISSED due to Fear!</color>");
+                    SpecialEffectLog.SteveFearMiss(missRoll, missChance);
                     if (Application.isPlaying)
                     {
                         string txt = "MISS!";
@@ -787,8 +790,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         if (hasFearEffect) return;
         hasFearEffect = true;
-        CombatLog.Info("<color=purple>Steve is AFRAID! (25% miss chance)</color>");
-        
+
         if (Application.isPlaying)
         {
             GameObject go = new GameObject("FearText");
@@ -807,7 +809,6 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         burnDamagePerTurn = damage;
         burnTurnsRemaining = turns;
-        CombatLog.Info($"<color=orange>Steve is BURNING! ({damage} DMG per turn for {turns} turns)</color>");
 
         if (Application.isPlaying)
         {
@@ -827,7 +828,6 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         curseReductionPercent = reductionPercent;
         curseTurnsRemaining = turns;
-        CombatLog.Info($"<color=purple>Steve is CURSED! (Only ONE die per roll for {turns} turns)</color>");
 
         if (Application.isPlaying)
         {
@@ -847,7 +847,6 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         poisonDamagePerTurn = damage;
         poisonTurnsRemaining = turns;
-        CombatLog.Info($"<color=green>Steve is POISONED! ({damage} DMG per turn for {turns} turns)</color>");
 
         if (Application.isPlaying)
         {
@@ -867,14 +866,14 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         if (poisonTurnsRemaining <= 0) return;
 
-        CombatLog.Info($"<color=green>Poison ticks for {poisonDamagePerTurn} damage.</color>");
-        TakeDamage(poisonDamagePerTurn, "Poison", false, true);
+        int damage = poisonDamagePerTurn;
+        TakeDamage(damage, "Poison", false, true);
         poisonTurnsRemaining--;
-        
+        float hp = stats != null ? stats.currentHP : 0f;
+        SpecialEffectLog.SteveResidualTick("Poison", damage, hp, poisonTurnsRemaining);
+
         if (poisonTurnsRemaining <= 0)
-        {
-            CombatLog.Info("<color=green>Poison effect wore off.</color>");
-        }
+            SpecialEffectLog.SteveEffectEnded("Poison");
     }
 
     public void ApplyKnockback(Vector3 fromPosition, float meters)
@@ -905,7 +904,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
             transform.position = targetPos;
         }
 
-        CombatLog.Info($"<color=brown>Steve is KNOCKED BACK {meters:F1}m!</color>");
+        SpecialEffectLog.SteveKnockback(meters);
 
         if (Application.isPlaying)
         {
@@ -917,28 +916,30 @@ public bool IsMoving => movement != null && movement.IsMoving;
     }
 
     public void TickCurseEffect()
-{
-        if (curseTurnsRemaining <= 0) return;
-
-        curseTurnsRemaining--;
+    {
         if (curseTurnsRemaining <= 0)
-        {
-            CombatLog.Info("<color=purple>Curse effect wore off.</color>");
-        }
+            return;
+
+        int before = curseTurnsRemaining;
+        curseTurnsRemaining--;
+        if (before > 0 && curseTurnsRemaining > 0)
+            SpecialEffectLog.SteveResidualTick("Curse", 0, CurrentHealth, curseTurnsRemaining);
+        else if (curseTurnsRemaining <= 0)
+            SpecialEffectLog.SteveEffectEnded("Curse");
     }
 
     public void TickBurnEffect()
 {
         if (burnTurnsRemaining <= 0) return;
 
-        CombatLog.Info($"<color=orange>Burn ticks for {burnDamagePerTurn} damage.</color>");
-        TakeDamage(burnDamagePerTurn, "Burn", false, true);
+        int damage = burnDamagePerTurn;
+        TakeDamage(damage, "Burn", false, true);
         burnTurnsRemaining--;
-        
+        float hp = stats != null ? stats.currentHP : 0f;
+        SpecialEffectLog.SteveResidualTick("Burn", damage, hp, burnTurnsRemaining);
+
         if (burnTurnsRemaining <= 0)
-        {
-            CombatLog.Info("<color=orange>Burn effect wore off.</color>");
-        }
+            SpecialEffectLog.SteveEffectEnded("Burn");
     }
 
     public void PlayLevelUpCelebration()

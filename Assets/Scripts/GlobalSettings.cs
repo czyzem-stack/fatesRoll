@@ -85,6 +85,9 @@ public class GlobalSettings : GameServiceBehaviour<GlobalSettings>
     [Tooltip("Log combat events to the Console (filter: Combat).")]
     public bool combatLogEnabled = true;
 
+    [Tooltip("Log color-coded enemy specials and Steve residual damage (burn/poison/etc.) to the Console (filter: Special).")]
+    public bool specialEffectLogEnabled = true;
+
     [Tooltip("Log dice, movement, energy, XP, and die physics to the Console.")]
     public bool verboseGameplayLogs = false;
 

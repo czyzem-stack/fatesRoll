@@ -714,11 +714,11 @@ private float battleShoutMultiplier = 1.0f;
             ft.Setup($"+{amount:F0}", regenTextColor);
         }
 
+        SpecialEffectLog.EnemyRegenTick(gameObject.name, amount, currentHP);
+
         regenTurnsRemaining--;
         if (regenTurnsRemaining <= 0)
-        {
-            CombatLog.Info($"{gameObject.name} REGEN finished.");
-        }
+            SpecialEffectLog.EnemyEffectEnded(POIType.Slime, gameObject.name, "REGEN");
     }
 
     public void ApplyHardenedEffect(float percent, int turns)
@@ -733,57 +733,75 @@ private float battleShoutMultiplier = 1.0f;
 
         hardenedTurnsRemaining--;
         if (hardenedTurnsRemaining <= 0)
+            SpecialEffectLog.EnemyEffectEnded(POIType.TurtleShell, gameObject.name, "HARDENED");
+    }
+
+    static bool RollSpecialProc(POIType type, float defaultChancePercent, out float roll, out float chancePercent)
+    {
+        chancePercent = defaultChancePercent;
+        if (GameServices.TryGet(out EnemySpecialController esc))
+            chancePercent = esc.GetSpecialChance(type, defaultChancePercent);
+
+        roll = Random.Range(0f, 100f);
+        return roll < chancePercent;
+    }
+
+    bool TrySkeletonBlock(string attackerName)
+    {
+        if (ResolveMonsterType() != POIType.Skeleton)
+            return false;
+
+        float blockChance = 50f;
+        if (GameServices.TryGet(out EnemySpecialController esc))
+            blockChance = esc.GetEffectValue(POIType.Skeleton, 50f);
+
+        float blockRoll = Random.Range(0f, 100f);
+        if (blockRoll >= blockChance)
+            return false;
+
+        SpecialEffectLog.EnemyBlocked(POIType.Skeleton, gameObject.name, blockRoll, blockChance);
+        CombatLog.DamageMitigated(attackerName, gameObject.name, "blocked");
+
+        if (locomotionDriver != null)
+            locomotionDriver.PlayDefense();
+        else
+            HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
+
+        if (Application.isPlaying)
         {
-            CombatLog.Info($"{gameObject.name} HARDENED effect wore off.");
+            string txt = "BLOCKED";
+            Color col = Color.white;
+            if (GameServices.TryGet(out EnemySpecialController escTxt))
+            {
+                txt = escTxt.GetFloatingText(POIType.Skeleton, txt);
+                col = escTxt.GetTextColor(POIType.Skeleton, col);
+            }
+
+            GameObject blockGo = new GameObject("BlockText");
+            blockGo.transform.position = transform.position + Vector3.up * 2.8f;
+            blockGo.AddComponent<FloatingText>().Setup(txt, col);
         }
+
+        return true;
     }
 
     public bool TakeDamage(float amount, string attackerName = "Steve")
-{
+    {
         if (IsTreasureChest)
             return false;
 
-        if (isDead || currentHP <= 0) return false;
+        if (isDead || currentHP <= 0)
+            return false;
 
-        // Skeleton unique ability: block chance from EnemySpecialController
-        if (ResolveMonsterType() == POIType.Skeleton)
-        {
-            float blockChance = 50f;
-            if (GameServices.TryGet(out EnemySpecialController esc))
-            {
-                blockChance = esc.GetEffectValue(POIType.Skeleton, 50f);
-
-                float blockRoll = Random.Range(0f, 100f);
-                if (blockRoll < blockChance)
-                {
-                    CombatLog.Info($"{gameObject.name} BLOCKED the attack!");
-                    if (locomotionDriver != null) locomotionDriver.PlayDefense();
-                    else HeroAnimatorParams.SetTriggerSafe(animator, "Defense");
-
-                    if (Application.isPlaying)
-                    {
-                        string txt = "BLOCKED";
-                        Color col = Color.white;
-                        if (GameServices.TryGet(out EnemySpecialController escTxt))
-                        {
-                            txt = escTxt.GetFloatingText(POIType.Skeleton, txt);
-                            col = escTxt.GetTextColor(POIType.Skeleton, col);
-                        }
-
-                    GameObject blockGo = new GameObject("BlockText");
-                    blockGo.transform.position = transform.position + Vector3.up * 2.8f;
-                    blockGo.AddComponent<FloatingText>().Setup(txt, col);
-                }
-                return false;
-            }
-        }
-    }
+        if (TrySkeletonBlock(attackerName))
+            return false;
 
         float dodgeRoll = Random.Range(0f, 100f);
         if (dodgeRoll < dodgeChance)
         {
             CombatLog.Dodge(gameObject.name, dodgeChance, dodgeRoll);
             CombatLog.DamageMitigated(attackerName, gameObject.name, "dodged");
+            SpecialEffectLog.EnemyDodged(gameObject.name, dodgeRoll, dodgeChance);
             return false;
         }
 
@@ -793,8 +811,8 @@ private float battleShoutMultiplier = 1.0f;
         if (IsHardened)
         {
             float reduction = amount * (hardenedReductionPercent / 100f);
-            CombatLog.Info($"{gameObject.name} reduced damage by {reduction:F0} (HARDENED)!");
             amount -= reduction;
+            SpecialEffectLog.EnemyHardenedMitigation(gameObject.name, reduction, currentHP - amount);
         }
 
         currentHP -= amount;
@@ -927,10 +945,10 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float shoutRoll = UnityEngine.Random.Range(0f, 100f);
-            if (shoutRoll < shoutChance)
+            if (RollSpecialProc(POIType.Orc, shoutChance, out float shoutRoll, out shoutChance))
             {
-                CombatLog.Info($"{gameObject.name} uses <color=orange>BATTLE SHOUT</color>! (+{((multiplier - 1) * 100):F0}% DMG for {turns} turns)");
+                SpecialEffectLog.EnemyTriggered(POIType.Orc, gameObject.name, "BATTLE SHOUT",
+                    $"+{((multiplier - 1) * 100):F0}% DMG for {turns} turn(s)");
                 battleShoutMultiplier = multiplier;
                 battleShoutTurnsRemaining = turns;
 
@@ -971,10 +989,9 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = esc.GetSettings(POIType.Bat)?.effectDuration ?? 2.0f;
             }
 
-            float fearRoll = Random.Range(0f, 100f);
-            if (fearRoll < castChance)
+            if (RollSpecialProc(POIType.Bat, castChance, out float fearRoll, out castChance))
             {
-                CombatLog.Info($"{gameObject.name} casts <color=purple>FEAR</color>!");
+                SpecialEffectLog.AppliedToSteve(POIType.Bat, gameObject.name, "FEAR", "25% miss chance on Steve attacks");
                 isAttacking = true;
                 if (locomotionDriver != null)
                     locomotionDriver.PlayTaunt();
@@ -1022,10 +1039,10 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float burnRoll = Random.Range(0f, 100f);
-            if (burnRoll < burnChance)
+            if (RollSpecialProc(POIType.Dragon, burnChance, out float burnRoll, out burnChance))
             {
-                CombatLog.Info($"{gameObject.name} uses <color=orange>BURN</color>!");
+                SpecialEffectLog.AppliedToSteve(POIType.Dragon, gameObject.name, "BURN",
+                    $"{damage} dmg/turn × {turns} turn(s)");
                 isAttacking = true;
                 
                 if (locomotionDriver != null)
@@ -1063,6 +1080,8 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 {
                     float initDmg = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
                     hero.TakeDamage((int)initDmg, gameObject.name, isCrit);
+                    SpecialEffectLog.SteveImmediateDamage(POIType.Dragon, gameObject.name, "BURN opening hit",
+                        (int)initDmg, hero.CurrentHealth);
                 }
 
                 yield return new WaitForSeconds(Mathf.Max(0, duration - 0.25f));
@@ -1088,10 +1107,10 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float curseRoll = Random.Range(0f, 100f);
-            if (curseRoll < curseChance)
+            if (RollSpecialProc(POIType.EvilMage, curseChance, out float curseRoll, out curseChance))
             {
-                CombatLog.Info($"{gameObject.name} casts CURSE! (Turns: {turns})");
+                SpecialEffectLog.AppliedToSteve(POIType.EvilMage, gameObject.name, "CURSE",
+                    $"Steve rolls 1 die for {turns} turn(s)");
                 isAttacking = true;
 
                 if (locomotionDriver != null)
@@ -1128,6 +1147,8 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 {
                     float initDmg = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
                     hero.TakeDamage((int)initDmg, gameObject.name, isCrit);
+                    SpecialEffectLog.SteveImmediateDamage(POIType.EvilMage, gameObject.name, "CURSE opening hit",
+                        (int)initDmg, hero.CurrentHealth);
                 }
 
                 yield return new WaitForSeconds(Mathf.Max(0, duration - 0.25f));
@@ -1153,10 +1174,10 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float regenRoll = Random.Range(0f, 100f);
-            if (regenRoll < regenChance)
+            if (RollSpecialProc(POIType.Slime, regenChance, out float regenRoll, out regenChance))
             {
-                CombatLog.Info($"{gameObject.name} uses REGEN!");
+                SpecialEffectLog.EnemyTriggered(POIType.Slime, gameObject.name, "REGEN",
+                    $"{healPercent:F0}% max HP/turn × {turns} turn(s)");
                 isAttacking = true;
 
                 if (locomotionDriver != null)
@@ -1202,10 +1223,11 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float surgeRoll = Random.Range(0f, 100f);
-            if (surgeRoll < surgeChance)
+            if (RollSpecialProc(POIType.Golem, surgeChance, out float surgeRoll, out surgeChance))
             {
-                CombatLog.Info($"{gameObject.name} uses EARTHEN SURGE!");
+                float meters = diceValueMeters * (GlobalSettings.Instance != null ? GlobalSettings.Instance.metersPerStep : 3.0f);
+                SpecialEffectLog.AppliedToSteve(POIType.Golem, gameObject.name, "EARTHEN SURGE",
+                    $"knockback {meters:F1}m");
                 isAttacking = true;
 
                 if (locomotionDriver != null)
@@ -1213,7 +1235,6 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 else
                     HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
 
-                float meters = diceValueMeters * (GlobalSettings.Instance != null ? GlobalSettings.Instance.metersPerStep : 3.0f);
                 hero.ApplyKnockback(transform.position, meters);
 
                 if (Application.isPlaying)
@@ -1254,10 +1275,10 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float poisonRoll = Random.Range(0f, 100f);
-            if (poisonRoll < poisonChance)
+            if (RollSpecialProc(POIType.MonsterPlant, poisonChance, out float poisonRoll, out poisonChance))
             {
-                CombatLog.Info($"{gameObject.name} uses <color=green>POISON</color>!");
+                SpecialEffectLog.AppliedToSteve(POIType.MonsterPlant, gameObject.name, "POISON",
+                    $"{damage} dmg/turn × {turns} turn(s)");
                 isAttacking = true;
 
                 if (locomotionDriver != null)
@@ -1289,6 +1310,8 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 {
                     float initDmg = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
                     hero.TakeDamage((int)initDmg, gameObject.name, isCrit);
+                    SpecialEffectLog.SteveImmediateDamage(POIType.MonsterPlant, gameObject.name, "POISON opening hit",
+                        (int)initDmg, hero.CurrentHealth);
                 }
 
                 yield return new WaitForSeconds(Mathf.Max(0, duration - 0.75f));
@@ -1297,7 +1320,9 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
             }
         }
 
-        // Spider special: RUN
+        // Spider special: SKITTER (flee)
+        // Contract: Steve exits combat so he can move and fight someone else. This spider keeps currentHP,
+        // stays on the map (POI resolves only on Die), and can be re-engaged later via movement + TryBeginMelee.
         if (type == POIType.Spider)
         {
             float runChance = 50f;
@@ -1315,7 +1340,9 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
             float runRoll = Random.Range(0f, 100f);
             if (runRoll < runChance)
             {
-                CombatLog.Info($"{gameObject.name} uses <color=white>SKITTER</color>!");
+                float meters = diceSteps * (GlobalSettings.Instance != null ? GlobalSettings.Instance.metersPerStep : 3.0f);
+                SpecialEffectLog.EnemyTriggered(POIType.Spider, gameObject.name, "SKITTER",
+                    $"flees {meters:F0}m — Steve exits combat, spider keeps HP");
                 isAttacking = true;
                 isRunningAway = true;
 
@@ -1324,8 +1351,6 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 else
                     HeroAnimatorParams.SetTriggerSafe(animator, HeroAnimatorParams.Special);
 
-                float meters = diceSteps * (GlobalSettings.Instance != null ? GlobalSettings.Instance.metersPerStep : 3.0f);
-                
                 // Steve exits combat
                 hero.ExitCombat();
 
@@ -1398,10 +1423,10 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 duration = s != null ? s.effectDuration : 2.0f;
             }
 
-            float hardenRoll = Random.Range(0f, 100f);
-            if (hardenRoll < hardenChance)
+            if (RollSpecialProc(POIType.TurtleShell, hardenChance, out float hardenRoll, out hardenChance))
             {
-                CombatLog.Info($"{gameObject.name} uses <color=blue>HARDENED</color>!");
+                SpecialEffectLog.EnemyTriggered(POIType.TurtleShell, gameObject.name, "HARDENED",
+                    $"{reductionPercent:F0}% damage reduction × {turns} turn(s)");
                 isAttacking = true;
 
                 if (locomotionDriver != null)
@@ -1455,12 +1480,14 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
             
             if (battleShoutTurnsRemaining > 0)
             {
+                float beforeShout = damage;
                 damage *= battleShoutMultiplier;
+                int turnsLeft = battleShoutTurnsRemaining;
                 battleShoutTurnsRemaining--;
+                SpecialEffectLog.EnemyTriggered(POIType.Orc, gameObject.name, "BATTLE SHOUT hit",
+                    $"{beforeShout:F0} → {(int)damage} dmg ({turnsLeft} turn(s) left)");
                 if (battleShoutTurnsRemaining <= 0)
-                {
                     battleShoutMultiplier = 1.0f;
-                }
             }
 
             CombatLog.CritCheck(gameObject.name, critChance, critRoll, isCrit);

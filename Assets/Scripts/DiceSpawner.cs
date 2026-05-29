@@ -345,7 +345,7 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
 
             int diceCount = (hero != null && hero.IsCursed) ? 1 : 2;
             if (hero != null && hero.IsCursed)
-                CombatLog.Info("<color=purple>Steve is CURSED! Rolling only ONE die.</color>");
+                SpecialEffectLog.SteveCurseRoll();
 
             for (int i = 0; i < diceCount; i++)
             {

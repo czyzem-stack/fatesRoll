@@ -27,6 +27,10 @@ public class HeroEquipment : MonoBehaviour
     private readonly Dictionary<EquipmentSlotType, GameObject> spawnedVisuals = new Dictionary<EquipmentSlotType, GameObject>();
     private readonly Dictionary<string, Transform> rigChildrenByName = new Dictionary<string, Transform>();
     private readonly HashSet<string> bodyArmorChildNames = new HashSet<string>();
+    private readonly HashSet<string> headBaseChildNames = new HashSet<string>();
+    private readonly HashSet<string> headArmorChildNames = new HashSet<string>();
+    private readonly HashSet<string> hatChildNames = new HashSet<string>();
+    private readonly HashSet<string> hairChildNames = new HashSet<string>();
     private PlayerStats playerStats;
     private HeroController hero;
 
@@ -44,6 +48,7 @@ public class HeroEquipment : MonoBehaviour
         ResolveRig();
         CacheRigChildren();
         HideAllBodyVariants();
+        HideAllHeadVariants();
         EnsureBaseBodyVisible();
         EnsureDefaultHeadParts();
     }
@@ -105,6 +110,11 @@ public class HeroEquipment : MonoBehaviour
     {
         rigChildrenByName.Clear();
         bodyArmorChildNames.Clear();
+        headBaseChildNames.Clear();
+        headArmorChildNames.Clear();
+        hatChildNames.Clear();
+        hairChildNames.Clear();
+
         if (rigRoot == null)
             return;
 
@@ -113,8 +123,17 @@ public class HeroEquipment : MonoBehaviour
             if (!rigChildrenByName.ContainsKey(t.name))
                 rigChildrenByName[t.name] = t;
 
-            if (t.name.StartsWith("Body") && t.name.Length <= 7)
-                bodyArmorChildNames.Add(t.name);
+            string n = t.name;
+            if (n.StartsWith("Body") && n.Length <= 7)
+                bodyArmorChildNames.Add(n);
+            else if (n.StartsWith("HeadArmor") && n.Length <= 12)
+                headArmorChildNames.Add(n);
+            else if (n.StartsWith("Head") && n.Length <= 12 && !n.Contains("Armor"))
+                headBaseChildNames.Add(n);
+            else if (n.StartsWith("Hat") && n.Length <= 7)
+                hatChildNames.Add(n);
+            else if (n.StartsWith("Hair") && n.Length <= 8)
+                hairChildNames.Add(n);
         }
     }
 
@@ -125,6 +144,49 @@ public class HeroEquipment : MonoBehaviour
             if (rigChildrenByName.TryGetValue(name, out Transform t))
                 t.gameObject.SetActive(false);
         }
+    }
+
+    private void HideAllHeadBaseVariants()
+    {
+        foreach (string name in headBaseChildNames)
+        {
+            if (rigChildrenByName.TryGetValue(name, out Transform t))
+                t.gameObject.SetActive(false);
+        }
+    }
+
+    private void HideAllHeadArmorVariants()
+    {
+        foreach (string name in headArmorChildNames)
+        {
+            if (rigChildrenByName.TryGetValue(name, out Transform t))
+                t.gameObject.SetActive(false);
+        }
+    }
+
+    private void HideAllHatVariants()
+    {
+        foreach (string name in hatChildNames)
+        {
+            if (rigChildrenByName.TryGetValue(name, out Transform t))
+                t.gameObject.SetActive(false);
+        }
+    }
+
+    private void HideAllHairVariants()
+    {
+        foreach (string name in hairChildNames)
+        {
+            if (rigChildrenByName.TryGetValue(name, out Transform t))
+                t.gameObject.SetActive(false);
+        }
+    }
+
+    private void HideAllHeadVariants()
+    {
+        HideAllHeadArmorVariants();
+        HideAllHatVariants();
+        HideAllHairVariants();
     }
 
     private void EnsureBaseBodyVisible()
@@ -197,6 +259,14 @@ public class HeroEquipment : MonoBehaviour
         {
             DisableCloakChildren();
         }
+        else if (slot == EquipmentSlotType.HeadHelmet)
+        {
+            HideAllHeadVariants();
+        }
+        else if (slot == EquipmentSlotType.HeadBase)
+        {
+            HideAllHeadBaseVariants();
+        }
     }
 
     private void ApplyVisual(EquipmentInstance instance)
@@ -210,21 +280,34 @@ public class HeroEquipment : MonoBehaviour
             if (def.slot == EquipmentSlotType.BodyArmor)
             {
                 HideAllBodyVariants();
-                if (rigChildrenByName.TryGetValue(def.rigChildName, out Transform body))
-                    body.gameObject.SetActive(true);
             }
             else if (def.slot == EquipmentSlotType.Cape)
             {
                 DisableCloakChildren();
-                if (rigChildrenByName.TryGetValue(def.rigChildName, out Transform cloak))
-                    cloak.gameObject.SetActive(true);
             }
+            else if (def.slot == EquipmentSlotType.HeadHelmet)
+            {
+                HideAllHeadVariants();
+            }
+            else if (def.slot == EquipmentSlotType.HeadBase)
+            {
+                HideAllHeadBaseVariants();
+            }
+
+            if (rigChildrenByName.TryGetValue(def.rigChildName, out Transform child))
+                child.gameObject.SetActive(true);
 
             return;
         }
 
         if (def.visualPrefab == null)
             return;
+
+        // If it's a HeadHelmet prefab, we should hide built-in hair/hats/armor to prevent clipping
+        if (def.slot == EquipmentSlotType.HeadHelmet)
+        {
+            HideAllHeadVariants();
+        }
 
         Transform parent = GetSocket(def.slot);
         if (parent == null)
@@ -237,7 +320,7 @@ public class HeroEquipment : MonoBehaviour
             Unequip(EquipmentSlotType.OffHand);
 
         GameObject visual = SpawnVisualPrefab(def.visualPrefab, parent);
-        if (visual == null)
+if (visual == null)
             return;
 
         visual.transform.localPosition = Vector3.zero;

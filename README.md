@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.111` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.112` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.112** | Apply X-Ray layer to equipped visuals so Steve head and gear render correctly when obscured |
 | **v0.0.111** | Fix chest loot icons and A/B offers; overlay header text and boots/gloves icon DB |
 | **v0.0.110** | Save main scene chest loot overlay after equipment commit |
 | **v0.0.109** | Stable basic equipment: eight-slot chest loot, scene UI cards, and EquipmentManager |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.085** | Power score formula update and register TalentManager in GameServices |
 | **v0.0.084** | Working stable build: talent upgrades, power score delta feedback, unpolished but playable |
 | **v0.0.083** | Bug resolution for upgrades: affordable upgrade count and alert badge |
-| **v0.0.082** | Talent tree is in |
 <!-- CHANGELOG:END -->
 
 ---

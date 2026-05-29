@@ -9825,6 +9825,7 @@ MonoBehaviour:
   extraVisualYawDegrees: 0
   currentEnemy: {fileID: 0}
   healthSlider: {fileID: 0}
+  healthLerpSpeed: 5
 --- !u!114 &5740664747177594006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9852,6 +9853,14 @@ MonoBehaviour:
   critChance: 9.6
   critDamage: 68
   dodgeChance: 7.2000003
+  talentStrength: 0
+  talentAgility: 0
+  talentVitality: 0
+  talentLuck: 0
+  talentMaxHP: 0
+  talentDodge: 0
+  talentCritChance: 0
+  talentCritDamage: 0
 --- !u!136 &795917165833415728
 CapsuleCollider:
   m_ObjectHideFlags: 0

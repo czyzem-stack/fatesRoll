@@ -663,10 +663,6 @@ MonoBehaviour:
   throwForce: 8
   torque: 15
   gameplaySceneName: main
-  autoRollIndicator: {fileID: 0}
-  autoRollText: {fileID: 0}
-  autoRollActiveColor: {r: 0, g: 1, b: 1, a: 1}
-  autoRollInactiveColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!1 &641023188
 GameObject:
   m_ObjectHideFlags: 0
@@ -828,11 +824,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentLootManager
   catalog: {fileID: 11400000, guid: 08a8bfab87c70604189808051e78960c, type: 2}
-  titleFormat: Treasure Chest Opened!
-  bodyText: Fate offers you two relics. Choose one.
-  takeButtonText: Take
-  dualOfferBodyText: Fate offers two relics. Choose one.
-  chooseButtonText: Choose
   startingStatBonus: 1
   chestPowerScalar: 1.2
   chestsOpenedCount: 0
@@ -1660,6 +1651,7 @@ MonoBehaviour:
   baseXPForLevel1: 50
   xpExponentialMultiplier: 1.2
   combatLogEnabled: 1
+  specialEffectLogEnabled: 1
   verboseGameplayLogs: 0
   showPath: 1
 --- !u!1 &1870573080
