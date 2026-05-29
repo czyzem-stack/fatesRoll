@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.088` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.089` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.089** | Inventory planned and hooked in UI, non-functional placeholder |
 | **v0.0.088** | Prepare for loot: missions QA'd and optimized until reward loot ships |
 | **v0.0.087** | Shop UI works: panel resources, global HUD toggle, and main scene wiring |
 | **v0.0.086** | Added hero select panel with gems and heroes UI |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.062** | Add equipment loot chests, hero gear visuals, and locomotion animator fixes |
 | **v0.0.061** | Add level-up roguelite reward popup with configurable stat offers |
 | **v0.0.060** | Add title screen logo sprites under Assets/Sprites |
-| **v0.0.059** | Add title loading screen with tap-to-start flow and editor setup |
 <!-- CHANGELOG:END -->
 
 ---
