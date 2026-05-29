@@ -90,13 +90,15 @@ public class MissionPanelUI : MonoBehaviour
     {
         if (cachedGlobalHUD) cachedGlobalHUD.SetActive(false);
         UpdateUI();
-        if (QuestManager.Instance) QuestManager.Instance.OnQuestsUpdated += UpdateUI;
+        if (GameServices.TryGet(out QuestManager quests))
+            quests.OnQuestsUpdated += UpdateUI;
     }
 
     private void OnDisable()
     {
         if (cachedGlobalHUD) cachedGlobalHUD.SetActive(true);
-        if (QuestManager.Instance) QuestManager.Instance.OnQuestsUpdated -= UpdateUI;
+        if (GameServices.TryGet(out QuestManager quests))
+            quests.OnQuestsUpdated -= UpdateUI;
     }
 
     public void ShowQuests() { showingAchievements = false; UpdateUI(); }
@@ -104,8 +106,8 @@ public class MissionPanelUI : MonoBehaviour
 
     public void UpdateUI()
     {
-        var qm = QuestManager.Instance ?? Object.FindAnyObjectByType<QuestManager>();
-        if (!qm) return;
+        if (!GameServices.TryGet(out QuestManager qm))
+            return;
 
         UpdateTopBanner(qm);
         UpdateResources();

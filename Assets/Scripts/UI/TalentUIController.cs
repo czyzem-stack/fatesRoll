@@ -110,23 +110,25 @@ public class TalentUIController : MonoBehaviour
 
     private void UpdateUpgradeButton()
     {
-        if (TalentManager.Instance == null || upgradeButton == null) return;
+        if (upgradeButton == null || !GameServices.TryGet(out TalentManager talents))
+            return;
 
-        int cost = TalentManager.Instance.GetCurrentCost();
+        int cost = talents.GetCurrentCost();
         if (upgradeCostText != null)
             upgradeCostText.text = cost.ToString();
-            
-        upgradeButton.interactable = TalentManager.Instance.CanAffordUpgrade() && !isSpinning;
+
+        upgradeButton.interactable = talents.CanAffordUpgrade() && !isSpinning;
     }
 
     private void UpdateStatBonuses()
     {
-        if (TalentManager.Instance == null || statBonusTexts == null) return;
+        if (statBonusTexts == null || !GameServices.TryGet(out TalentManager talents))
+            return;
 
         for (int i = 0; i < statBonusTexts.Count; i++)
         {
             if (statBonusTexts[i] == null) continue;
-            float bonus = TalentManager.Instance.GetTotalBonus(i);
+            float bonus = talents.GetTotalBonus(i);
             statBonusTexts[i].text = "+" + bonus.ToString("F0");
             statBonusTexts[i].color = bonus > 0 ? Color.green : Color.white;
         }
@@ -134,15 +136,18 @@ public class TalentUIController : MonoBehaviour
 
     public void OnUpgradeClicked()
     {
-        if (isSpinning) return;
-        
-        if (powerScoreDisplay != null) powerScoreDisplay.Lock();
+        if (isSpinning)
+            return;
 
-        int resultCategory = TalentManager.Instance.PerformUpgrade();
+        if (!GameServices.TryGet(out TalentManager talents))
+            return;
+
+        if (powerScoreDisplay != null)
+            powerScoreDisplay.Lock();
+
+        int resultCategory = talents.PerformUpgrade();
         if (resultCategory != -1)
-        {
             StartCoroutine(RouletteRoutine(resultCategory));
-        }
     }
 
     private IEnumerator RouletteRoutine(int targetIndex)

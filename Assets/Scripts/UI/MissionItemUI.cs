@@ -74,7 +74,10 @@ public class MissionItemUI : MonoBehaviour
 
             claimButton.onClick.RemoveAllListeners();
             if (isReadyToClaim)
-                claimButton.onClick.AddListener(() => QuestManager.Instance.ClaimReward(quest));
+            {
+                Quest captured = quest;
+                claimButton.onClick.AddListener(() => OnClaimClicked(captured));
+            }
         }
 
         // 4. Alert Badge on Button
@@ -84,6 +87,14 @@ public class MissionItemUI : MonoBehaviour
             var alertText = claimAlertRed.GetComponentInChildren<TextMeshProUGUI>();
             if (alertText) alertText.text = "!";
         }
+    }
+
+    private static void OnClaimClicked(Quest quest)
+    {
+        if (quest == null || !GameServices.TryGet(out QuestManager quests))
+            return;
+
+        quests.ClaimReward(quest);
     }
 
     private void ValidateReferences()

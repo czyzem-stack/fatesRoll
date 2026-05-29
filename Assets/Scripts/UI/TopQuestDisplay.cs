@@ -12,14 +12,14 @@ public class TopQuestDisplay : MonoBehaviour
     {
         ValidateReferences();
         UpdateDisplay();
-        if (QuestManager.Instance)
-            QuestManager.Instance.OnQuestsUpdated += UpdateDisplay;
+        if (GameServices.TryGet(out QuestManager quests))
+            quests.OnQuestsUpdated += UpdateDisplay;
     }
 
     private void OnDisable()
     {
-        if (QuestManager.Instance)
-            QuestManager.Instance.OnQuestsUpdated -= UpdateDisplay;
+        if (GameServices.TryGet(out QuestManager quests))
+            quests.OnQuestsUpdated -= UpdateDisplay;
     }
 
     private void ValidateReferences()
@@ -43,8 +43,8 @@ public class TopQuestDisplay : MonoBehaviour
 
     private void UpdateDisplay()
     {
-        var qm = QuestManager.Instance ?? Object.FindAnyObjectByType<QuestManager>();
-        if (!qm) return;
+        if (!GameServices.TryGet(out QuestManager qm))
+            return;
 
         var q = qm.GetFirstActiveQuest();
         if (q != null)
