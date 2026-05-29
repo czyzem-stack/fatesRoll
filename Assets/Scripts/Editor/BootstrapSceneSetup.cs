@@ -113,8 +113,7 @@ public static class BootstrapSceneSetup
         var runDeathGo = new GameObject("RunDeathController");
         runDeathGo.transform.SetParent(servicesGo.transform, false);
         runDeathGo.AddComponent<RunDeathController>();
-        Debug.Log(
-            "BootstrapSceneSetup: RunDeathController not in main.unity — added default (runtime also creates one if missing).");
+        Debug.Log("BootstrapSceneSetup: RunDeathController not in main.unity — added under GameServices.");
         return true;
     }
 

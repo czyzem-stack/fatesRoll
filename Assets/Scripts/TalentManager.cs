@@ -33,11 +33,12 @@ public class TalentManager : GameServiceBehaviour<TalentManager>
 
     public int GetAffordableUpgradeCount()
     {
-        if (LootManager.Instance == null) return 0;
-        
+        if (!GameServices.TryGet(out LootManager loot))
+            return 0;
+
         int count = 0;
         int tempLevel = currentUpgradeLevel;
-        long remainingGold = LootManager.Instance.CurrentGold;
+        int remainingGold = loot.CurrentGold;
         
         while (true)
         {

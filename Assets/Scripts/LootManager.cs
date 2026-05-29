@@ -77,12 +77,16 @@ public class LootManager : GameServiceBehaviour<LootManager>
     public int CurrentGold => currentGold;
     public int CurrentGems => currentGems;
 
+    /// <summary>Fired when gold or gems change (pickup, spend, mission reward).</summary>
+    public static event System.Action BalanceChanged;
+
     public void AddGold(int amount)
     {
         if (amount <= 0) return;
         currentGold += amount;
         UpdateGoldUI();
         SpawnGoldFloatingText(amount);
+        NotifyBalanceChanged();
     }
 
     public void AddGems(int amount)
@@ -90,6 +94,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         if (amount <= 0) return;
         currentGems += amount;
         UpdateGemUI();
+        NotifyBalanceChanged();
         // TODO: Spawn gem floating text if needed
     }
 
@@ -99,6 +104,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         {
             currentGold -= amount;
             UpdateGoldUI();
+            NotifyBalanceChanged();
             return true;
         }
         return false;
@@ -110,10 +116,13 @@ public class LootManager : GameServiceBehaviour<LootManager>
         {
             currentGems -= amount;
             UpdateGemUI();
+            NotifyBalanceChanged();
             return true;
         }
         return false;
     }
+
+    private static void NotifyBalanceChanged() => BalanceChanged?.Invoke();
 
     private int currentGold;
     private int currentGems;
@@ -164,6 +173,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         AutoAssignUI();
         UpdateGoldUI();
         UpdateGemUI();
+        NotifyBalanceChanged();
     }
 
     private void OnEnable()
@@ -334,6 +344,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         hasInitializedGold = true;
         UpdateGoldUI();
         SpawnGoldFloatingText(amount);
+        NotifyBalanceChanged();
         GlobalSettings.LogGameplay($"LootManager: +{amount} gold (total {currentGold})");
     }
 
@@ -368,6 +379,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         hasInitializedGold = true;
         UpdateGoldUI();
         UpdateGemUI();
+        NotifyBalanceChanged();
     }
 
     [ContextMenu("Auto-Assign UI")]

@@ -399,6 +399,8 @@ public class GameServices : MonoBehaviour
             Debug.LogWarning("GameServices: GlobalSettings missing. Add one under the bootstrap object.", this);
         if (!TryGet<DiceSpawner>(out _))
             Debug.LogWarning("GameServices: DiceSpawner missing.", this);
+        if (!TryGet<RunDeathController>(out _))
+            Debug.LogWarning("GameServices: RunDeathController missing.", this);
     }
 
     private static void TryRegisterHeroFromScene(Scene scene)

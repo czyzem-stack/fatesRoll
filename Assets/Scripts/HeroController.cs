@@ -37,7 +37,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
         isDead ||
         isRespawning ||
         isCelebrating ||
-        (RunDeathController.HasInstance && RunDeathController.Instance.IsDeathInProgress) ||
+        (GameServices.TryGet(out RunDeathController runDeath) && runDeath.IsDeathInProgress) ||
         (RogueLiteManager.HasInstance && RogueLiteManager.Instance.IsRewardFlowActive) ||
         (EquipmentLootManager.HasInstance && EquipmentLootManager.Instance.IsRewardFlowActive);
     public float LevelUpCelebrationSeconds => 2.7f;
@@ -221,8 +221,8 @@ public bool IsMoving => movement != null && movement.IsMoving;
 
         SetLayerRecursive(gameObject, 8);
 
-        if (RunDeathController.Instance != null)
-            RunDeathController.Instance.RecordHeroSpawn(this);
+        if (GameServices.TryGet(out RunDeathController runDeath))
+            runDeath.RecordHeroSpawn(this);
     }
 
     private void SetLayerRecursive(GameObject obj, int layer)
@@ -687,12 +687,19 @@ public bool IsMoving => movement != null && movement.IsMoving;
             agent.velocity = Vector3.zero;
         }
 
-        if (RunDeathController.Instance == null)
-            new GameObject("RunDeathController").AddComponent<RunDeathController>();
-
         if (GameServices.TryGet(out DiceSpawner diceSpawner))
             diceSpawner.CancelActiveRoll();
-        RunDeathController.Instance.HandleHeroDeath(this);
+
+        if (!GameServices.TryGet(out RunDeathController runDeath))
+        {
+            Debug.LogError(
+                "HeroController: RunDeathController missing on GameServices bootstrap. " +
+                "Add RunDeathController under the bootstrap object (FatesRoll → Setup → Add Game Services Bootstrap).",
+                this);
+            return;
+        }
+
+        runDeath.HandleHeroDeath(this);
     }
 
     public void PrepareForRespawnAtSpawn(Vector3 position, Quaternion rotation)
