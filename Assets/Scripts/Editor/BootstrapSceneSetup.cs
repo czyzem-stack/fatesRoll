@@ -16,7 +16,8 @@ public static class BootstrapSceneSetup
     {
         typeof(GlobalSettings), typeof(DiceSpawner), typeof(POIManager), typeof(SpawnManager),
         typeof(EnergyManager), typeof(LevelManager), typeof(LootManager), typeof(EquipmentLootManager),
-        typeof(RogueLiteManager), typeof(RunDeathController), typeof(EnemyStatManager)
+        typeof(RogueLiteManager), typeof(RunDeathController), typeof(EnemyStatManager),
+        typeof(TalentManager), typeof(QuestManager)
     };
 
     [MenuItem("FatesRoll/Setup/Create Bootstrap Scene From Main")]
@@ -104,17 +105,26 @@ public static class BootstrapSceneSetup
             return true;
         }
 
-        if (serviceType != typeof(RunDeathController))
+        if (serviceType == typeof(RunDeathController))
         {
-            Debug.LogWarning($"BootstrapSceneSetup: no {serviceType.Name} in main.unity — skipped.");
-            return false;
+            var runDeathGo = new GameObject("RunDeathController");
+            runDeathGo.transform.SetParent(servicesGo.transform, false);
+            runDeathGo.AddComponent<RunDeathController>();
+            Debug.Log("BootstrapSceneSetup: RunDeathController not in main.unity — added under GameServices.");
+            return true;
         }
 
-        var runDeathGo = new GameObject("RunDeathController");
-        runDeathGo.transform.SetParent(servicesGo.transform, false);
-        runDeathGo.AddComponent<RunDeathController>();
-        Debug.Log("BootstrapSceneSetup: RunDeathController not in main.unity — added under GameServices.");
-        return true;
+        if (serviceType == typeof(QuestManager))
+        {
+            var questGo = new GameObject("QuestManager");
+            questGo.transform.SetParent(servicesGo.transform, false);
+            questGo.AddComponent<QuestManager>();
+            Debug.Log("BootstrapSceneSetup: QuestManager not in main.unity — added under GameServices.");
+            return true;
+        }
+
+        Debug.LogWarning($"BootstrapSceneSetup: no {serviceType.Name} in main.unity — skipped.");
+        return false;
     }
 
     /// <summary>Prefer GameServices subtree; DiceSpawner may live on Steve; others can be scene-wide.</summary>

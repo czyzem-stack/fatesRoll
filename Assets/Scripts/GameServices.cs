@@ -67,6 +67,7 @@ public class GameServices : MonoBehaviour
     [SerializeField] private HeroSpawnPoint heroSpawnPoint;
 
     private readonly Dictionary<Type, object> registry = new Dictionary<Type, object>();
+    private bool requiredServicesValidated;
 
     /// <summary>Steve / player hero (null until <see cref="HeroController"/> Awake registers).</summary>
     public static HeroController Hero
@@ -147,7 +148,37 @@ public class GameServices : MonoBehaviour
             Application.targetFrameRate = targetFrameRateOnStart;
 
         ResolveReferences();
+        EnsureQuestManagerOnBootstrap();
         PublishInspectorReferences();
+    }
+
+    private void Start()
+    {
+        ResolveReferences();
+        EnsureQuestManagerOnBootstrap();
+        PublishInspectorReferences();
+        ValidateRequiredServicesOnce();
+    }
+
+    /// <summary>Single QuestManager under this bootstrap (created here only if the scene has none).</summary>
+    private void EnsureQuestManagerOnBootstrap()
+    {
+        questManager ??= GetComponentInChildren<QuestManager>(true);
+        if (questManager != null)
+            return;
+
+        var go = new GameObject("QuestManager");
+        go.transform.SetParent(transform, false);
+        questManager = go.AddComponent<QuestManager>();
+        GlobalSettings.LogGameplay("GameServices: added QuestManager under GameServices (assign in Bootstrap.unity to keep it in the scene).");
+    }
+
+    private void ValidateRequiredServicesOnce()
+    {
+        if (requiredServicesValidated)
+            return;
+
+        requiredServicesValidated = true;
         ValidateRequiredServices();
     }
 
@@ -168,6 +199,9 @@ public class GameServices : MonoBehaviour
             return;
 
         RefreshHeroSpawnFromChildren();
+        ResolveReferences();
+        EnsureQuestManagerOnBootstrap();
+        PublishInspectorReferences();
         TryRegisterHeroFromScene(scene);
     }
 
@@ -401,6 +435,8 @@ public class GameServices : MonoBehaviour
             Debug.LogWarning("GameServices: DiceSpawner missing.", this);
         if (!TryGet<RunDeathController>(out _))
             Debug.LogWarning("GameServices: RunDeathController missing.", this);
+        if (!TryGet<QuestManager>(out _))
+            Debug.LogWarning("GameServices: QuestManager missing. Add a QuestManager child under GameServices in Bootstrap.unity.", this);
     }
 
     private static void TryRegisterHeroFromScene(Scene scene)

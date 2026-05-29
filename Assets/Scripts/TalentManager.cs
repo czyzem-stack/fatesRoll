@@ -23,7 +23,13 @@ public class TalentManager : GameServiceBehaviour<TalentManager>
     protected override void Awake()
     {
         base.Awake();
-        for (int i = 0; i < 10; i++) totalBonuses[i] = 0;
+        if (totalBonuses == null || totalBonuses.Count == 0)
+            totalBonuses = new Dictionary<int, float>();
+        for (int i = 0; i < 10; i++)
+        {
+            if (!totalBonuses.ContainsKey(i))
+                totalBonuses[i] = 0;
+        }
     }
 
     public int GetCurrentCost()

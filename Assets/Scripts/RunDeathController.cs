@@ -2,7 +2,10 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
-/// <summary>Fade to black on Steve's death, reset enemies to base difficulty, respawn Steve with gear and stats.</summary>
+/// <summary>
+/// Fade to black on Steve's death, reset world difficulty, respawn Steve at spawn.
+/// Persists for the current play session: gold/gems, talents, quests, and equipped gear (no disk save in prototype).
+/// </summary>
 /// <remarks>Inherits <see cref="GameServiceBehaviour{T}"/> — auto-registers in Awake via <see cref="GameServices"/>.</remarks>
 [DefaultExecutionOrder(50)]
 public class RunDeathController : GameServiceBehaviour<RunDeathController>
@@ -83,7 +86,10 @@ public class RunDeathController : GameServiceBehaviour<RunDeathController>
         HideFadeOverlay();
 
         if (hero != null)
+        {
             yield return hero.PlayStandUpFromDeathRoutine(standUpSeconds);
+            hero.GetComponent<HeroEquipment>()?.ReapplyEquippedVisuals();
+        }
 
         deathInProgress = false;
     }

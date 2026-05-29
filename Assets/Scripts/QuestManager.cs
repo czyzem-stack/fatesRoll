@@ -38,15 +38,26 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
     public List<Quest> activeQuests = new List<Quest>();
     public List<Quest> achievements = new List<Quest>();
 
+    [Tooltip("Set after first quest list is built for this play session (not saved to disk in prototype).")]
+    [SerializeField] private bool hasInitializedRunData;
+
     public event Action OnQuestsUpdated;
 
     protected override void Awake()
     {
         base.Awake();
+        EnsureRunDataInitialized();
+    }
+
+    private void EnsureRunDataInitialized()
+    {
+        if (hasInitializedRunData)
+            return;
+
         if (IsDataEmpty())
-        {
             GenerateInitialData();
-        }
+
+        hasInitializedRunData = true;
     }
 
     private bool IsDataEmpty()
@@ -91,6 +102,7 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
             });
         }
         
+        hasInitializedRunData = true;
         OnQuestsUpdated?.Invoke();
         Debug.Log("[QuestManager] Generated 10 slayer quests and 10 champion achievements.");
     }

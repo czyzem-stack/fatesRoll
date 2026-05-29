@@ -136,6 +136,26 @@ public class HeroEquipment : MonoBehaviour
             body01.gameObject.SetActive(true);
     }
 
+    /// <summary>Re-applies rig toggles / prefab visuals after respawn (inventory is unchanged).</summary>
+    public void ReapplyEquippedVisuals()
+    {
+        ResolveRig();
+        CacheRigChildren();
+
+        var snapshot = new List<KeyValuePair<EquipmentSlotType, EquipmentInstance>>(equipped);
+        foreach (var pair in snapshot)
+        {
+            if (pair.Value?.definition == null)
+                continue;
+
+            UnequipVisual(pair.Key);
+            ApplyVisual(pair.Value);
+        }
+
+        RefreshStatBonuses();
+        hero?.GetComponent<SteveAnimator>()?.UpdateStance();
+    }
+
     public bool Equip(EquipmentInstance instance)
     {
         if (instance?.definition == null)
