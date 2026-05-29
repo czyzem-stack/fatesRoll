@@ -224,6 +224,12 @@ public class HeroEquipment : MonoBehaviour
             return false;
 
         EquipmentSlotType slot = instance.definition.slot;
+        if (equipped.TryGetValue(slot, out EquipmentInstance previous) && previous != null && previous != instance)
+        {
+            GlobalSettings.LogGameplay(
+                $"HeroEquipment: swapping {previous.BuildChoiceLabel()} → {instance.BuildChoiceLabel()} ({slot}) — stats recomputed from worn gear only.");
+        }
+
         UnequipVisual(slot);
         equipped[slot] = instance;
         ApplyVisual(instance);
@@ -476,15 +482,10 @@ if (visual == null)
                (def.visualPrefab != null && def.visualPrefab.name.Contains("THS"));
     }
 
-    public void RefreshStatBonuses()
+    /// <summary>Sum of primary bonuses from currently worn items (one item per slot — no stacking).</summary>
+    public void GetEquippedPrimaryTotals(out float strength, out float agility, out float vitality, out float luck)
     {
-        if (playerStats == null)
-            playerStats = GetComponent<PlayerStats>();
-
-        if (playerStats == null)
-            return;
-
-        float str = 0f, agi = 0f, vit = 0f, luck = 0f;
+        strength = agility = vitality = luck = 0f;
         foreach (var kv in equipped)
         {
             if (kv.Value?.statBonuses == null)
@@ -494,13 +495,24 @@ if (visual == null)
             {
                 switch (b.stat)
                 {
-                    case EquipmentPrimaryStat.Strength: str += b.amount; break;
-                    case EquipmentPrimaryStat.Agility: agi += b.amount; break;
-                    case EquipmentPrimaryStat.Vitality: vit += b.amount; break;
+                    case EquipmentPrimaryStat.Strength: strength += b.amount; break;
+                    case EquipmentPrimaryStat.Agility: agility += b.amount; break;
+                    case EquipmentPrimaryStat.Vitality: vitality += b.amount; break;
                     case EquipmentPrimaryStat.Luck: luck += b.amount; break;
                 }
             }
         }
+    }
+
+    public void RefreshStatBonuses()
+    {
+        if (playerStats == null)
+            playerStats = GetComponent<PlayerStats>();
+
+        if (playerStats == null)
+            return;
+
+        GetEquippedPrimaryTotals(out float str, out float agi, out float vit, out float luck);
 
         float oldMax = playerStats.MaxHP;
         playerStats.SetEquipmentBonuses(str, agi, vit, luck);

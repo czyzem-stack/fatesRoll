@@ -283,21 +283,13 @@ public class EquipmentLootManager : GameServiceBehaviour<EquipmentLootManager>
 
 
     void CompleteChoice(EquipmentInstance chosen)
-
     {
-
         if (chosen != null && GameServices.TryGet(out EquipmentManager manager))
-
-            manager.AcquireItem(chosen);
-
+            manager.EquipChestChoice(chosen);
         else if (chosen != null)
-
             FindHeroEquipment()?.Equip(chosen);
 
-
-
         waitingForChoice = false;
-
     }
 
 

@@ -165,6 +165,27 @@ public class EquipmentManager : GameServiceBehaviour<EquipmentManager>
         return true;
     }
 
+    /// <summary>Chest pick: add to inventory if needed, then equip (replaces prior item in that slot).</summary>
+    public bool EquipChestChoice(EquipmentInstance item)
+    {
+        if (item?.definition == null)
+            return false;
+
+        item.EnsureInstanceId();
+
+        if (GetEquipped(item.definition.slot) == item)
+            return true;
+
+        if (!InventoryContainsInstance(item.instanceId) && !AcquireItem(item))
+            return false;
+
+        if (InventoryContainsInstance(item.instanceId))
+            return EquipFromInventory(item);
+
+        // Slot was empty — AcquireItem already auto-equipped.
+        return GetEquipped(item.definition.slot) == item;
+    }
+
     public bool EquipFromInventory(EquipmentInstance item)
     {
         if (item?.definition == null || !inventory.Contains(item))
@@ -181,6 +202,9 @@ public class EquipmentManager : GameServiceBehaviour<EquipmentManager>
             previous.EnsureInstanceId();
             if (!InventoryContainsInstance(previous.instanceId))
                 inventory.Add(previous);
+
+            GlobalSettings.LogGameplay(
+                $"EquipmentManager: replaced {previous.BuildChoiceLabel()} with {item.BuildChoiceLabel()} in {EquipmentSlots.GetDisplayName(slot)} (old item to inventory).");
         }
 
         inventory.Remove(item);
