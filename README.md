@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.100` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.101` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.101** | Add editor menu to fix ScrollRect Veiwport typo safely in Unity |
 | **v0.0.100** | Restore main.unity from before corrupt Viewport text replace |
 | **v0.0.099** | Fix mission scroll Viewport typo in main scene and Mission prefab |
 | **v0.0.098** | Event-driven meta UI refresh instead of per-frame panel polling |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.074** | Equipment-driven hero stance animators and synced weapon animator controllers |
 | **v0.0.073** | Sync animator controllers and wire Taunt, GetHit, and InCombat parameters |
 | **v0.0.072** | Add GameConstants, shared crit helpers, and service coroutine cleanup on destroy |
-| **v0.0.071** | Remove unused health slider cache fields and update main scene |
 <!-- CHANGELOG:END -->
 
 ---
