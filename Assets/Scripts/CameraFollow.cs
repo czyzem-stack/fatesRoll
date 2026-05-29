@@ -14,11 +14,4 @@ public class CameraFollow : MonoBehaviour
     public Vector3 offset = new Vector3(0, 20, -10);
     public float smoothSpeed = 0.125f;
     public Vector3 rotation = new Vector3(60, 0, 0);
-
-    void OnValidate()
-    {
-        Debug.LogWarning(
-            "CameraFollow is obsolete and does nothing. Use FatesRoll → Cleanup → Remove Obsolete Camera Follow.",
-            this);
-    }
 }

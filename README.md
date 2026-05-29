@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.104` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.105` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.105** | Restore CameraFollow stub and add scene cleanup menus for missing scripts |
 | **v0.0.104** | Route coin talent through LootManager bonus API and fix crit combat logs |
 | **v0.0.103** | Gate GameServices bootstrap logs behind verboseGameplayLogs |
 | **v0.0.102** | Fix ScrollRect Veiwport typo in main scene and GUI Pro prefabs |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.078** | Save point: character panel prefab state at stable break boundary |
 | **v0.0.077** | Orc battle shout buff, configurable special floating text, and fear miss labels |
 | **v0.0.076** | Add EnemySpecialController, Bat animator, and tunable skeleton block and bat fear |
-| **v0.0.075** | Relocate Steve and Orc animators, add skeleton block and protected attack recovery windows |
 <!-- CHANGELOG:END -->
 
 ---
