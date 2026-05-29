@@ -141,9 +141,9 @@ PlayerSettings:
   vulkanEnableLateAcquireNextImage: 0
   vulkanEnableCommandBufferRecycling: 1
   loadStoreDebugModeEnabled: 0
-  visionOSBundleVersion: 0.0.108
-  visionOSBundleVersion: 0.0.108
-  bundleVersion: 0.0.108
+  visionOSBundleVersion: 0.0.109
+  visionOSBundleVersion: 0.0.109
+  bundleVersion: 0.0.109
   preloadedAssets: []
   metroInputSource: 0
   wsaTransparentSwapchain: 0
@@ -173,7 +173,7 @@ PlayerSettings:
     iPhone: 0
     tvOS: 0
   overrideDefaultApplicationIdentifier: 1
-  AndroidBundleVersionCode: 108
+  AndroidBundleVersionCode: 109
   AndroidMinSdkVersion: 25
   AndroidTargetSdkVersion: 0
   AndroidPreferredInstallLocation: 1
@@ -660,7 +660,7 @@ PlayerSettings:
   switchPresenceGroupId: 
   switchLogoHandling: 0
   switchReleaseVersion: 0
-  switchDisplayVersion: 0.0.108
+  switchDisplayVersion: 0.0.109
   switchStartupUserAccount: 0
   switchSupportedLanguagesMask: 0
   switchLogoType: 0
