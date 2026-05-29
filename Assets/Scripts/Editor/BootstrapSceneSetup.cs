@@ -15,7 +15,8 @@ public static class BootstrapSceneSetup
     static readonly Type[] ServiceComponentTypes =
     {
         typeof(GlobalSettings), typeof(DiceSpawner), typeof(POIManager), typeof(SpawnManager),
-        typeof(EnergyManager), typeof(LevelManager), typeof(LootManager), typeof(EquipmentLootManager),
+        typeof(EnergyManager), typeof(LevelManager), typeof(LootManager), typeof(EquipmentManager),
+        typeof(EquipmentLootManager),
         typeof(RogueLiteManager), typeof(RunDeathController), typeof(EnemyStatManager),
         typeof(TalentManager), typeof(QuestManager)
     };

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: boots_plate
   displayName: Plate Boots
-  slot: 4
+  slot: 10
   chestCategory: 2
   visualPrefab: {fileID: 0}
   rigChildName: 

@@ -54,6 +54,7 @@ public class GameServices : MonoBehaviour
     [SerializeField] private EnergyManager energyManager;
     [SerializeField] private LevelManager levelManager;
     [SerializeField] private LootManager lootManager;
+    [SerializeField] private EquipmentManager equipmentManager;
     [SerializeField] private EquipmentLootManager equipmentLootManager;
     [SerializeField] private RogueLiteManager rogueLiteManager;
     [SerializeField] private TalentManager talentManager;
@@ -332,6 +333,7 @@ public class GameServices : MonoBehaviour
         if (energyManager == null) energyManager = incoming.energyManager;
         if (levelManager == null) levelManager = incoming.levelManager;
         if (lootManager == null) lootManager = incoming.lootManager;
+        if (equipmentManager == null) equipmentManager = incoming.equipmentManager;
         if (equipmentLootManager == null) equipmentLootManager = incoming.equipmentLootManager;
         if (rogueLiteManager == null) rogueLiteManager = incoming.rogueLiteManager;
         if (talentManager == null) talentManager = incoming.talentManager;
@@ -366,6 +368,7 @@ public class GameServices : MonoBehaviour
         energyManager ??= GetComponentInChildren<EnergyManager>(true);
         levelManager ??= GetComponentInChildren<LevelManager>(true);
         lootManager ??= GetComponentInChildren<LootManager>(true);
+        equipmentManager ??= GetComponentInChildren<EquipmentManager>(true);
         equipmentLootManager ??= GetComponentInChildren<EquipmentLootManager>(true);
         rogueLiteManager ??= GetComponentInChildren<RogueLiteManager>(true);
         talentManager ??= GetComponentInChildren<TalentManager>(true);
@@ -386,6 +389,7 @@ public class GameServices : MonoBehaviour
         RegisterIfPresent(energyManager);
         RegisterIfPresent(levelManager);
         RegisterIfPresent(lootManager);
+        RegisterIfPresent(equipmentManager);
         RegisterIfPresent(equipmentLootManager);
         RegisterIfPresent(rogueLiteManager);
         RegisterIfPresent(talentManager);
@@ -414,6 +418,7 @@ public class GameServices : MonoBehaviour
             case EnergyManager em: energyManager = em; break;
             case LevelManager lm: levelManager = lm; break;
             case LootManager loot: lootManager = loot; break;
+            case EquipmentManager eqm: equipmentManager = eqm; break;
             case EquipmentLootManager elm: equipmentLootManager = elm; break;
             case RogueLiteManager rlm: rogueLiteManager = rlm; break;
             case TalentManager tm: talentManager = tm; break;

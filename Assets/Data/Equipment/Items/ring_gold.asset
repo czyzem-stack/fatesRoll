@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: ring_gold
   displayName: Gold Ring
-  slot: 4
+  slot: 8
   chestCategory: 2
   visualPrefab: {fileID: 0}
   rigChildName: 

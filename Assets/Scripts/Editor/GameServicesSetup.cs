@@ -20,7 +20,8 @@ public static class GameServicesSetup
         System.Type[] serviceTypes =
         {
             typeof(GlobalSettings), typeof(DiceSpawner), typeof(POIManager), typeof(SpawnManager),
-            typeof(EnergyManager), typeof(LevelManager), typeof(LootManager), typeof(EquipmentLootManager),
+            typeof(EnergyManager), typeof(LevelManager), typeof(LootManager), typeof(EquipmentManager),
+            typeof(EquipmentLootManager),
             typeof(RogueLiteManager), typeof(RunDeathController), typeof(EnemyStatManager)
         };
 

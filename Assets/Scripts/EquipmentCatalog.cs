@@ -17,17 +17,6 @@ public class EquipmentCatalog : ScriptableObject
         return list;
     }
 
-    public List<EquipmentItemDefinition> GetBySlot(EquipmentSlotType slot)
-    {
-        var list = new List<EquipmentItemDefinition>();
-        foreach (var item in items)
-        {
-            if (item != null && item.slot == slot)
-                list.Add(item);
-        }
-        return list;
-    }
-
     public EquipmentItemDefinition FindById(string id)
     {
         if (string.IsNullOrEmpty(id))
@@ -40,5 +29,41 @@ public class EquipmentCatalog : ScriptableObject
         }
 
         return null;
+    }
+
+    public List<EquipmentItemDefinition> GetBySlot(EquipmentSlotType slot, bool playerSlotsOnly = false)
+    {
+        var list = new List<EquipmentItemDefinition>();
+        foreach (var item in items)
+        {
+            if (item == null)
+                continue;
+            if (item.slot != slot)
+                continue;
+            if (playerSlotsOnly && !EquipmentSlots.IsPlayerSlot(item.slot))
+                continue;
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    public EquipmentItemDefinition GetRandomBySlot(EquipmentSlotType slot)
+    {
+        var pool = GetBySlot(slot);
+        if (pool == null || pool.Count == 0)
+            return null;
+        return pool[UnityEngine.Random.Range(0, pool.Count)];
+    }
+
+    public bool HasAnyForPlayerSlots()
+    {
+        foreach (var slot in EquipmentSlots.PlayerSlots)
+        {
+            if (GetBySlot(slot).Count > 0)
+                return true;
+        }
+
+        return false;
     }
 }

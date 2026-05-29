@@ -413,54 +413,51 @@ After level-up celebration, `RogueLiteManager` shows A/B stat pick (timeScale 0)
 
 ## 16. Equipment and loot
 
-### 16.1 Coin loot (live)
+### 16.1 Eight player equipment slots
 
-`LootManager.OnEnemyDied`: firework burst → ground linger → Steve pickup → batch gold grant.  
-Effective gold per coin: `LootManager.GetGoldPerCoin()` = base + talent bonus + rogue-lite kill bonus (drop count).
+Chest loot uses **eight slots** only (`EquipmentSlots.PlayerSlots`):
 
-### 16.2 Equipment loot (live — chest flow)
+| Slot | UI name | Visual on Steve | Stat-only |
+|------|---------|-----------------|-----------|
+| `MainHand` | Weapon | Rig socket | No |
+| `BodyArmor` | Armor | Body toggle | No |
+| `HeadHelmet` | Head | Head socket | No |
+| `Cape` | Cape | Cloak toggle | No |
+| `Ring` | Ring | — | Yes |
+| `Necklace` | Necklace | — | Yes |
+| `Boots` | Boots | — | Yes |
+| `Gloves` | Gloves | — | Yes |
 
-```mermaid
-sequenceDiagram
-    participant HC as HeroController
-    participant EN as Enemy (chest POI)
-    participant ELM as EquipmentLootManager
-    participant HE as HeroEquipment
-    participant PS as PlayerStats
+Each slot has **independent stat tier progression** (STR/AGI/VIT/LUCK). Chests call `GenerateRandomPlayerSlotItem()` so any of the eight can drop.
 
-    HC->>EN: Path to chest interact range
-    HC->>EN: OpenTreasureChest
-    EN->>ELM: EnqueueChestReward(poi)
-    HC->>ELM: RunChestRewards (coroutine)
-    ELM->>ELM: Roll 2 items from EquipmentCatalog
-    ELM->>ELM: A/B popup (timeScale 0)
-    ELM->>HE: Equip chosen EquipmentInstance
-    HE->>PS: Apply stat bonuses, StatsChanged
-```
+Paper-doll order (EquipSlot_R then L): Weapon, Gloves, Ring, Boots | Head, Armor, Cape, Necklace.
 
-**Data**
+Validate catalog: **FatesRoll → Equipment → Validate Eight Slot Catalog**.
 
-| Asset / type | Role |
-|--------------|------|
-| `EquipmentCatalog` | Pools of `EquipmentItemDefinition` by slot/category |
-| `EquipmentItemDefinition` | Prefab id, slot, chest category, stat weights |
-| `EquipmentInstance` | Rolled item + 2-of-4 stat bonuses |
-| `EquipmentSlotType` | MainHand, OffHand, head sub-slots, body, cape, rings, etc. |
+### 16.2 EquipmentManager (bootstrap)
 
-**`HeroEquipment`** on Steve: resolves MC02 rig sockets, toggles body/head variants, spawns weapon prefabs, applies stat-only slots.
+`EquipmentManager` owns inventory, per-slot stat tiers, generation, and equip orchestration. Chest flow: `EquipmentLootManager` → popup → `AcquireItem()`.
 
-### 16.3 Inventory UI (planned — next major feature)
+Normal chests: **one** random item from the eight slots. FTUE POIs with forced A+B still show dual choice.
 
-| Status | Item |
-|--------|------|
-| Done | Chest drop + equip onto Steve, celebration coin loot, equipment stats |
-| Done | Equipment panel prefab in scene (GUI Pro demo layout) |
-| **TODO** | Functional inventory grid (owned items, not just equipped) |
-| **TODO** | Equip/unequip from UI, compare tooltips |
-| **TODO** | FTUE chest drops, naked Steve default loadout |
-| **TODO** | QA pass on slot conflicts (head layers, body toggles) |
+### 16.3 Chest loot popup
 
-When adding inventory, prefer extending `HeroEquipment` + a new `InventoryManager` service on bootstrap rather than scene `Find` from UI `Update()`.
+`ChestLootPopupUI` on scene object `MainUI_Canvas/ChestLootOverlay` with child GameObjects **Offer_A** / **Offer_B** (each has `ChestLootOfferCard`). Edit fonts, sizes, colors, and button labels in the Hierarchy; at runtime only loot **content** is applied (icon sprite, slot/name/stat strings from `EquipmentManager`). Template asset: `Assets/Prefabs/UI/ChestLootOfferCard.prefab`.
+
+`EquipmentLootManager` uses the scene overlay only (no runtime UI spawn). Editor: **Create Chest Loot Popup In Main Scene** (places unpacked GameObjects), **Refresh Chest Loot Offer Cards In Main Scene**, **Bootstrap Chest Loot Offer Card Prefab** (optional template).
+
+The legacy **Equipment** panel in `main.unity` is unchanged — no custom panel wiring.
+
+### 16.4 Coin loot
+
+Unchanged: `LootManager` celebration coin drops + gold HUD.
+
+### 16.5 Setup checklist
+
+1. **FatesRoll → Equipment → Build Icon Database From 5000FantasyIcons**
+2. **FatesRoll → Equipment → Add EquipmentManager To Bootstrap**
+3. **FatesRoll → Equipment → Create Chest Loot Popup In Main Scene** (places `ChestLootOverlay` with `Offer_A` / `Offer_B` GameObjects)
+4. Play **Bootstrap → title → main**, open chests
 
 ---
 
@@ -488,7 +485,14 @@ First line of commit message becomes the README changelog summary for that versi
 | **FatesRoll → Cleanup → Remove Missing Scripts In Main Scene** | Strip broken script refs |
 | **FatesRoll → Cleanup → Remove Obsolete Camera Follow In Main Scene** | Remove legacy camera component |
 | **FatesRoll → Scenes → Set Play Mode Start To Bootstrap** | Correct play-test entry |
-| **FatesRoll → Scenes → Setup Title Loading Scene** | Title flow + build order |
+| **FatesRoll → Equipment → Validate Eight Slot Catalog** | Confirm all 8 slots have catalog items |
+| **FatesRoll → Equipment → Build Icon Database From 5000FantasyIcons** | Icon pools per slot |
+| **FatesRoll → Equipment → Bootstrap Chest Loot Offer Card Prefab** | One-time card template |
+| **FatesRoll → Equipment → Refresh Chest Loot Overlay Offer Slots** | Nest card prefab under overlay asset |
+| **FatesRoll → Equipment → Refresh Chest Loot Offer Cards In Main Scene** | Offer_A / Offer_B as scene GameObjects |
+| **FatesRoll → Equipment → Create Chest Loot Popup In Main Scene** | Place ChestLootOverlay in main.unity |
+| **GameObject → FatesRoll → Chest Loot Offer Card** | Add a card GameObject under selection |
+| **FatesRoll → Equipment → Add EquipmentManager To Bootstrap** | Session inventory + generation |
 
 ---
 
@@ -514,7 +518,11 @@ First line of commit message becomes the README changelog summary for that versi
 | `LevelManager` | XP, level UI, `ProgressChanged` |
 | `LootManager` | Coin celebration, gold HUD, `GetGoldPerCoin()` |
 | `DroppedCoin` | Coin arc, pickup fly-to Steve |
-| `EquipmentLootManager` | Chest A/B equipment popup |
+| `EquipmentLootManager` | Chest popup → `EquipmentManager.AcquireItem` |
+| `ChestLootPopupUI` / `ChestLootOfferCard` | Chest A/B loot cards with icons |
+| `EquipmentSlots` | Eight player slot constants + paper-doll order |
+| `EquipmentManager` | Inventory, per-slot stat tiers, generation, equip orchestration |
+| `EquipmentIconDatabase` | Random UI icons per slot (5000FantasyIcons) |
 | `EquipmentCatalog` / `EquipmentItemDefinition` / `EquipmentInstance` | Gear data |
 | `RogueLiteManager` | Level-up A/B stat rewards |
 | `TalentManager` | Gold upgrades, `Upgraded` event |

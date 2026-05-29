@@ -30,6 +30,37 @@ public struct EquipmentStatBonus
 
 public static class EquipmentStatRoller
 {
+    /// <summary>Pick distinct stats using per-slot tier values as bonus amounts.</summary>
+    public static List<EquipmentStatBonus> RollStatsFromSlotProgression(
+        EquipmentSlotStatProgression progression,
+        int count = 2)
+    {
+        count = Mathf.Clamp(count, 1, 4);
+        var pool = new List<EquipmentPrimaryStat>
+        {
+            EquipmentPrimaryStat.Strength,
+            EquipmentPrimaryStat.Agility,
+            EquipmentPrimaryStat.Vitality,
+            EquipmentPrimaryStat.Luck
+        };
+
+        var result = new List<EquipmentStatBonus>(count);
+        for (int i = 0; i < count && pool.Count > 0; i++)
+        {
+            int idx = UnityEngine.Random.Range(0, pool.Count);
+            var stat = pool[idx];
+            pool.RemoveAt(idx);
+            float amount = progression != null ? progression.GetTier(stat) : 1;
+            result.Add(new EquipmentStatBonus(stat, Mathf.Max(1f, amount)));
+        }
+
+        return result;
+    }
+
+    /// <summary>Pick two distinct stats using per-slot tier values as bonus amounts.</summary>
+    public static List<EquipmentStatBonus> RollTwoStatsFromSlotProgression(EquipmentSlotStatProgression progression) =>
+        RollStatsFromSlotProgression(progression, 2);
+
     /// <summary>Pick two distinct stats from STR/AGI/VIT/LUCK with scaled amounts.</summary>
     public static List<EquipmentStatBonus> RollTwoOfFour(float bonusPerStat)
     {

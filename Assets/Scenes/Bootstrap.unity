@@ -119,6 +119,59 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &92794218
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 92794219}
+  - component: {fileID: 92794220}
+  m_Layer: 0
+  m_Name: EquipmentManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &92794219
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 92794218}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 164457956}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &92794220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 92794218}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 634cd693dd0c4504fb7adc17eacdfd86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EquipmentManager
+  catalog: {fileID: 11400000, guid: 08a8bfab87c70604189808051e78960c, type: 2}
+  iconDatabase: {fileID: 11400000, guid: 2b104229d9206c8468f0b9ba484e2ea8, type: 2}
+  statsPerItem: 2
+  startingStatTier: 1
+  statTierIncrementOnAcquire: 1
+  maxStatTierPerSlot: 99
+  inventory: []
+  slotProgressions: []
+  chestsOpenedCount: 0
 --- !u!1 &164457955
 GameObject:
   m_ObjectHideFlags: 0
@@ -163,6 +216,7 @@ Transform:
   - {fileID: 641023189}
   - {fileID: 1870573081}
   - {fileID: 1274309125}
+  - {fileID: 92794219}
   m_Father: {fileID: 1452887569}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &164457957
@@ -188,6 +242,7 @@ MonoBehaviour:
   energyManager: {fileID: 0}
   levelManager: {fileID: 0}
   lootManager: {fileID: 0}
+  equipmentManager: {fileID: 0}
   equipmentLootManager: {fileID: 0}
   rogueLiteManager: {fileID: 0}
   talentManager: {fileID: 1274309124}
@@ -773,44 +828,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentLootManager
   catalog: {fileID: 11400000, guid: 08a8bfab87c70604189808051e78960c, type: 2}
-  startingStatBonus: 1
-  chestPowerScalar: 1.2
   titleFormat: Treasure Chest Opened!
   bodyText: Fate offers you two relics. Choose one.
-  popupReferenceSize: {x: 838, y: 524}
-  popupScale: 0.75
-  dimOverlayColor: {r: 0, g: 0, b: 0, a: 0.65}
-  titleFontSize: 60
-  bodyFontSize: 48
-  buttonFontSize: 44
-  choiceButtonScale: 0.92
-  buttonPrefabs:
-  - color: 0
-    prefab: {fileID: 5164178704720697699, guid: 24e15d0d27d6f4c678cbb5bfb748e0d6, type: 3}
-  - color: 1
-    prefab: {fileID: 6314141365604668668, guid: 1c70d5ae37073403597e070d1168d089, type: 3}
-  - color: 2
-    prefab: {fileID: 1823291527766241088, guid: 8c558b450b0d54df8b6a2608aa29a87b, type: 3}
-  - color: 3
-    prefab: {fileID: 4157621961158532518, guid: 48bece32f83aa48b9a4ce11bbd6180bd, type: 3}
-  - color: 4
-    prefab: {fileID: 5751281797433854603, guid: 22fb7619cafbc4a818a05b788c878eef, type: 3}
-  - color: 5
-    prefab: {fileID: 691500379282035044, guid: 5d69538651aca442a940985ca6cf6b60, type: 3}
-  - color: 6
-    prefab: {fileID: 4495480609286760448, guid: f82cbbb70aa6c4c0abd3c0ad68282f40, type: 3}
-  - color: 7
-    prefab: {fileID: 8704443212075928128, guid: 4ecaef59581634555a27639126198676, type: 3}
-  - color: 8
-    prefab: {fileID: 23880287752558617, guid: d63e16bd778f34563a01b214a506325b, type: 3}
-  - color: 9
-    prefab: {fileID: 1899439594257537758, guid: 1a67ca01acf24455fbe95bf10e12225c, type: 3}
-  - color: 10
-    prefab: {fileID: 3448568139047586555, guid: f16c3747dc22c4c198776cf2d55f86c9, type: 3}
-  - color: 11
-    prefab: {fileID: 4140318876260214697, guid: cd3bf1a52d644407db1d31a67d1d2192, type: 3}
-  weaponButtonColor: 2
-  armorButtonColor: 0
+  takeButtonText: Take
+  dualOfferBodyText: Fate offers two relics. Choose one.
+  chooseButtonText: Choose
+  startingStatBonus: 1
+  chestPowerScalar: 1.2
   chestsOpenedCount: 0
 --- !u!1 &696976440
 GameObject:
