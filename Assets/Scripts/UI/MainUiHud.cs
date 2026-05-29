@@ -46,7 +46,7 @@ public static class MainUiHud
         if (scroll == null)
             return null;
 
-        Transform viewport = scroll.Find("Viewport") ?? scroll.Find("Veiwport");
+        Transform viewport = scroll.Find("Viewport") ?? scroll.Find("Veiwport"); // legacy typo in some GUI Pro prefabs
         return viewport != null ? viewport.Find("Content") : null;
     }
 }
