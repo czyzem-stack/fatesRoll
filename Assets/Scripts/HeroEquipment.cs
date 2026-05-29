@@ -243,7 +243,29 @@ public class HeroEquipment : MonoBehaviour
         visual.transform.localPosition = Vector3.zero;
         visual.transform.localRotation = Quaternion.identity;
         visual.transform.localScale = Vector3.one;
+
+        // All equipment should use the X-Ray layer (8) so they glow blue when obscured,
+        // just like Steve's base body. The renderer stencil logic prevents them from glowing in the open.
+        SetLayerRecursiveInternal(visual, 8);
+
         spawnedVisuals[def.slot] = visual;
+    }
+
+    /// <summary>Updates layers of all currently equipped visuals (usually called after character initialization).</summary>
+    public void RefreshAttachmentLayers()
+    {
+        foreach (var kv in spawnedVisuals)
+        {
+            if (kv.Value == null) continue;
+            SetLayerRecursiveInternal(kv.Value, 8);
+        }
+    }
+
+    private static void SetLayerRecursiveInternal(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+            SetLayerRecursiveInternal(child.gameObject, layer);
     }
 
     private static GameObject SpawnVisualPrefab(GameObject prefab, Transform parent)

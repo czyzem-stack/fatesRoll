@@ -220,6 +220,7 @@ public bool IsMoving => movement != null && movement.IsMoving;
         agent.obstacleAvoidanceType = ObstacleAvoidanceType.NoObstacleAvoidance;
 
         SetLayerRecursive(gameObject, 8);
+        GetComponent<HeroEquipment>()?.RefreshAttachmentLayers();
 
         if (GameServices.TryGet(out RunDeathController runDeath))
             runDeath.RecordHeroSpawn(this);
