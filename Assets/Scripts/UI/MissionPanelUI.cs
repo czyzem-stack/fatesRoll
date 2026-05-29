@@ -94,6 +94,7 @@ public class MissionPanelUI : MonoBehaviour
 
     private void OnEnable()
     {
+        LootManager.BalanceChanged += HandleBalanceChanged;
         if (cachedGlobalHUD == null)
             ResolveGlobalHudCache();
         if (cachedGlobalHUD)
@@ -105,9 +106,15 @@ public class MissionPanelUI : MonoBehaviour
 
     private void OnDisable()
     {
+        LootManager.BalanceChanged -= HandleBalanceChanged;
         if (cachedGlobalHUD) cachedGlobalHUD.SetActive(true);
         if (GameServices.TryGet(out QuestManager quests))
             quests.OnQuestsUpdated -= UpdateUI;
+    }
+
+    private void HandleBalanceChanged()
+    {
+        UpdateResources();
     }
 
     public void ShowQuests() { showingAchievements = false; UpdateUI(); }
@@ -152,9 +159,13 @@ public class MissionPanelUI : MonoBehaviour
 
     private void UpdateResources()
     {
-        if (!LootManager.Instance) return;
-        if (goldText) goldText.text = LootManager.Instance.CurrentGold.ToString("N0");
-        if (gemText) gemText.text = LootManager.Instance.CurrentGems.ToString("N0");
+        if (!GameServices.TryGet(out LootManager loot))
+            return;
+
+        if (goldText)
+            goldText.text = loot.CurrentGold.ToString("N0");
+        if (gemText)
+            gemText.text = loot.CurrentGems.ToString("N0");
     }
 
     private void UpdateTabStates(QuestManager qm)

@@ -1,23 +1,36 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using TMPro;
 
 public class PowerScoreDisplay : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI powerScoreText;
     private float displayedScore = -1;
-    private bool isLocked = false;
+    private bool isLocked;
 
     private void OnEnable()
     {
+        PlayerStats.StatsChanged += HandleStatsChanged;
+        SceneManager.sceneLoaded += HandleSceneLoaded;
         UpdateDisplay();
     }
 
-    private void Update()
+    private void OnDisable()
+    {
+        PlayerStats.StatsChanged -= HandleStatsChanged;
+        SceneManager.sceneLoaded -= HandleSceneLoaded;
+    }
+
+    private void HandleSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         if (!isLocked)
-        {
             UpdateDisplay();
-        }
+    }
+
+    private void HandleStatsChanged()
+    {
+        if (!isLocked)
+            UpdateDisplay();
     }
 
     public void Lock()
@@ -33,15 +46,14 @@ public class PowerScoreDisplay : MonoBehaviour
         float newScore = displayedScore;
 
         if (newScore > oldScore && oldScore >= 0)
-        {
             ShowFloatingText("+" + Mathf.RoundToInt(newScore - oldScore).ToString("N0"));
-        }
     }
 
     private void UpdateDisplay()
     {
-        if (powerScoreText == null) return;
-        
+        if (powerScoreText == null)
+            return;
+
         var hero = GameServices.Hero;
         if (hero == null)
         {
@@ -66,10 +78,8 @@ public class PowerScoreDisplay : MonoBehaviour
     {
         GameObject go = new GameObject("PowerScoreFloatingText");
         go.transform.SetParent(transform.parent, false);
-        // Position it above the score text. 
-        // Since we are in UI, we can use the position of this object as a base.
-        go.transform.position = transform.position + Vector3.up * 50f; 
-        
+        go.transform.position = transform.position + Vector3.up * 50f;
+
         var ft = go.AddComponent<FloatingTextUI>();
         ft.Setup(text, Color.green);
     }

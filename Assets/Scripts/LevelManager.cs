@@ -18,6 +18,9 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     public float CurrentXP => currentXP;
     public float XPToNextLevel => xpToNextLevel;
 
+    /// <summary>Fired when XP or level changes (panels refresh without polling Update).</summary>
+    public static event System.Action ProgressChanged;
+
     private int currentLevel = 1;
     private float currentXP = 0f;
     private float xpToNextLevel;
@@ -51,6 +54,12 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
 
     private void Update()
     {
+        if (xpSlider == null || !Application.isPlaying)
+            return;
+
+        if (Mathf.Abs(xpSlider.value - currentXP) < 0.01f && currentLevel == lastDisplayedLevel)
+            return;
+
         UpdateUI();
     }
 
@@ -74,6 +83,7 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
         }
 
         UpdateUI();
+        NotifyProgressChanged();
         return levelsGained;
     }
 
@@ -125,6 +135,8 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
             lastDisplayedLevel = currentLevel;
         }
     }
+
+    static void NotifyProgressChanged() => ProgressChanged?.Invoke();
 
     [ContextMenu("Auto-Assign UI")]
     public void AutoAssignUI()

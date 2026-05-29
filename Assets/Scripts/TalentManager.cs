@@ -20,6 +20,9 @@ public class TalentManager : GameServiceBehaviour<TalentManager>
     // Track total bonuses applied
     public Dictionary<int, float> totalBonuses = new Dictionary<int, float>();
 
+    /// <summary>Fired after a talent upgrade is applied (stat rows, power score, upgrade button).</summary>
+    public static event System.Action Upgraded;
+
     protected override void Awake()
     {
         base.Awake();
@@ -83,7 +86,8 @@ public class TalentManager : GameServiceBehaviour<TalentManager>
         int categoryIndex = Random.Range(0, 10);
         ApplyBonus(categoryIndex);
         currentUpgradeLevel++;
-        
+        Upgraded?.Invoke();
+
         return categoryIndex;
     }
 

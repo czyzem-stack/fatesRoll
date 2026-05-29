@@ -16,6 +16,7 @@ public class ShopPanelUI : MonoBehaviour
 
     private void OnEnable()
     {
+        LootManager.BalanceChanged += HandleBalanceChanged;
         if (cachedGlobalHUD == null)
             ResolveGlobalHudCache();
         ToggleGlobalHUD(false);
@@ -24,7 +25,13 @@ public class ShopPanelUI : MonoBehaviour
 
     private void OnDisable()
     {
+        LootManager.BalanceChanged -= HandleBalanceChanged;
         ToggleGlobalHUD(true);
+    }
+
+    private void HandleBalanceChanged()
+    {
+        UpdateUI();
     }
 
     private void ResolveGlobalHudCache()
@@ -40,21 +47,14 @@ public class ShopPanelUI : MonoBehaviour
             cachedGlobalHUD.SetActive(visible);
     }
 
-    private void Update()
-    {
-        if (LootManager.Instance != null)
-        {
-            if (goldText != null) goldText.text = LootManager.Instance.CurrentGold.ToString("N0");
-            if (gemText != null) gemText.text = LootManager.Instance.CurrentGems.ToString("N0");
-        }
-    }
-
     public void UpdateUI()
     {
-        if (LootManager.Instance != null)
-        {
-            if (goldText != null) goldText.text = LootManager.Instance.CurrentGold.ToString("N0");
-            if (gemText != null) gemText.text = LootManager.Instance.CurrentGems.ToString("N0");
-        }
+        if (!GameServices.TryGet(out LootManager loot))
+            return;
+
+        if (goldText != null)
+            goldText.text = loot.CurrentGold.ToString("N0");
+        if (gemText != null)
+            gemText.text = loot.CurrentGems.ToString("N0");
     }
 }

@@ -38,14 +38,40 @@ public class TalentUIController : MonoBehaviour
 
     private void OnEnable()
     {
+        LootManager.BalanceChanged += HandleBalanceChanged;
+        LevelManager.ProgressChanged += HandleLevelChanged;
+        TalentManager.Upgraded += HandleTalentUpgraded;
         UpdateUI();
     }
 
-    private void Update()
+    private void OnDisable()
+    {
+        LootManager.BalanceChanged -= HandleBalanceChanged;
+        LevelManager.ProgressChanged -= HandleLevelChanged;
+        TalentManager.Upgraded -= HandleTalentUpgraded;
+    }
+
+    private void HandleBalanceChanged()
     {
         if (!isSpinning)
         {
             UpdateResources();
+            UpdateUpgradeButton();
+        }
+    }
+
+    private void HandleLevelChanged()
+    {
+        if (!isSpinning)
+            UpdateLevel();
+    }
+
+    private void HandleTalentUpgraded()
+    {
+        if (!isSpinning)
+        {
+            UpdateStatBonuses();
+            UpdateUpgradeButton();
         }
     }
 
@@ -79,16 +105,19 @@ public class TalentUIController : MonoBehaviour
 
     private void UpdateResources()
     {
-        if (topCoinText != null && LootManager.Instance != null)
-            topCoinText.text = LootManager.Instance.CurrentGold.ToString("N0");
+        if (topCoinText == null || !GameServices.TryGet(out LootManager loot))
+            return;
+
+        topCoinText.text = loot.CurrentGold.ToString("N0");
     }
 
     private void UpdateLevel()
     {
-        if (LevelManager.Instance == null) return;
-        
-        float currentXP = LevelManager.Instance.CurrentXP;
-        float maxXp = LevelManager.Instance.XPToNextLevel;
+        if (!GameServices.TryGet(out LevelManager levels))
+            return;
+
+        float currentXP = levels.CurrentXP;
+        float maxXp = levels.XPToNextLevel;
 
         if (xpSlider != null)
         {
@@ -97,9 +126,7 @@ public class TalentUIController : MonoBehaviour
         }
 
         if (levelText != null)
-        {
-            levelText.text = LevelManager.Instance.CurrentLevel.ToString();
-        }
+            levelText.text = levels.CurrentLevel.ToString();
 
         if (xpPercentText != null && maxXp > 0)
         {

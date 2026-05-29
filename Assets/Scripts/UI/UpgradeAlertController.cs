@@ -22,6 +22,7 @@ public class UpgradeAlertController : MonoBehaviour
     private void OnEnable()
     {
         LootManager.BalanceChanged += HandleBalanceChanged;
+        TalentManager.Upgraded += HandleTalentUpgraded;
         SceneManager.sceneLoaded += HandleSceneLoaded;
         TryBindUi();
         Refresh();
@@ -30,6 +31,7 @@ public class UpgradeAlertController : MonoBehaviour
     private void OnDisable()
     {
         LootManager.BalanceChanged -= HandleBalanceChanged;
+        TalentManager.Upgraded -= HandleTalentUpgraded;
         SceneManager.sceneLoaded -= HandleSceneLoaded;
     }
 
@@ -40,6 +42,11 @@ public class UpgradeAlertController : MonoBehaviour
     }
 
     private void HandleBalanceChanged()
+    {
+        Refresh();
+    }
+
+    private void HandleTalentUpgraded()
     {
         Refresh();
     }

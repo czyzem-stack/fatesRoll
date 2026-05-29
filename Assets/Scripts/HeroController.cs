@@ -301,7 +301,12 @@ public bool IsMoving => movement != null && movement.IsMoving;
 
     private void Update()
     {
-        UpdateHealthUI();
+        if (healthSlider != null && stats != null &&
+            (Mathf.Abs(healthSlider.value - stats.currentHP) >= 0.01f ||
+             healthSlider.maxValue != stats.MaxHP))
+        {
+            UpdateHealthUI();
+        }
 
         if (agent == null || isDead || isRespawning)
             return;

@@ -7,6 +7,8 @@ using UnityEngine;
 [ExecuteAlways]
 public class PlayerStats : MonoBehaviour
 {
+    /// <summary>Fired after derived stats are recalculated in play mode.</summary>
+    public static event System.Action StatsChanged;
     [Header("Core Base Stats (Primary)")]
     
     [Tooltip("Strength: Increases physical power and melee/ranged damage")]
@@ -147,6 +149,9 @@ public class PlayerStats : MonoBehaviour
 
         // Ensure current HP doesn't exceed new Max HP
         if (currentHP > maxHP) currentHP = maxHP;
+
+        if (Application.isPlaying)
+            StatsChanged?.Invoke();
     }
 
     public void RestoreFullHealth()
