@@ -14,7 +14,10 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
     private const string DefaultD6PrefabPath = "Assets/Dice/Prefabs/Dice_d6.prefab";
     private const string D6ResourcesPath = "Dice/Dice_d6";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
+    private const string InputActionsResourcesPath = "InputSystem_Actions";
     private const string MainRollButtonPath = "MainUI_Canvas/HUD_Control/Joystick_Button_l_Attack";
+
+    [SerializeField] private InputActionAsset inputActionAsset;
 
     public GameObject d6Prefab;
     public Transform spawnPoint;
@@ -123,23 +126,38 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
         if (rollAction != null)
             return;
 
-        InputActionAsset asset = null;
+        InputActionAsset asset = inputActionAsset;
+        if (asset == null)
+            asset = Resources.Load<InputActionAsset>(InputActionsResourcesPath);
 #if UNITY_EDITOR
-        asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
+        if (asset == null)
+            asset = AssetDatabase.LoadAssetAtPath<InputActionAsset>(InputActionsPath);
 #endif
         if (asset == null)
+        {
+            Debug.LogWarning(
+                "DiceSpawner: Roll input not bound — assign Input Action Asset on DiceSpawner " +
+                $"or add Resources/{InputActionsResourcesPath}.inputactions");
             return;
+        }
 
         InputActionMap map = asset.FindActionMap("Player", throwIfNotFound: false);
         if (map == null)
+        {
+            Debug.LogWarning("DiceSpawner: Input action map 'Player' not found.");
             return;
+        }
 
         rollAction = map.FindAction("Roll", throwIfNotFound: false);
         if (rollAction == null)
+        {
+            Debug.LogWarning("DiceSpawner: Input action 'Roll' not found in Player map.");
             return;
+        }
 
         rollAction.performed += OnRoll;
         rollAction.Enable();
+        GlobalSettings.LogGameplay("DiceSpawner: Roll input bound (Player/Roll).");
     }
 
     private void WireMainSceneRollButtons()

@@ -14,7 +14,31 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
     public Color energyColor = new Color(0.75f, 0.25f, 0.75f, 1f); // Vibrant Purple
 
     private int currentEnergy;
+    private int talentMaxEnergyBonus;
     private float nextRegenTime;
+
+    public int GetMaxEnergy()
+    {
+        var settings = GlobalSettings.Instance;
+        return (settings != null ? settings.maxEnergy : 60) + talentMaxEnergyBonus;
+    }
+
+    /// <summary>Raises max energy from talent upgrades and grants the same amount of current energy.</summary>
+    public void AddMaxEnergyBonus(int bonus)
+    {
+        if (bonus <= 0)
+            return;
+
+        talentMaxEnergyBonus += bonus;
+        currentEnergy += bonus;
+
+        int max = GetMaxEnergy();
+        if (currentEnergy > max)
+            currentEnergy = max;
+
+        UpdateDisplay();
+        GlobalSettings.LogGameplay($"EnergyManager: +{bonus} max energy (cap {max}, current {currentEnergy}).");
+    }
 
     private void OnEnable()
     {
@@ -66,7 +90,7 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
         var settings = GlobalSettings.Instance;
         if (settings == null)
             return;
-        if (currentEnergy >= settings.maxEnergy)
+        if (currentEnergy >= GetMaxEnergy())
             return;
 
         if (Time.time >= nextRegenTime)
@@ -81,14 +105,14 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
         // Main text (inside the box) now shows the actual energy
         if (energyText != null)
         {
-            int max = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
+            int max = GetMaxEnergy();
             energyText.text = $"{currentEnergy}/{max}";
         }
 
         // Small text (below the box) now shows the timer
         if (regenTimerText != null)
         {
-            int max = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
+            int max = GetMaxEnergy();
             if (currentEnergy >= max)
             {
                 regenTimerText.text = "Energy Full";
@@ -108,8 +132,7 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
 
     public void Deplete(int amount)
     {
-        var settings = GlobalSettings.Instance;
-        int maxEnergy = settings != null ? settings.maxEnergy : 60;
+        int maxEnergy = GetMaxEnergy();
         bool wasAtMax = currentEnergy >= maxEnergy;
         
         currentEnergy -= amount;
@@ -127,7 +150,7 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
 
     public void AddEnergy(int amount)
     {
-        int maxEnergy = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
+        int maxEnergy = GetMaxEnergy();
         currentEnergy += amount;
         if (currentEnergy > maxEnergy)
             currentEnergy = maxEnergy;
@@ -136,8 +159,7 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
 
     public void RestoreFull()
     {
-        int maxEnergy = GlobalSettings.Instance != null ? GlobalSettings.Instance.maxEnergy : 60;
-        currentEnergy = maxEnergy;
+        currentEnergy = GetMaxEnergy();
         nextRegenTime = Time.time + GetEffectiveRegenInterval();
         UpdateDisplay();
     }

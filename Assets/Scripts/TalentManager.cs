@@ -119,8 +119,8 @@ public class TalentManager : GameServiceBehaviour<TalentManager>
                 totalBonuses[7] += critChanceBonus;
                 break;
             case 8: // Energy
-                // Need a way to increase max energy in GlobalSettings or EnergyManager
-                // For now just track it
+                if (GameServices.TryGet(out EnergyManager energy))
+                    energy.AddMaxEnergyBonus(energyMaxBonus);
                 totalBonuses[8] += energyMaxBonus;
                 break;
             case 9: // Coin
