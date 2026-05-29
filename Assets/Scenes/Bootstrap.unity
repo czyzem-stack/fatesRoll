@@ -190,6 +190,7 @@ MonoBehaviour:
   equipmentLootManager: {fileID: 0}
   rogueLiteManager: {fileID: 0}
   talentManager: {fileID: 1274309124}
+  questManager: {fileID: 0}
   runDeathController: {fileID: 0}
   enemyStatManager: {fileID: 0}
   enemySpecialController: {fileID: 0}
@@ -873,6 +874,7 @@ MonoBehaviour:
   goldPerCoin: 1
   goldFloatingTextColor: {r: 1, g: 0.82, b: 0.2, a: 1}
   goldText: {fileID: 0}
+  gemText: {fileID: 0}
 --- !u!1 &983730119
 GameObject:
   m_ObjectHideFlags: 0
@@ -1369,6 +1371,7 @@ MonoBehaviour:
   energyDisplayTotalDuration: 15
   energyDisplayNextDuration: 3
   startingCoinBalance: 0
+  startingGemBalance: 0
   meleeEngageDistance: 1.47
   chestInteractDistance: 1.25
   combatDiceReadDelay: 0.2

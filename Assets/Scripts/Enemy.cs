@@ -849,6 +849,9 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
         if (LootManager.Instance != null)
             LootManager.Instance.OnEnemyDied(this);
 
+        if (QuestManager.Instance != null)
+            QuestManager.Instance.NotifyEnemyKilled(ResolveMonsterType());
+
         gameObject.tag = "Untagged";
         if (healthSlider != null) healthSlider.gameObject.SetActive(false);
 

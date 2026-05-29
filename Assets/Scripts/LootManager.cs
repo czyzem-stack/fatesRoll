@@ -77,6 +77,22 @@ public class LootManager : GameServiceBehaviour<LootManager>
     public int CurrentGold => currentGold;
     public int CurrentGems => currentGems;
 
+    public void AddGold(int amount)
+    {
+        if (amount <= 0) return;
+        currentGold += amount;
+        UpdateGoldUI();
+        SpawnGoldFloatingText(amount);
+    }
+
+    public void AddGems(int amount)
+    {
+        if (amount <= 0) return;
+        currentGems += amount;
+        UpdateGemUI();
+        // TODO: Spawn gem floating text if needed
+    }
+
     public bool TrySpendGold(int amount)
     {
         if (currentGold >= amount)

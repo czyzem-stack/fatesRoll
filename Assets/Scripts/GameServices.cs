@@ -57,6 +57,7 @@ public class GameServices : MonoBehaviour
     [SerializeField] private EquipmentLootManager equipmentLootManager;
     [SerializeField] private RogueLiteManager rogueLiteManager;
     [SerializeField] private TalentManager talentManager;
+    [SerializeField] private QuestManager questManager;
     [SerializeField] private RunDeathController runDeathController;
     [SerializeField] private EnemyStatManager enemyStatManager;
     [SerializeField] private EnemySpecialController enemySpecialController;
@@ -300,6 +301,7 @@ public class GameServices : MonoBehaviour
         if (equipmentLootManager == null) equipmentLootManager = incoming.equipmentLootManager;
         if (rogueLiteManager == null) rogueLiteManager = incoming.rogueLiteManager;
         if (talentManager == null) talentManager = incoming.talentManager;
+        if (questManager == null) questManager = incoming.questManager;
         if (runDeathController == null) runDeathController = incoming.runDeathController;
         if (enemyStatManager == null) enemyStatManager = incoming.enemyStatManager;
         if (enemySpecialController == null) enemySpecialController = incoming.enemySpecialController;
@@ -333,6 +335,7 @@ public class GameServices : MonoBehaviour
         equipmentLootManager ??= GetComponentInChildren<EquipmentLootManager>(true);
         rogueLiteManager ??= GetComponentInChildren<RogueLiteManager>(true);
         talentManager ??= GetComponentInChildren<TalentManager>(true);
+        questManager ??= GetComponentInChildren<QuestManager>(true);
         runDeathController ??= GetComponentInChildren<RunDeathController>(true);
         enemyStatManager ??= GetComponentInChildren<EnemyStatManager>(true);
         enemySpecialController ??= GetComponentInChildren<EnemySpecialController>(true);
@@ -352,6 +355,7 @@ public class GameServices : MonoBehaviour
         RegisterIfPresent(equipmentLootManager);
         RegisterIfPresent(rogueLiteManager);
         RegisterIfPresent(talentManager);
+        RegisterIfPresent(questManager);
         RegisterIfPresent(runDeathController);
         RegisterIfPresent(enemyStatManager);
         RegisterIfPresent(enemySpecialController);
@@ -379,11 +383,12 @@ public class GameServices : MonoBehaviour
             case EquipmentLootManager elm: equipmentLootManager = elm; break;
             case RogueLiteManager rlm: rogueLiteManager = rlm; break;
             case TalentManager tm: talentManager = tm; break;
+            case QuestManager qm: questManager = qm; break;
             case RunDeathController rdc: runDeathController = rdc; break;
             case EnemyStatManager esm: enemyStatManager = esm; break;
             case EnemySpecialController esc: enemySpecialController = esc; break;
             case HeroController h: hero = h; break;
-case HeroSpawnPoint sp: heroSpawnPoint = sp; break;
+            case HeroSpawnPoint sp: heroSpawnPoint = sp; break;
         }
     }
 
