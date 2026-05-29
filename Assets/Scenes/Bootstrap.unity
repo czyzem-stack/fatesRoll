@@ -151,6 +151,7 @@ Transform:
   m_Children:
   - {fileID: 1831123877}
   - {fileID: 616858306}
+  - {fileID: 1012608417}
   - {fileID: 1386447911}
   - {fileID: 595132086}
   - {fileID: 1062128890}
@@ -162,7 +163,6 @@ Transform:
   - {fileID: 641023189}
   - {fileID: 1870573081}
   - {fileID: 1274309125}
-  - {fileID: 1274309131}
   m_Father: {fileID: 1452887569}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &164457957
@@ -191,7 +191,7 @@ MonoBehaviour:
   equipmentLootManager: {fileID: 0}
   rogueLiteManager: {fileID: 0}
   talentManager: {fileID: 1274309124}
-  questManager: {fileID: 1274309132}
+  questManager: {fileID: 0}
   runDeathController: {fileID: 0}
   enemyStatManager: {fileID: 0}
   enemySpecialController: {fileID: 0}
@@ -602,6 +602,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fd4cb6c08d5947f4bb6c88721e2ecb16, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DiceSpawner
+  inputActionAsset: {fileID: 0}
   d6Prefab: {fileID: 7480525804154556286, guid: cc2e145304a0b1e44aa1567da9218354, type: 3}
   spawnPoint: {fileID: 0}
   throwForce: 8
@@ -723,7 +724,7 @@ MonoBehaviour:
     baseVitality: 8
     baseLuck: 5
     scalingMultiplier: 1
-  difficultyPercent: 89
+  difficultyPercent: 125
   difficultyPerRandomKill: 0.5
   ftueBasePercent: 50
   ftuePercentPerVisitOrder: 8
@@ -986,6 +987,253 @@ MonoBehaviour:
     buttonColor: 3
   energyRegenTimeReduction: 0
   bonusCoinsPerEnemyKill: 0
+--- !u!1 &1012608416
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1012608417}
+  - component: {fileID: 1012608418}
+  m_Layer: 0
+  m_Name: QuestManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1012608417
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1012608416}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 51.747345, y: -33.483948, z: 0}
+  m_LocalScale: {x: 0.8846642, y: 0.8846642, z: 0.8846642}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 164457956}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1012608418
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1012608416}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a317e28fb588d744fa9f478c534cc780, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::QuestManager
+  activeQuests:
+  - id: quest_1
+    title: Slayer 1
+    description: Kill 2 Skeletons
+    targetEnemyType: 1
+    targetAmount: 2
+    currentProgress: 0
+    rewardType: 0
+    rewardAmount: 10
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_2
+    title: Slayer 2
+    description: Kill 4 Slimes
+    targetEnemyType: 2
+    targetAmount: 4
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 20
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_3
+    title: Slayer 3
+    description: Kill 6 Spiders
+    targetEnemyType: 8
+    targetAmount: 6
+    currentProgress: 0
+    rewardType: 0
+    rewardAmount: 30
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_4
+    title: Slayer 4
+    description: Kill 8 Slimes
+    targetEnemyType: 2
+    targetAmount: 8
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 40
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_5
+    title: Slayer 5
+    description: Kill 10 Slimes
+    targetEnemyType: 2
+    targetAmount: 10
+    currentProgress: 0
+    rewardType: 0
+    rewardAmount: 50
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_6
+    title: Slayer 6
+    description: Kill 12 Slimes
+    targetEnemyType: 2
+    targetAmount: 12
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 60
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_7
+    title: Slayer 7
+    description: Kill 14 Slimes
+    targetEnemyType: 2
+    targetAmount: 14
+    currentProgress: 0
+    rewardType: 0
+    rewardAmount: 70
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_8
+    title: Slayer 8
+    description: Kill 16 Bats
+    targetEnemyType: 3
+    targetAmount: 16
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 80
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_9
+    title: Slayer 9
+    description: Kill 18 Orcs
+    targetEnemyType: 0
+    targetAmount: 18
+    currentProgress: 0
+    rewardType: 0
+    rewardAmount: 90
+    isCompleted: 0
+    isClaimed: 0
+  - id: quest_10
+    title: Slayer 10
+    description: Kill 20 Orcs
+    targetEnemyType: 0
+    targetAmount: 20
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 100
+    isCompleted: 0
+    isClaimed: 0
+  achievements:
+  - id: ach_1
+    title: Grand Master 1
+    description: Defeat 5 Bosses
+    targetEnemyType: 4
+    targetAmount: 5
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 50
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_2
+    title: Grand Master 2
+    description: Defeat 10 Bosses
+    targetEnemyType: 4
+    targetAmount: 10
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 100
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_3
+    title: Grand Master 3
+    description: Defeat 15 Bosses
+    targetEnemyType: 4
+    targetAmount: 15
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 150
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_4
+    title: Grand Master 4
+    description: Defeat 20 Bosses
+    targetEnemyType: 4
+    targetAmount: 20
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 200
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_5
+    title: Grand Master 5
+    description: Defeat 25 Bosses
+    targetEnemyType: 4
+    targetAmount: 25
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 250
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_6
+    title: Grand Master 6
+    description: Defeat 30 Bosses
+    targetEnemyType: 4
+    targetAmount: 30
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 300
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_7
+    title: Grand Master 7
+    description: Defeat 35 Bosses
+    targetEnemyType: 4
+    targetAmount: 35
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 350
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_8
+    title: Grand Master 8
+    description: Defeat 40 Bosses
+    targetEnemyType: 4
+    targetAmount: 40
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 400
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_9
+    title: Grand Master 9
+    description: Defeat 45 Bosses
+    targetEnemyType: 4
+    targetAmount: 45
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 450
+    isCompleted: 0
+    isClaimed: 0
+  - id: ach_10
+    title: Grand Master 10
+    description: Defeat 50 Bosses
+    targetEnemyType: 4
+    targetAmount: 50
+    currentProgress: 0
+    rewardType: 1
+    rewardAmount: 500
+    isCompleted: 0
+    isClaimed: 0
+  hasInitializedRunData: 0
 --- !u!1 &1062128889
 GameObject:
   m_ObjectHideFlags: 0
@@ -1081,53 +1329,6 @@ Transform:
   m_GameObject: {fileID: 1274309123}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 164457956}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &1274309130
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 1274309131}
-  - component: {fileID: 1274309132}
-  m_Layer: 0
-  m_Name: QuestManager
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &1274309132
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1274309130}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a317e28fb588d744fa9f478c534cc780, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::QuestManager
-  activeQuests: []
-  achievements: []
-  hasInitializedRunData: 0
---- !u!4 &1274309131
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1274309130}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0

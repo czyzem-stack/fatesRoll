@@ -395,14 +395,7 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
                 yield return new WaitForSeconds(0.2f);
             }
 
-            var existingDice = Object.FindObjectsByType<DieResult>(FindObjectsInactive.Exclude);
-            foreach (var d in existingDice)
-            {
-                if (d != null && d.gameObject != null)
-                    Destroy(d.gameObject);
-            }
-
-            activeDice.Clear();
+            DestroyActiveDice();
             EnsureReferences();
 
             if (d6Prefab == null)

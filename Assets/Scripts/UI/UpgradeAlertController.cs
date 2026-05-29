@@ -44,13 +44,6 @@ public class UpgradeAlertController : MonoBehaviour
         Refresh();
     }
 
-    private void Update()
-    {
-        if (countText == null || alertVisual == null)
-            TryBindUi();
-        Refresh();
-    }
-
     private void TryBindUi()
     {
         if (countText != null && alertVisual != null)

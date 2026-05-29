@@ -64,7 +64,7 @@ public static class QuestManagerBootstrapSetup
         Scene main = EditorSceneManager.OpenScene(MainPath, OpenSceneMode.Additive);
         int removed = 0;
 
-        foreach (QuestManager qm in Object.FindObjectsByType<QuestManager>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        foreach (QuestManager qm in Object.FindObjectsByType<QuestManager>(FindObjectsInactive.Include))
         {
             if (qm.gameObject.scene != main)
                 continue;

@@ -43,10 +43,23 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
 
     public event Action OnQuestsUpdated;
 
+    private void OnValidate()
+    {
+        activeQuests ??= new List<Quest>();
+        achievements ??= new List<Quest>();
+    }
+
     protected override void Awake()
     {
         base.Awake();
+        EnsureListsExist();
         EnsureRunDataInitialized();
+    }
+
+    private void EnsureListsExist()
+    {
+        activeQuests ??= new List<Quest>();
+        achievements ??= new List<Quest>();
     }
 
     private void EnsureRunDataInitialized()
@@ -69,6 +82,7 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
     [ContextMenu("Reset and Generate Quests")]
     public void GenerateInitialData()
     {
+        EnsureListsExist();
         activeQuests.Clear();
         POIType[] enemies = { POIType.Skeleton, POIType.Orc, POIType.Slime, POIType.Bat, POIType.Spider };
         
@@ -109,6 +123,9 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
 
     public void NotifyEnemyKilled(POIType enemyType)
     {
+        if (activeQuests == null || achievements == null)
+            return;
+
         foreach (var q in activeQuests) q.OnEnemyKilled(enemyType);
         foreach (var a in achievements) a.OnEnemyKilled(enemyType);
         OnQuestsUpdated?.Invoke();
@@ -130,6 +147,9 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
 
     public Quest GetFirstActiveQuest()
     {
+        if (activeQuests == null)
+            return null;
+
         return activeQuests.FirstOrDefault(q => !q.isClaimed);
     }
 
@@ -146,7 +166,10 @@ public class QuestManager : GameServiceBehaviour<QuestManager>
 
     public int GetClaimableRewardsCount()
     {
-        return activeQuests.Count(q => q.isCompleted && !q.isClaimed) + 
+        if (activeQuests == null || achievements == null)
+            return 0;
+
+        return activeQuests.Count(q => q.isCompleted && !q.isClaimed) +
                achievements.Count(a => a.isCompleted && !a.isClaimed);
     }
 }
