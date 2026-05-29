@@ -91,6 +91,31 @@ public static class ChestLootPopupSetup
             "ChestLootPopupSetup: Offer_A and Offer_B are scene GameObjects under ChestLootOverlay — edit them in the Hierarchy.");
     }
 
+    [MenuItem("FatesRoll/Equipment/Wire Chest Loot Popup In Main Scene")]
+    public static void WireChestLootPopupInMainScene()
+    {
+        if (!File.Exists(MainPath))
+        {
+            Debug.LogError($"ChestLootPopupSetup: missing {MainPath}.");
+            return;
+        }
+
+        Scene scene = EditorSceneManager.OpenScene(MainPath, OpenSceneMode.Single);
+        GameObject overlay = FindSceneOverlay();
+        if (overlay == null)
+        {
+            Debug.LogError("WireChestLootPopupInMainScene: no ChestLootOverlay — run Create Chest Loot Popup In Main Scene first.");
+            return;
+        }
+
+        SetupSceneOverlay(overlay);
+        EditorUtility.SetDirty(overlay);
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene);
+        Selection.activeGameObject = overlay;
+        Debug.Log("ChestLootPopupSetup: wired ChestLootOverlay references (Offer_A, Offer_B, labels).");
+    }
+
     [MenuItem("FatesRoll/Equipment/Create Chest Loot Popup In Main Scene")]
     public static void CreateChestLootPopupInMainScene()
     {
@@ -182,7 +207,7 @@ public static class ChestLootPopupSetup
                 return byName.gameObject;
         }
 
-        GameObject byNameGlobal = GameObject.Find(OverlayName);
+        GameObject byNameGlobal = GameObject.Find(ChestLootPopupUI.OverlayObjectName);
         if (byNameGlobal != null && byNameGlobal.scene.IsValid())
             return byNameGlobal;
 
@@ -387,6 +412,11 @@ public static class ChestLootPopupSetup
         if (card == null)
             card = instance.AddComponent<ChestLootOfferCard>();
 
+        ChestLootOfferCard.DisableFrameDemoIconLayer(instance.transform);
+
+        string pickLabel = slotName == ChestLootPopupUI.OfferSlotBName ? "B" : "A";
+        WireOfferCardComponent(card, pickLabel, "SLOT", "Preview Item", "+1 STAT", "+1 STAT");
+
         card.ResolveReferences();
         return card;
     }
@@ -416,6 +446,7 @@ public static class ChestLootPopupSetup
             cardRt.sizeDelta = CardSize;
 
         BuildCardLayout(cardGo.transform, "A", "WEAPON", "Iron Sword", "+1 STR", "+1 AGI");
+        ChestLootOfferCard.DisableFrameDemoIconLayer(cardGo.transform);
 
         var card = cardGo.GetComponent<ChestLootOfferCard>();
         if (card == null)
@@ -436,6 +467,7 @@ public static class ChestLootPopupSetup
         string previewStat1,
         string previewStat2)
     {
+        ChestLootOfferCard.DisableFrameDemoIconLayer(card);
         EnsureIconRoot(card);
         EnsureLabel(card, "Text_Slot", new Vector2(0.5f, 0.86f), new Vector2(220f, 24f), 18f, FontStyles.Bold,
             new Color(0.85f, 0.75f, 0.45f), previewSlot);
@@ -471,7 +503,7 @@ public static class ChestLootPopupSetup
             var image = iconGo.GetComponent<Image>();
             image.preserveAspect = true;
             image.raycastTarget = false;
-            image.color = new Color(1f, 1f, 1f, 0.35f);
+            image.color = Color.white;
         }
     }
 
@@ -610,7 +642,9 @@ public static class ChestLootPopupSetup
         so.FindProperty("titleLabel").objectReferenceValue =
             popup != null ? FindNamedTmp(popup, "Text_Title") : null;
         so.FindProperty("bodyLabel").objectReferenceValue =
-            popup != null ? FindNamedTmp(popup, "Text_Info") : null;
+            popup != null
+                ? FindNamedTmp(popup, "Text_Info") ?? FindNamedTmp(popup, "Text_Description")
+                : null;
         so.FindProperty("offerRoot").objectReferenceValue =
             offerCards != null ? offerCards.GetComponent<RectTransform>() : null;
         so.FindProperty("offerSlotA").objectReferenceValue = slotA;

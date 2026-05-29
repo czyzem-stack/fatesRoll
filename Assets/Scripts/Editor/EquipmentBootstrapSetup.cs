@@ -53,7 +53,7 @@ public static class EquipmentBootstrapSetup
         }
 
         int missing = 0;
-        foreach (var slot in EquipmentSlots.PlayerSlots)
+        foreach (var slot in EquipmentSlots.ChestLootSlots)
         {
             int count = catalog.GetBySlot(slot).Count;
             if (count == 0)

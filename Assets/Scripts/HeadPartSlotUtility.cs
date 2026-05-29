@@ -8,7 +8,10 @@ public static class HeadPartSlotUtility
 
         string id = prefabName;
 
-        if (id.StartsWith("Eye") || id.StartsWith("Eyebrow") || id.StartsWith("AC03_"))
+        if (id.StartsWith("Eyebrow"))
+            return EquipmentSlotType.HeadFacial;
+
+        if (id.StartsWith("Eye") || id.StartsWith("AC03_"))
             return EquipmentSlotType.HeadEyes;
 
         if (id.StartsWith("Mouth") ||
@@ -21,20 +24,20 @@ public static class HeadPartSlotUtility
             id.StartsWith("AC09_"))
             return EquipmentSlotType.HeadFacial;
 
+        if (id.StartsWith("Head01") || id.StartsWith("Head02") ||
+            id.StartsWith("Head03_") ||
+            id.StartsWith("Head04_") ||
+            id.StartsWith("Head05_"))
+            return EquipmentSlotType.HeadBase;
+
         if (id.StartsWith("Hat") ||
             id.StartsWith("Hair") ||
             id.StartsWith("HeadArmor") ||
-            id.StartsWith("Head03_") ||
-            id.StartsWith("Head04_") ||
-            id.StartsWith("Head05_") ||
             id.StartsWith("AC04_") ||
             id.StartsWith("AC06_") ||
             id.StartsWith("AC08_") ||
             id.StartsWith("BackPack"))
             return EquipmentSlotType.HeadHelmet;
-
-        if (id.StartsWith("Head01") || id.StartsWith("Head02"))
-            return EquipmentSlotType.HeadBase;
 
         return EquipmentSlotType.HeadHelmet;
     }

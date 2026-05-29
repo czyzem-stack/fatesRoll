@@ -13,15 +13,4 @@ public static class DiceRollGateway
 
         spawner.RollDice();
     }
-
-    public static void ToggleAutoRoll()
-    {
-        if (!GameServices.TryGet(out DiceSpawner spawner))
-        {
-            Debug.LogError("DiceRollGateway: DiceSpawner not registered with GameServices.");
-            return;
-        }
-
-        spawner.ToggleAutoRoll();
-    }
 }

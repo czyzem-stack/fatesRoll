@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Head04_Grey
   displayName: Head04 Grey
-  slot: 4
+  slot: 2
   chestCategory: 1
   visualPrefab: {fileID: 8082997997181206468, guid: 6d454226ec0667d459fba2b889440b25, type: 3}
   rigChildName: 
   useRigChildToggle: 0
+  animatorOverride: {fileID: 0}

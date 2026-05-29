@@ -6,12 +6,29 @@ using System.Collections.Generic;
 /// </summary>
 public static class EquipmentSlots
 {
-    /// <summary>All slots that chests can drop and the equipment panel equips.</summary>
-    public static readonly EquipmentSlotType[] PlayerSlots =
+    /// <summary>Eight slots chest loot can roll (catalog-backed gear).</summary>
+    public static readonly EquipmentSlotType[] ChestLootSlots =
     {
         EquipmentSlotType.MainHand,
         EquipmentSlotType.BodyArmor,
         EquipmentSlotType.HeadHelmet,
+        EquipmentSlotType.Cape,
+        EquipmentSlotType.Ring,
+        EquipmentSlotType.Necklace,
+        EquipmentSlotType.Boots,
+        EquipmentSlotType.Gloves
+    };
+
+    /// <summary>All slots the equipment panel equips (includes head cosmetics).</summary>
+    public static readonly EquipmentSlotType[] PlayerSlots =
+    {
+        EquipmentSlotType.MainHand,
+        EquipmentSlotType.OffHand,
+        EquipmentSlotType.BodyArmor,
+        EquipmentSlotType.HeadBase,
+        EquipmentSlotType.HeadEyes,
+        EquipmentSlotType.HeadHelmet,
+        EquipmentSlotType.HeadFacial,
         EquipmentSlotType.Cape,
         EquipmentSlotType.Ring,
         EquipmentSlotType.Necklace,
@@ -33,6 +50,17 @@ public static class EquipmentSlots
         EquipmentSlotType.Cape,
         EquipmentSlotType.Necklace
     };
+
+    public static bool IsChestLootSlot(EquipmentSlotType slot)
+    {
+        foreach (var chestSlot in ChestLootSlots)
+        {
+            if (chestSlot == slot)
+                return true;
+        }
+
+        return false;
+    }
 
     public static bool IsPlayerSlot(EquipmentSlotType slot)
     {

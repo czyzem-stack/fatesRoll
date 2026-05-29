@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-
+using UnityEngine.SceneManagement;
 /// <summary>
 /// Chest loot popup under MainUI_Canvas. Hierarchy is scene GameObjects (Offer_A / Offer_B); runtime only binds loot data.
 /// </summary>
 [AddComponentMenu("FatesRoll/UI/Chest Loot Popup")]
 public class ChestLootPopupUI : MonoBehaviour
 {
+    public const string OverlayObjectName = "ChestLootOverlay";
+    public const string MainCanvasObjectName = "MainUI_Canvas";
     public const string DefaultScenePath = "MainUI_Canvas/ChestLootOverlay";
     public const string PrefabAssetPath = "Assets/Prefabs/UI/ChestLootPopupOverlay.prefab";
     public const string ResourcesPrefabPath = "UI/ChestLootPopupOverlay";
@@ -38,55 +40,67 @@ public class ChestLootPopupUI : MonoBehaviour
 
     public static ChestLootPopupUI FindInScene()
     {
-        var found = FindAnyObjectByType<ChestLootPopupUI>(FindObjectsInactive.Include);
-        if (found != null)
-            return found;
+        for (int i = 0; i < SceneManager.sceneCount; i++)
+        {
+            Scene scene = SceneManager.GetSceneAt(i);
+            if (!scene.isLoaded)
+                continue;
 
-        var byName = GameObject.Find("ChestLootOverlay");
+            foreach (GameObject root in scene.GetRootGameObjects())
+            {
+                if (root == null)
+                    continue;
+
+                Transform canvas = FindChildRecursive(root.transform, MainCanvasObjectName);
+                if (canvas != null)
+                {
+                    Transform overlay = FindChildRecursive(canvas, OverlayObjectName);
+                    if (overlay != null)
+                    {
+                        var onCanvas = overlay.GetComponent<ChestLootPopupUI>();
+                        if (onCanvas != null)
+                            return onCanvas;
+                    }
+                }
+
+                var ui = root.GetComponentInChildren<ChestLootPopupUI>(true);
+                if (ui != null)
+                    return ui;
+            }
+        }
+
+        GameObject byName = GameObject.Find(OverlayObjectName);
         return byName != null ? byName.GetComponent<ChestLootPopupUI>() : null;
     }
 
-    /// <summary>Finds the chest overlay GameObject already placed in the loaded scene.</summary>
-    public static ChestLootPopupUI EnsureInScene()
-    {
-        ChestLootPopupUI found = FindInScene();
-        if (found != null)
-            return found;
-
-        Debug.LogError(
-            "ChestLootPopupUI: no ChestLootOverlay in scene. Run FatesRoll → Equipment → Create Chest Loot Popup In Main Scene.");
-        return null;
-    }
+    public static ChestLootPopupUI EnsureInScene() => FindInScene();
 
     public void ResolveReferences()
     {
         overlayRoot ??= transform as RectTransform;
 
-        if (popupPanel == null)
-        {
-            Transform popup = transform.Find("ChestLootPopup");
-            popupPanel = popup != null ? popup as RectTransform : null;
-        }
+        Transform popup = FindChildRecursive(transform, "ChestLootPopup");
+        if (popup != null)
+            popupPanel = popup as RectTransform;
 
         if (titleLabel == null && popupPanel != null)
             titleLabel = FindNamedTmp(popupPanel, "Text_Title");
 
         if (bodyLabel == null && popupPanel != null)
+        {
             bodyLabel = FindNamedTmp(popupPanel, "Text_Info");
+            if (bodyLabel == null)
+                bodyLabel = FindNamedTmp(popupPanel, "Text_Description");
+        }
 
         if (offerRoot == null && popupPanel != null)
         {
-            Transform cards = popupPanel.Find("OfferCards");
+            Transform cards = FindChildRecursive(popupPanel, "OfferCards");
             offerRoot = cards != null ? cards as RectTransform : null;
         }
 
-        if (offerRoot != null)
-        {
-            if (offerSlotA == null)
-                offerSlotA = FindOfferSlot(OfferSlotAName);
-            if (offerSlotB == null)
-                offerSlotB = FindOfferSlot(OfferSlotBName);
-        }
+        ResolveOfferSlot(ref offerSlotA, OfferSlotAName);
+        ResolveOfferSlot(ref offerSlotB, OfferSlotBName);
 
         if (offerSlotA != null)
             offerSlotA.ResolveReferences();
@@ -98,6 +112,22 @@ public class ChestLootPopupUI : MonoBehaviour
             HideDemoContent(popupPanel);
     }
 
+    void ResolveOfferSlot(ref ChestLootOfferCard slot, string slotName)
+    {
+        if (slot != null && IsUnderOfferRoot(slot.transform))
+            return;
+
+        slot = FindOfferSlot(slotName);
+    }
+
+    bool IsUnderOfferRoot(Transform t)
+    {
+        if (t == null || offerRoot == null)
+            return false;
+
+        return t == offerRoot || t.IsChildOf(offerRoot);
+    }
+
     ChestLootOfferCard FindOfferSlot(string slotName)
     {
         if (offerRoot == null)
@@ -105,29 +135,33 @@ public class ChestLootPopupUI : MonoBehaviour
 
         Transform slot = FindChildRecursive(offerRoot, slotName);
         if (slot == null)
+        {
+            Debug.LogError($"ChestLootPopupUI: missing '{slotName}' under OfferCards.");
             return null;
+        }
 
         var card = slot.GetComponent<ChestLootOfferCard>();
         if (card == null)
-            Debug.LogError(
-                $"ChestLootPopupUI: '{slotName}' is missing ChestLootOfferCard component.");
+            card = slot.gameObject.AddComponent<ChestLootOfferCard>();
 
         return card;
     }
 
-    static Transform FindChildRecursive(Transform parent, string childName)
+    bool BindOfferToSlot(string expectedName, ChestLootOfferCard slot, ChestLootOfferEntry entry)
     {
-        if (parent.name == childName)
-            return parent;
+        if (!IsAlive(slot))
+            return false;
 
-        for (int i = 0; i < parent.childCount; i++)
+        if (slot.name != expectedName)
+            Debug.LogWarning($"ChestLootPopupUI: expected '{expectedName}' but bound '{slot.name}'.");
+
+        if (entry.item == null)
         {
-            Transform found = FindChildRecursive(parent.GetChild(i), childName);
-            if (found != null)
-                return found;
+            slot.Clear();
+            return false;
         }
 
-        return null;
+        return slot.Bind(entry.item, entry.onPick);
     }
 
     /// <summary>Shows the popup and binds offers. Returns false if UI is not wired (caller must not wait for input).</summary>
@@ -138,11 +172,12 @@ public class ChestLootPopupUI : MonoBehaviour
         if (!IsReady)
         {
             Debug.LogError(
-                "ChestLootPopupUI: offer slots not wired. Assign Offer_A / Offer_B on ChestLootOverlay, or run FatesRoll → Equipment → Create Chest Loot Popup In Main Scene.");
+                "ChestLootPopupUI: offer slots not wired. Select ChestLootOverlay and assign Offer_A / Offer_B, or run FatesRoll → Equipment → Wire Chest Loot Popup In Main Scene.");
             return false;
         }
 
-        // Title, subtitle, and button labels come from the prefab/scene — do not overwrite here.
+        EnsureVisibleHierarchy();
+
         if (IsAlive(bodyLabel))
             bodyLabel.gameObject.SetActive(!string.IsNullOrWhiteSpace(bodyLabel.text));
 
@@ -154,18 +189,20 @@ public class ChestLootPopupUI : MonoBehaviour
 
         int bound = 0;
         if (offers != null && offers.Count > 0)
-            bound += BindOfferSlot(offerSlotA, offers, 0) ? 1 : 0;
+            bound += BindOfferToSlot(OfferSlotAName, offerSlotA, offers[0]) ? 1 : 0;
 
         if (offers != null && offers.Count > 1)
-            bound += BindOfferSlot(offerSlotB, offers, 1) ? 1 : 0;
+            bound += BindOfferToSlot(OfferSlotBName, offerSlotB, offers[1]) ? 1 : 0;
 
         if (bound == 0)
         {
-            Debug.LogError("ChestLootPopupUI: no offer cards bound — check ChestLootOfferCard references and Button_Action.");
+            Debug.LogError(
+                "ChestLootPopupUI: no offer cards bound — check ChestLootOfferCard Button_Action and text fields on Offer_A / Offer_B.");
             return false;
         }
 
         SetVisible(true);
+        transform.SetAsLastSibling();
         return true;
     }
 
@@ -178,19 +215,19 @@ public class ChestLootPopupUI : MonoBehaviour
         SetVisible(false);
     }
 
-    bool BindOfferSlot(ChestLootOfferCard slot, IReadOnlyList<ChestLootOfferEntry> offers, int index)
+    void EnsureVisibleHierarchy()
     {
-        if (!IsAlive(slot) || index < 0 || index >= offers.Count)
-            return false;
-
-        var entry = offers[index];
-        if (entry.item == null)
+        Transform node = transform;
+        while (node != null)
         {
-            slot.Clear();
-            return false;
+            if (!node.gameObject.activeSelf)
+                node.gameObject.SetActive(true);
+            node = node.parent;
         }
 
-        return slot.Bind(entry.item, entry.onPick);
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas != null && !canvas.gameObject.activeInHierarchy)
+            canvas.gameObject.SetActive(true);
     }
 
     void ClearOfferSlots()
@@ -207,10 +244,10 @@ public class ChestLootPopupUI : MonoBehaviour
         if (!IsAlive(this))
             return;
 
-        if (IsAlive(overlayRoot))
+        gameObject.SetActive(visible);
+
+        if (IsAlive(overlayRoot) && overlayRoot.gameObject != gameObject)
             overlayRoot.gameObject.SetActive(visible);
-        else
-            gameObject.SetActive(visible);
 
         if (IsAlive(popupPanel))
             popupPanel.gameObject.SetActive(visible);
@@ -240,18 +277,27 @@ public class ChestLootPopupUI : MonoBehaviour
         return null;
     }
 
-    static Transform FindDeepChild(Transform parent, string childName)
+    static Transform FindChildRecursive(Transform parent, string childName)
     {
+        if (parent == null)
+            return null;
+
         if (parent.name == childName)
             return parent;
+
         for (int i = 0; i < parent.childCount; i++)
         {
-            Transform found = FindDeepChild(parent.GetChild(i), childName);
+            Transform found = FindChildRecursive(parent.GetChild(i), childName);
             if (found != null)
                 return found;
         }
 
         return null;
+    }
+
+    static Transform FindDeepChild(Transform parent, string childName)
+    {
+        return FindChildRecursive(parent, childName);
     }
 
     public struct ChestLootOfferEntry

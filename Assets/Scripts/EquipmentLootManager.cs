@@ -183,14 +183,6 @@ public class EquipmentLootManager : GameServiceBehaviour<EquipmentLootManager>
 
         try
         {
-            popup = ChestLootPopupUI.FindInScene();
-            if (popup == null)
-            {
-                Debug.LogError(
-                    "EquipmentLootManager: ChestLootOverlay missing from scene. Run FatesRoll → Equipment → Create Chest Loot Popup In Main Scene.");
-                yield break;
-            }
-
             while (pendingChests.Count > 0)
             {
                 var request = pendingChests.Dequeue();
@@ -229,6 +221,14 @@ public class EquipmentLootManager : GameServiceBehaviour<EquipmentLootManager>
     IEnumerator ShowChestPopupAndWait(ChestRewardRequest request)
     {
         waitingForChoice = false;
+
+        popup = ChestLootPopupUI.FindInScene();
+        if (popup == null)
+        {
+            Debug.LogError(
+                "EquipmentLootManager: ChestLootOverlay missing from scene. Run FatesRoll → Equipment → Create Chest Loot Popup In Main Scene.");
+            yield break;
+        }
 
         if (!TryBuildChestOffer(request, out EquipmentInstance optionA, out EquipmentInstance optionB))
         {
@@ -343,14 +343,51 @@ public class EquipmentLootManager : GameServiceBehaviour<EquipmentLootManager>
         if (request.forcedA != null)
             optionA = manager.GenerateChestItemForSlot(request.forcedA.slot, request.forcedA);
         else
-            optionA = manager.GenerateRandomPlayerSlotItem();
+            optionA = manager.GenerateRandomChestLootItem();
 
         if (request.forcedB != null)
             optionB = manager.GenerateChestItemForSlot(request.forcedB.slot, request.forcedB);
         else
-            optionB = manager.GenerateRandomPlayerSlotItem();
+        {
+            EquipmentSlotType? excludeSlot = optionA?.definition?.slot;
+            optionB = manager.GenerateRandomChestLootItem(excludeSlot);
+
+            int rerollAttempts = 0;
+            while (optionA != null && optionB != null && AreSameChestOffer(optionA, optionB) && rerollAttempts < 12)
+            {
+                optionB = manager.GenerateRandomChestLootItem(excludeSlot);
+                rerollAttempts++;
+            }
+        }
+
+        if (optionA != null && optionB != null)
+        {
+            GlobalSettings.LogGameplay(
+                $"EquipmentLootManager: chest A = {optionA.DisplayName} ({optionA.SlotDisplayName}) | B = {optionB.DisplayName} ({optionB.SlotDisplayName})");
+        }
 
         return optionA != null && optionB != null;
+    }
+
+    static bool AreSameChestOffer(EquipmentInstance a, EquipmentInstance b)
+    {
+        if (a?.definition == null || b?.definition == null)
+            return false;
+
+        if (a.definition != b.definition)
+            return false;
+
+        if (a.statBonuses == null || b.statBonuses == null || a.statBonuses.Count != b.statBonuses.Count)
+            return a.statBonuses == b.statBonuses;
+
+        for (int i = 0; i < a.statBonuses.Count; i++)
+        {
+            if (a.statBonuses[i].stat != b.statBonuses[i].stat ||
+                !Mathf.Approximately(a.statBonuses[i].amount, b.statBonuses[i].amount))
+                return false;
+        }
+
+        return true;
     }
 }
 

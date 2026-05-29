@@ -8,7 +8,7 @@ public static class MainUiHud
     public const string Canvas = "MainUI_Canvas";
     public const string GlobalResources = "MainUI_Canvas/Resources";
     public const string GlobalResourcesLegacy = "MainUI_Canvas/HUD_Resources";
-    public const string RollAttackButton = "MainUI_Canvas/HUD_Control/Joystick_Button_l_Attack";
+    public const string RollAttackButton = "MainUI_Canvas/Control/Joystick_Button_l_Attack";
 
     public static GameObject FindAlongPaths(params string[] paths)
     {

@@ -195,7 +195,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.35}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -894,6 +894,10 @@ PrefabInstance:
     - target: {fileID: 5218666186664765386, guid: 26852a886158dcf4690cad716e13e3a4, type: 3}
       propertyPath: m_Name
       value: ChestLootOfferCard
+      objectReference: {fileID: 0}
+    - target: {fileID: 5218666186232668274, guid: 26852a886158dcf4690cad716e13e3a4, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

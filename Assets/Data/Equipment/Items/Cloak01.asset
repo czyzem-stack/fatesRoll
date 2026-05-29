@@ -19,3 +19,4 @@ MonoBehaviour:
   visualPrefab: {fileID: 0}
   rigChildName: Cloak01
   useRigChildToggle: 1
+  animatorOverride: {fileID: 0}

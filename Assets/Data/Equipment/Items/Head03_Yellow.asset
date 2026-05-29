@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Head03_Yellow
   displayName: Head03 Yellow
-  slot: 4
+  slot: 2
   chestCategory: 1
   visualPrefab: {fileID: 8633531185577324616, guid: 92843ed046bbfd048bc285bb565f6ba2, type: 3}
   rigChildName: 
   useRigChildToggle: 0
+  animatorOverride: {fileID: 0}

@@ -44,6 +44,7 @@ public static class MainSceneGameplayGate
                 GameServices.TryGet<EnergyManager>(out _))
             {
                 IsReady = true;
+                Debug.Log($"MainSceneGameplayGate: Ready! (Hero: {GameServices.Hero.name})");
                 yield break;
             }
 

@@ -90,17 +90,26 @@ public class EquipmentManager : GameServiceBehaviour<EquipmentManager>
         return GenerateChestItemForSlot(definition.slot, definition);
     }
 
-    /// <summary>Random item across all eight player slots (weapon, armor, head, cape, ring, necklace, boots, gloves).</summary>
-    public EquipmentInstance GenerateRandomPlayerSlotItem()
+    /// <summary>Random item across chest loot slots (weapon, armor, head, cape, ring, necklace, boots, gloves).</summary>
+    public EquipmentInstance GenerateRandomPlayerSlotItem() => GenerateRandomChestLootItem();
+
+    /// <summary>Random chest item, optionally excluding one slot so A/B can differ.</summary>
+    public EquipmentInstance GenerateRandomChestLootItem(EquipmentSlotType? excludeSlot = null)
     {
         EnsureReferences();
         if (catalog == null)
             return null;
 
-        var slots = BuildAvailablePlayerSlots();
+        var slots = BuildAvailableChestLootSlots();
+        if (excludeSlot.HasValue)
+            slots.RemoveAll(s => s == excludeSlot.Value);
+
+        if (slots.Count == 0)
+            slots = BuildAvailableChestLootSlots();
+
         if (slots.Count == 0)
         {
-            Debug.LogWarning("EquipmentManager: catalog has no items for any player equipment slot.");
+            Debug.LogWarning("EquipmentManager: catalog has no items for any chest loot slot.");
             return null;
         }
 
@@ -284,14 +293,21 @@ public class EquipmentManager : GameServiceBehaviour<EquipmentManager>
     void EnsureProgressionRows()
     {
         slotProgressions ??= new List<EquipmentSlotStatProgression>();
-        foreach (var slot in EquipmentSlots.PlayerSlots)
+        foreach (var slot in EquipmentSlots.ChestLootSlots)
             GetOrCreateProgression(slot);
+
+        foreach (var slot in EquipmentSlots.PlayerSlots)
+        {
+            if (System.Array.IndexOf(EquipmentSlots.ChestLootSlots, slot) >= 0)
+                continue;
+            GetOrCreateProgression(slot);
+        }
     }
 
-    List<EquipmentSlotType> BuildAvailablePlayerSlots()
+    List<EquipmentSlotType> BuildAvailableChestLootSlots()
     {
-        var slots = new List<EquipmentSlotType>(EquipmentSlots.PlayerSlots.Length);
-        foreach (var slot in EquipmentSlots.PlayerSlots)
+        var slots = new List<EquipmentSlotType>(EquipmentSlots.ChestLootSlots.Length);
+        foreach (var slot in EquipmentSlots.ChestLootSlots)
         {
             if (catalog.GetBySlot(slot).Count > 0)
                 slots.Add(slot);

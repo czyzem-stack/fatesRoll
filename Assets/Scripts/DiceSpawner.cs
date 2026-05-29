@@ -32,20 +32,11 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
     private bool isRolling;
     private Coroutine rollCoroutine;
     private Coroutine initCoroutine;
-    private bool autoRollActive;
-    private float autoRollNextCheckTime;
-    private float autoRollCheckInterval = 1.0f;
     private bool uiRollWired;
     private InputAction rollAction;
 
     public int LastRoll { get; private set; }
     public string LastIndividualRolls { get; private set; }
-
-    [Header("Auto-Roll Settings")]
-    public Image autoRollIndicator;
-    public TMPro.TextMeshProUGUI autoRollText;
-    public Color autoRollActiveColor = Color.cyan;
-    public Color autoRollInactiveColor = Color.white;
 
     protected override void Awake()
     {
@@ -104,7 +95,6 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
         cachedHero = GameServices.Hero;
         BindRollInputAction();
         WireMainSceneRollButtons();
-        WireAutoRollUiReferences();
     }
 
     private bool EnsureGameServicesReady(string context)
@@ -203,23 +193,6 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
                name.Contains("Roll", System.StringComparison.OrdinalIgnoreCase);
     }
 
-    private void WireAutoRollUiReferences()
-    {
-        if (autoRollText == null)
-        {
-            var autoTextGo = MainUiHud.FindAlongPaths($"{MainRollButtonPath}/AutoText");
-            if (autoTextGo != null)
-                autoRollText = autoTextGo.GetComponent<TMPro.TextMeshProUGUI>();
-        }
-
-        if (autoRollIndicator == null)
-        {
-            var attackButtonGo = MainUiHud.FindAlongPaths(MainRollButtonPath);
-            if (attackButtonGo != null)
-                autoRollIndicator = attackButtonGo.GetComponent<Image>();
-        }
-    }
-
     private bool IsMainScene(Scene scene) =>
         scene.IsValid() &&
         scene.name.Equals(gameplaySceneName, System.StringComparison.OrdinalIgnoreCase);
@@ -276,20 +249,6 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
                 $"DiceSpawner: d6Prefab is not assigned. Assign {DefaultD6PrefabPath} on DiceSpawner in the scene.");
     }
 
-    public void ToggleAutoRoll()
-    {
-        autoRollActive = !autoRollActive;
-        GlobalSettings.LogGameplay($"DiceSpawner: Auto-Roll {(autoRollActive ? "ENABLED" : "DISABLED")}");
-
-        WireAutoRollUiReferences();
-
-        if (autoRollIndicator != null)
-            autoRollIndicator.color = autoRollActive ? autoRollActiveColor : autoRollInactiveColor;
-
-        if (autoRollText != null)
-            autoRollText.color = autoRollActive ? Color.cyan : new Color(1, 1, 1, 0);
-    }
-
     public void OnRoll(InputAction.CallbackContext ctx)
     {
         if (ctx.performed)
@@ -309,42 +268,19 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
 
         if (cachedHero == null)
             cachedHero = GameServices.Hero;
-        if (cachedHero != null && cachedHero.IsMoving)
+        
+        if (cachedHero != null && (cachedHero.IsMoving || cachedHero.IsBlockedForDice))
             return false;
 
         var settings = GlobalSettings.Instance;
         int rollCost = settings != null ? settings.energyDepletionPerRoll : 3;
         if (GameServices.TryGet(out EnergyManager energy) && !energy.HasEnergy(rollCost))
         {
-            string msg = autoRollActive
-                ? "DiceSpawner: Auto-Roll paused - not enough energy!"
-                : "DiceSpawner: Not enough energy to roll!";
-            GlobalSettings.LogGameplayWarning(msg);
+            GlobalSettings.LogGameplayWarning("DiceSpawner: Not enough energy to roll!");
             return false;
         }
-
-        if (cachedHero != null && (cachedHero.IsDead || cachedHero.IsRespawning))
-            return false;
-
-        if (GameServices.TryGet(out RunDeathController runDeath) && runDeath.IsDeathInProgress)
-            return false;
 
         return true;
-    }
-
-    private void Update()
-    {
-        if (!MainSceneGameplayGate.IsReady || !autoRollActive || isRolling)
-            return;
-
-        if (Time.time >= autoRollNextCheckTime)
-        {
-            if (CanRoll())
-            {
-                RollDice();
-                autoRollNextCheckTime = Time.time + autoRollCheckInterval;
-            }
-        }
     }
 
     [ContextMenu("Roll Dice")]

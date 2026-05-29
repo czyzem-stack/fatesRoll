@@ -7,6 +7,8 @@ public class UIButtonHoldProxy : MonoBehaviour, IPointerDownHandler, IPointerUpH
     public float holdDuration = 1.0f;
     public UnityEvent onLongPress;
     public UnityEvent onClick;
+    public UnityEvent onPointerDown;
+    public UnityEvent onPointerUp;
 
     private bool isDown = false;
     private float downTime = 0f;
@@ -15,8 +17,9 @@ public class UIButtonHoldProxy : MonoBehaviour, IPointerDownHandler, IPointerUpH
     public void OnPointerDown(PointerEventData eventData)
     {
         isDown = true;
-        downTime = Time.time;
+        downTime = Time.unscaledTime;
         longPressTriggered = false;
+        onPointerDown?.Invoke();
     }
 
     public void OnPointerUp(PointerEventData eventData)
@@ -26,13 +29,14 @@ public class UIButtonHoldProxy : MonoBehaviour, IPointerDownHandler, IPointerUpH
             onClick?.Invoke();
         }
         isDown = false;
+        onPointerUp?.Invoke();
     }
 
     void Update()
     {
         if (isDown && !longPressTriggered)
         {
-            if (Time.time - downTime >= holdDuration)
+            if (Time.unscaledTime - downTime >= holdDuration)
             {
                 longPressTriggered = true;
                 onLongPress?.Invoke();

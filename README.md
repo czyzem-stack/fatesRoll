@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.109` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.110` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.110** | Save main scene chest loot overlay after equipment commit |
 | **v0.0.109** | Stable basic equipment: eight-slot chest loot, scene UI cards, and EquipmentManager |
 | **v0.0.108** | Refresh ARCHITECTURE for bootstrap flow, meta UI, and equipment loot foundation |
 | **v0.0.107** | Safe point: main scene verified after CameraFollow cleanup and audit fixes |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.083** | Bug resolution for upgrades: affordable upgrade count and alert badge |
 | **v0.0.082** | Talent tree is in |
 | **v0.0.081** | Set up to implement talent tree: Profile HUD paths, panel toggle, and shop UI |
-| **v0.0.080** | HP and XP bar smoothing with corrected Profile HUD slider paths |
 <!-- CHANGELOG:END -->
 
 ---

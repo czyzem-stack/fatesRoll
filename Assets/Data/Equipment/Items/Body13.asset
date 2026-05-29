@@ -19,3 +19,4 @@ MonoBehaviour:
   visualPrefab: {fileID: 0}
   rigChildName: Body13
   useRigChildToggle: 1
+  animatorOverride: {fileID: 0}

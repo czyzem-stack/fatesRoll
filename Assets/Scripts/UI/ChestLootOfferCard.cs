@@ -1,15 +1,18 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
-/// Chest loot offer card. At runtime only loot <b>content</b> is applied (icon sprite, label strings).
-/// Font size, colors, alignment, RectTransforms, and button label text come from this scene GameObject.
+/// Chest loot offer card. At runtime only loot content is applied; layout/fonts/colors stay from the scene.
 /// </summary>
 [AddComponentMenu("FatesRoll/UI/Chest Loot Offer Card")]
-public class ChestLootOfferCard : MonoBehaviour
+public class ChestLootOfferCard : MonoBehaviour, IPointerClickHandler
 {
     public const string PrefabAssetPath = "Assets/Prefabs/UI/ChestLootOfferCard.prefab";
+
+    /// <summary>GUI Pro ItemFrame demo child — must stay off so loot uses only IconRoot/Icon.</summary>
+    public const string FrameDemoIconObjectName = "ItemIcon";
 
     [Header("UI references (assign from scene hierarchy)")]
     [SerializeField] private Image iconImage;
@@ -21,7 +24,6 @@ public class ChestLootOfferCard : MonoBehaviour
     [SerializeField] private TextMeshProUGUI actionLabel;
 
     [Header("Runtime binding (content only)")]
-    [Tooltip("When enabled, only the icon sprite is swapped; color/size/aspect come from the scene.")]
     [SerializeField] private bool bindIcon = true;
     [SerializeField] private bool bindSlotLabel = true;
     [SerializeField] private bool bindNameLabel = true;
@@ -30,17 +32,38 @@ public class ChestLootOfferCard : MonoBehaviour
     bool layoutDefaultsCaptured;
     Color defaultIconColor = Color.white;
     bool defaultIconColorCaptured;
+    bool pickEnabled;
+    System.Action pendingPick;
 
     void Awake()
     {
         ResolveReferences();
+        DisableFrameDemoIconLayer();
         CaptureLayoutDefaults();
+        EnsureCardReceivesClicks();
     }
 
-    /// <summary>Activates the card and wires the button; does not change text styling or layout.</summary>
+    /// <summary>Hides the packaged ItemFrame demo icon (red potion) so only loot IconRoot/Icon is visible.</summary>
+    public static void DisableFrameDemoIconLayer(Transform cardRoot)
+    {
+        if (cardRoot == null)
+            return;
+
+        foreach (Transform child in cardRoot.GetComponentsInChildren<Transform>(true))
+        {
+            if (child.name == FrameDemoIconObjectName)
+                child.gameObject.SetActive(false);
+        }
+    }
+
+    void DisableFrameDemoIconLayer() => DisableFrameDemoIconLayer(transform);
+
     public void PrepareForBind()
     {
         gameObject.SetActive(true);
+        pickEnabled = false;
+        pendingPick = null;
+        DisableFrameDemoIconLayer();
         CaptureLayoutDefaults();
 
         if (bindIcon && iconImage != null)
@@ -58,7 +81,7 @@ public class ChestLootOfferCard : MonoBehaviour
         }
     }
 
-    /// <summary>Binds loot content and wires pick. Returns false if no clickable button was found.</summary>
+    /// <summary>Binds loot content and wires pick. Returns false if no pick target was found.</summary>
     public bool Bind(EquipmentInstance item, System.Action onPick)
     {
         if (item?.definition == null)
@@ -68,6 +91,7 @@ public class ChestLootOfferCard : MonoBehaviour
         }
 
         ResolveReferences();
+        DisableFrameDemoIconLayer();
         gameObject.SetActive(true);
         CaptureLayoutDefaults();
         ApplyLootContent(item);
@@ -76,16 +100,43 @@ public class ChestLootOfferCard : MonoBehaviour
 
     bool WirePickAction(System.Action onPick)
     {
+        pendingPick = onPick;
+        pickEnabled = onPick != null;
+
         if (actionButton == null)
+            actionButton = FindPickButton();
+
+        if (actionButton != null)
         {
-            Debug.LogWarning($"ChestLootOfferCard: no Button on '{name}' — assign Button_Action in the inspector.");
-            return false;
+            actionButton.onClick.RemoveAllListeners();
+            actionButton.onClick.AddListener(InvokePick);
+            actionButton.interactable = pickEnabled;
+            return true;
         }
 
-        actionButton.onClick.RemoveAllListeners();
-        actionButton.onClick.AddListener(() => onPick?.Invoke());
-        actionButton.interactable = true;
-        return true;
+        if (EnsureCardReceivesClicks())
+            return pickEnabled;
+
+        Debug.LogWarning($"ChestLootOfferCard: no Button on '{name}' — add Button_Action or a Graphic for card clicks.");
+        return false;
+    }
+
+    void InvokePick()
+    {
+        if (!pickEnabled)
+            return;
+
+        pickEnabled = false;
+        pendingPick?.Invoke();
+        pendingPick = null;
+    }
+
+    public void OnPointerClick(PointerEventData eventData)
+    {
+        if (actionButton != null && actionButton.interactable)
+            return;
+
+        InvokePick();
     }
 
     void ApplyLootContent(EquipmentInstance item)
@@ -94,7 +145,13 @@ public class ChestLootOfferCard : MonoBehaviour
         {
             iconImage.sprite = item.runtimeIcon;
             iconImage.enabled = item.runtimeIcon != null;
-            if (defaultIconColorCaptured)
+            if (item.runtimeIcon != null)
+            {
+                Color c = defaultIconColorCaptured ? defaultIconColor : iconImage.color;
+                c.a = 1f;
+                iconImage.color = c;
+            }
+            else if (defaultIconColorCaptured)
                 iconImage.color = defaultIconColor;
         }
 
@@ -116,6 +173,9 @@ public class ChestLootOfferCard : MonoBehaviour
         if (!this)
             return;
 
+        pickEnabled = false;
+        pendingPick = null;
+
         if (bindIcon && iconImage != null)
         {
             iconImage.sprite = null;
@@ -135,36 +195,54 @@ public class ChestLootOfferCard : MonoBehaviour
 
     public void ResolveReferences()
     {
-        Transform iconRoot = transform.Find("IconRoot/Icon")
-                               ?? transform.Find("ItemIcon/Icon")
-                               ?? transform.Find("Icon");
-        if (iconRoot != null)
-            iconImage = iconRoot.GetComponent<Image>();
+        DisableFrameDemoIconLayer();
+
+        Transform lootIcon = transform.Find("IconRoot/Icon");
+        if (lootIcon != null)
+            iconImage = lootIcon.GetComponent<Image>();
+        else if (iconImage == null || iconImage.gameObject.name != "Icon" ||
+                 iconImage.transform.parent == null ||
+                 iconImage.transform.parent.name != "IconRoot")
+            iconImage = null;
 
         slotLabel ??= FindTmpDeep("Text_Slot");
         nameLabel ??= FindTmpDeep("Text_Name");
         statLine1 ??= FindTmpDeep("Text_Stat1");
         statLine2 ??= FindTmpDeep("Text_Stat2");
 
-        if (actionButton == null)
-            actionButton = transform.Find("Button_Action")?.GetComponent<Button>();
-
-        if (actionButton == null)
-        {
-            foreach (var button in GetComponentsInChildren<Button>(true))
-            {
-                if (button.gameObject.name.Contains("Button", System.StringComparison.OrdinalIgnoreCase))
-                {
-                    actionButton = button;
-                    break;
-                }
-            }
-        }
+        actionButton ??= FindPickButton();
 
         actionLabel ??= FindTmpDeep("Text_Action");
         actionLabel ??= actionButton != null
             ? actionButton.GetComponentInChildren<TextMeshProUGUI>(true)
             : null;
+    }
+
+    Button FindPickButton()
+    {
+        Transform named = transform.Find("Button_Action");
+        if (named != null && named.TryGetComponent(out Button namedButton))
+            return namedButton;
+
+        foreach (var button in GetComponentsInChildren<Button>(true))
+        {
+            if (button != null && button.gameObject.name.Contains("Button_Action", System.StringComparison.OrdinalIgnoreCase))
+                return button;
+        }
+
+        return null;
+    }
+
+    bool EnsureCardReceivesClicks()
+    {
+        Graphic graphic = GetComponent<Graphic>();
+        if (graphic == null)
+            graphic = GetComponentInChildren<Graphic>(true);
+
+        if (graphic != null)
+            graphic.raycastTarget = true;
+
+        return graphic != null;
     }
 
     void CaptureLayoutDefaults()
@@ -181,7 +259,6 @@ public class ChestLootOfferCard : MonoBehaviour
         layoutDefaultsCaptured = true;
     }
 
-    /// <summary>Sets string content only — font, size, color, and alignment stay as authored in the scene.</summary>
     static void SetDynamicText(TextMeshProUGUI label, string value)
     {
         if (label == null)

@@ -14,8 +14,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::EquipmentItemDefinition
   itemId: Head04_Brown
   displayName: Head04 Brown
-  slot: 4
+  slot: 2
   chestCategory: 1
   visualPrefab: {fileID: 5526675562460267669, guid: 79d6a4ae268749e4bad4c930d0290fbb, type: 3}
   rigChildName: 
   useRigChildToggle: 0
+  animatorOverride: {fileID: 0}

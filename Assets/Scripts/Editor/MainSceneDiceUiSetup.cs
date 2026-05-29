@@ -10,7 +10,7 @@ using UnityEngine.UI;
 public static class MainSceneDiceUiSetup
 {
     const string MainScenePath = MainSceneBootstrapCleanup.MainScenePath;
-    const string RollButtonPath = "MainUI_Canvas/HUD_Control/Joystick_Button_l_Attack";
+    const string RollButtonPath = "MainUI_Canvas/Control/Joystick_Button_l_Attack";
 
     [MenuItem("FatesRoll/Setup/Rewire Main Scene Dice Buttons")]
     public static void RewireMainSceneDiceButtons()
@@ -25,8 +25,11 @@ public static class MainSceneDiceUiSetup
         int wired = 0;
 
         var attackGo = GameObject.Find(RollButtonPath);
-        if (attackGo != null && attackGo.TryGetComponent(out Button attackButton))
-            wired += RewireButton(attackButton) ? 1 : 0;
+        if (attackGo != null)
+        {
+            if (RewireGameObject(attackGo))
+                wired++;
+        }
 
         foreach (var button in Object.FindObjectsByType<Button>(FindObjectsInactive.Include))
         {
@@ -36,7 +39,7 @@ public static class MainSceneDiceUiSetup
             if (!IsLikelyRollButton(button))
                 continue;
 
-            if (RewireButton(button))
+            if (RewireGameObject(button.gameObject))
                 wired++;
         }
 
@@ -45,40 +48,47 @@ public static class MainSceneDiceUiSetup
 
         Debug.Log(
             wired > 0
-                ? $"MainSceneDiceUiSetup: rewired {wired} button(s) to DiceRollGateway.Roll."
+                ? $"MainSceneDiceUiSetup: rewired {wired} object(s) to DiceRollGateway."
                 : "MainSceneDiceUiSetup: no roll buttons needed rewiring.");
     }
 
-    static bool RewireButton(Button button)
+    static bool RewireGameObject(GameObject go)
     {
-        RemoveBrokenDiceListeners(button);
-        UnityAction roll = DiceRollGateway.Roll;
-        UnityEventTools.AddPersistentListener(button.onClick, roll);
-        EditorUtility.SetDirty(button);
-        return true;
+        var bridge = go.GetComponent<DiceRollUiBridge>();
+        if (bridge == null)
+            bridge = go.AddComponent<DiceRollUiBridge>();
+
+        bool changed = false;
+        if (go.TryGetComponent(out Button button))
+        {
+            RemoveBrokenDiceListeners(button.onClick);
+            UnityEventTools.AddPersistentListener(button.onClick, bridge.Roll);
+            changed = true;
+        }
+
+        if (changed)
+            EditorUtility.SetDirty(go);
+            
+        return changed;
     }
 
-    static bool RemoveBrokenDiceListeners(Button button)
+    static void RemoveBrokenDiceListeners(UnityEventBase unityEvent)
     {
-        int count = button.onClick.GetPersistentEventCount();
-        bool removed = false;
-
+        int count = unityEvent.GetPersistentEventCount();
         for (int i = count - 1; i >= 0; i--)
         {
-            Object target = button.onClick.GetPersistentTarget(i);
-            string method = button.onClick.GetPersistentMethodName(i);
+            Object target = unityEvent.GetPersistentTarget(i);
+            string method = unityEvent.GetPersistentMethodName(i);
 
             if (target == null ||
                 method == nameof(DiceSpawner.RollDice) ||
                 method == nameof(DiceSpawner.OnRoll) ||
-                method == nameof(DiceSpawner.ToggleAutoRoll))
+                method == "Roll" ||
+                method == "ToggleAutoRoll")
             {
-                UnityEventTools.RemovePersistentListener(button.onClick, i);
-                removed = true;
+                UnityEventTools.RemovePersistentListener(unityEvent, i);
             }
         }
-
-        return removed;
     }
 
     static bool IsLikelyRollButton(Button button)

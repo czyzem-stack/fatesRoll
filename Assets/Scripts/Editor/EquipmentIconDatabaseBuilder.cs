@@ -29,8 +29,10 @@ public static class EquipmentIconDatabaseBuilder
         database.SetIconsForSlot(EquipmentSlotType.Cape, LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/ArmorSet_Icons/Cloak", "cloak", "Cloak"));
         database.SetIconsForSlot(EquipmentSlotType.Ring, LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/RingAndNeck_Icons", "Ring"));
         database.SetIconsForSlot(EquipmentSlotType.Necklace, LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/RingAndNeck_Icons", "Neck", "Amulet"));
-        database.SetIconsForSlot(EquipmentSlotType.Boots, LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/ArmorSet_Icons/Cloth", "Boots", "boots"));
-        database.SetIconsForSlot(EquipmentSlotType.Gloves, LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/ArmorSet_Icons/Cloth", "gloves", "Gloves"));
+        database.SetIconsForSlot(EquipmentSlotType.Boots,
+            LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/BasicArmor_Icons", "Boots_"));
+        database.SetIconsForSlot(EquipmentSlotType.Gloves,
+            LoadSpritesFromFolder($"{IconsRoot}/ArmorIcons/BasicArmor_Icons", "Gloves_"));
 
         EditorUtility.SetDirty(database);
         AssetDatabase.SaveAssets();
@@ -62,6 +64,9 @@ public static class EquipmentIconDatabaseBuilder
             if (assetPath.StartsWith(Application.dataPath))
                 assetPath = "Assets" + assetPath.Substring(Application.dataPath.Length);
 
+            if (IsExcludedIconPath(assetPath))
+                continue;
+
             if (nameContainsFilters != null && nameContainsFilters.Length > 0)
             {
                 bool match = false;
@@ -85,6 +90,47 @@ public static class EquipmentIconDatabaseBuilder
         }
 
         return sprites.ToArray();
+    }
+
+    static bool IsExcludedIconPath(string assetPath)
+    {
+        if (string.IsNullOrEmpty(assetPath))
+            return true;
+
+        string fileName = Path.GetFileNameWithoutExtension(assetPath);
+        if (string.IsNullOrEmpty(fileName))
+            return true;
+
+        string[] blockedPathSegments =
+        {
+            "/Component/Icon_EquipIcons/",
+            "/Consumable",
+            "/Potion",
+            "/Potions/",
+            "/Food/",
+            "/Drink/",
+            "/Scroll/",
+            "/Elixir/"
+        };
+
+        foreach (string segment in blockedPathSegments)
+        {
+            if (assetPath.Contains(segment, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        string[] blockedNameTokens =
+        {
+            "potion", "consumable", "scroll", "elixir", "food_", "_food", "drink", "beer", "wine"
+        };
+
+        foreach (string token in blockedNameTokens)
+        {
+            if (fileName.Contains(token, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 }
 #endif

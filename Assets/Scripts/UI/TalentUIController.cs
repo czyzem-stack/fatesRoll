@@ -169,17 +169,32 @@ public class TalentUIController : MonoBehaviour
         if (!GameServices.TryGet(out TalentManager talents))
             return;
 
+        // Set spinning state early so event handlers triggered by PerformUpgrade know to wait for the animation
+        isSpinning = true;
+
         if (powerScoreDisplay != null)
             powerScoreDisplay.Lock();
 
         int resultCategory = talents.PerformUpgrade();
         if (resultCategory != -1)
+        {
+            // Update resource visuals immediately so gold spending feels responsive
+            UpdateResources();
+            UpdateUpgradeButton();
+            
             StartCoroutine(RouletteRoutine(resultCategory));
+        }
+        else
+        {
+            isSpinning = false;
+            if (powerScoreDisplay != null) powerScoreDisplay.UnlockAndShowDelta();
+            UpdateUI();
+        }
     }
 
     private IEnumerator RouletteRoutine(int targetIndex)
     {
-        isSpinning = true;
+        // isSpinning already set in OnUpgradeClicked
         upgradeButton.interactable = false;
 
         // Reset highlights

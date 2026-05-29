@@ -31,7 +31,7 @@ public abstract class GameServiceBehaviour<T> : MonoBehaviour where T : GameServ
                 Debug.Log($"{typeof(T).Name}: bootstrap already owns this service — destroying duplicate '{name}'.", this);
             else
                 Debug.LogWarning($"Duplicate {typeof(T).Name} on '{name}' — destroying.", this);
-            Destroy(gameObject);
+            Destroy(this);
             return false;
         }
 
