@@ -129,39 +129,15 @@ public class LevelManager : GameServiceBehaviour<LevelManager>
     [ContextMenu("Auto-Assign UI")]
     public void AutoAssignUI()
     {
-        string[] sliderPaths =
-        {
+        xpSlider = MainUiHud.FindComponentAlongPaths<Slider>(
             "MainUI_Canvas/Profile/Slider_Top",
             "MainUI_Canvas/HUD_Profile/Slider_Top",
-            "MainUI_Canvas/HUD_Profile/Slider_LevelProfile/Slider_Top",
-        };
+            "MainUI_Canvas/HUD_Profile/Slider_LevelProfile/Slider_Top");
 
-        foreach (string path in sliderPaths)
-        {
-            GameObject sliderGO = GameObject.Find(path);
-            if (sliderGO == null)
-                continue;
-            xpSlider = sliderGO.GetComponent<Slider>();
-            if (xpSlider != null)
-                break;
-        }
-
-        string[] levelTextPaths =
-        {
+        levelText = MainUiHud.FindComponentAlongPaths<TextMeshProUGUI>(
             "MainUI_Canvas/Profile/LevelBadge/Text",
             "MainUI_Canvas/HUD_Profile/LevelBadge/Text",
-            "MainUI_Canvas/HUD_Profile/LevelBadge/Text (TMP)",
-        };
-
-        foreach (string path in levelTextPaths)
-        {
-            GameObject textGO = GameObject.Find(path);
-            if (textGO == null)
-                continue;
-            levelText = textGO.GetComponent<TextMeshProUGUI>();
-            if (levelText != null)
-                break;
-        }
+            "MainUI_Canvas/HUD_Profile/LevelBadge/Text (TMP)");
 
         UpdateUI();
     }

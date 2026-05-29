@@ -385,38 +385,18 @@ public class LootManager : GameServiceBehaviour<LootManager>
     [ContextMenu("Auto-Assign UI")]
     public void AutoAssignUI()
     {
-        string[] goldPaths =
-        {
+        goldText = MainUiHud.FindComponentAlongPaths<TextMeshProUGUI>(
             "MainUI_Canvas/Resources/HUD_Item_Coin/Coin/Text (TMP)",
             "MainUI_Canvas/Resources/HUD_Item_Coin/Text (TMP)",
             "MainUI_Canvas/Resources/HUD_Item_Gold/Gold/Text (TMP)",
             "MainUI_Canvas/Resources/HUD_Item_Gold/Text (TMP)",
             "MainUI_Canvas/HUD_Resources/HUD_Item_Coin/Coin/Text (TMP)",
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Gold/Gold/Text (TMP)",
-        };
+            "MainUI_Canvas/HUD_Resources/HUD_Item_Gold/Gold/Text (TMP)");
 
-        foreach (string path in goldPaths)
-        {
-            GameObject go = GameObject.Find(path);
-            if (go == null) continue;
-            goldText = go.GetComponent<TextMeshProUGUI>();
-            if (goldText != null) break;
-        }
-
-        string[] gemPaths =
-        {
+        gemText = MainUiHud.FindComponentAlongPaths<TextMeshProUGUI>(
             "MainUI_Canvas/Resources/HUD_Item_Gem/Gem/Text (TMP)",
             "MainUI_Canvas/Resources/HUD_Item_Gem/Text (TMP)",
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Gem/Gem/Text (TMP)",
-        };
-
-        foreach (string path in gemPaths)
-        {
-            GameObject go = GameObject.Find(path);
-            if (go == null) continue;
-            gemText = go.GetComponent<TextMeshProUGUI>();
-            if (gemText != null) break;
-        }
+            "MainUI_Canvas/HUD_Resources/HUD_Item_Gem/Gem/Text (TMP)");
 
         UpdateGoldUI();
         UpdateGemUI();

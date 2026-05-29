@@ -181,33 +181,13 @@ public class EnergyManager : GameServiceBehaviour<EnergyManager>
     [ContextMenu("Auto-Assign UI")]
     public void AutoAssignUI()
     {
-        string[] energyPaths = {
+        energyText = MainUiHud.FindComponentAlongPaths<TextMeshProUGUI>(
             "MainUI_Canvas/Resources/HUD_Item_Energy/Energy/Text (TMP)",
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Energy/Energy/Text (TMP)"
-        };
-        foreach (var path in energyPaths)
-        {
-            GameObject go = GameObject.Find(path);
-            if (go != null)
-            {
-                energyText = go.GetComponent<TextMeshProUGUI>();
-                if (energyText != null) break;
-            }
-        }
+            "MainUI_Canvas/HUD_Resources/HUD_Item_Energy/Energy/Text (TMP)");
 
-        string[] timerPaths = {
+        regenTimerText = MainUiHud.FindComponentAlongPaths<TextMeshProUGUI>(
             "MainUI_Canvas/Resources/HUD_Item_Energy/Energy/EnergyTotal_Text",
-            "MainUI_Canvas/HUD_Resources/HUD_Item_Energy/Energy/EnergyTotal_Text"
-        };
-        foreach (var path in timerPaths)
-        {
-            GameObject totalGo = GameObject.Find(path);
-            if (totalGo != null)
-            {
-                regenTimerText = totalGo.GetComponent<TextMeshProUGUI>();
-                if (regenTimerText != null) break;
-            }
-        }
+            "MainUI_Canvas/HUD_Resources/HUD_Item_Energy/Energy/EnergyTotal_Text");
         
         UpdateDisplay();
     }

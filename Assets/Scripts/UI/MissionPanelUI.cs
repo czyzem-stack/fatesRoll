@@ -28,14 +28,20 @@ public class MissionPanelUI : MonoBehaviour
 
     private void Awake()
     {
-        cachedGlobalHUD = GameObject.Find("MainUI_Canvas/Resources");
+        ResolveGlobalHudCache();
         InitializeReferences();
         InitializeTabs();
     }
 
+    private void ResolveGlobalHudCache()
+    {
+        cachedGlobalHUD = MainUiHud.FindGlobalResourcesHud();
+    }
+
     private void InitializeReferences()
     {
-        if (!contentRoot) contentRoot = transform.Find("ScrollRect/Veiwport/Content");
+        if (!contentRoot)
+            contentRoot = MainUiHud.FindMissionScrollContent(transform);
         
         if (contentRoot && !missionPrefab)
             missionPrefab = contentRoot.Find("Template")?.gameObject;
@@ -88,7 +94,10 @@ public class MissionPanelUI : MonoBehaviour
 
     private void OnEnable()
     {
-        if (cachedGlobalHUD) cachedGlobalHUD.SetActive(false);
+        if (cachedGlobalHUD == null)
+            ResolveGlobalHudCache();
+        if (cachedGlobalHUD)
+            cachedGlobalHUD.SetActive(false);
         UpdateUI();
         if (GameServices.TryGet(out QuestManager quests))
             quests.OnQuestsUpdated += UpdateUI;

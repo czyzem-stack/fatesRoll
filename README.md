@@ -2,7 +2,7 @@
 
 Unity 6 dice-driven exploration and combat prototype. Roll 2× d6, spend energy, walk Steve along the NavMesh toward POIs, and fight enemies when you reach them.
 
-**Current version:** `v0.0.094` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
+**Current version:** `v0.0.095` (see [`VERSION`](VERSION) and Unity **Player Settings → Version**).
 
 | | |
 |---|---|
@@ -172,6 +172,7 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 <!-- CHANGELOG:BEGIN -->
 | Version | Summary |
 |---------|---------|
+| **v0.0.095** | Fix dice roll hitch, safe QuestManager inspector, and bootstrap quest setup |
 | **v0.0.094** | Null-safe mission and talent panel actions via GameServices |
 | **v0.0.093** | QuestManager on bootstrap; persist quests, talents, and gear through Steve death |
 | **v0.0.092** | Require bootstrap RunDeathController and fix upgrade alert badge count |
@@ -201,7 +202,6 @@ Auto-updated on every commit when `.githooks` are enabled. Full history: `git lo
 | **v0.0.068** | Add Bootstrap scene flow, restore main gameplay markers, and fix dice/camera follow |
 | **v0.0.067** | Defer heavy bootstrap to next frame and harden domain reload resets |
 | **v0.0.066** | Polish GameServices hero registration, IsInitialized, and manager docs |
-| **v0.0.065** | Add GameServices bootstrap, fix domain reload and chest travel polish |
 <!-- CHANGELOG:END -->
 
 ---

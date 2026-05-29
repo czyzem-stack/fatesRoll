@@ -254,9 +254,10 @@ public bool IsMoving => movement != null && movement.IsMoving;
     {
         if (healthSlider == null)
         {
-            GameObject sliderGO = GameObject.Find("MainUI_Canvas/Profile/Slider_Bottom");
-            if (sliderGO != null)
-                healthSlider = sliderGO.GetComponent<UnityEngine.UI.Slider>();
+            healthSlider = MainUiHud.FindComponentAlongPaths<UnityEngine.UI.Slider>(
+                "MainUI_Canvas/Profile/Slider_Bottom",
+                "MainUI_Canvas/HUD_Profile/Slider_Bottom",
+                "MainUI_Canvas/HUD_Profile/Slider_LevelProfile/Slider_Bottom");
         }
 
         UpdateHealthUI();

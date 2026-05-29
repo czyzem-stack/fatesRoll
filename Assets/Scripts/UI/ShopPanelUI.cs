@@ -11,13 +11,13 @@ public class ShopPanelUI : MonoBehaviour
 
     private void Awake()
     {
-        // Cache HUD on Awake to avoid Find calls in OnDisable
-        var hudGO = GameObject.Find("MainUI_Canvas/Resources");
-        if (hudGO != null) cachedGlobalHUD = hudGO;
+        ResolveGlobalHudCache();
     }
 
     private void OnEnable()
     {
+        if (cachedGlobalHUD == null)
+            ResolveGlobalHudCache();
         ToggleGlobalHUD(false);
         UpdateUI();
     }
@@ -27,18 +27,17 @@ public class ShopPanelUI : MonoBehaviour
         ToggleGlobalHUD(true);
     }
 
+    private void ResolveGlobalHudCache()
+    {
+        cachedGlobalHUD = MainUiHud.FindGlobalResourcesHud();
+    }
+
     private void ToggleGlobalHUD(bool visible)
     {
+        if (cachedGlobalHUD == null)
+            ResolveGlobalHudCache();
         if (cachedGlobalHUD != null)
-        {
             cachedGlobalHUD.SetActive(visible);
-        }
-        else
-        {
-            // Fallback if cache is null, but avoid deep path find which causes assertions in OnDisable
-            var hud = GameObject.Find("Resources");
-            if (hud != null) hud.SetActive(visible);
-        }
     }
 
     private void Update()

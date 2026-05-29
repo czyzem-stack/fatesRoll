@@ -15,7 +15,7 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
     private const string D6ResourcesPath = "Dice/Dice_d6";
     private const string InputActionsPath = "Assets/InputSystem_Actions.inputactions";
     private const string InputActionsResourcesPath = "InputSystem_Actions";
-    private const string MainRollButtonPath = "MainUI_Canvas/HUD_Control/Joystick_Button_l_Attack";
+    private const string MainRollButtonPath = MainUiHud.RollAttackButton;
 
     [SerializeField] private InputActionAsset inputActionAsset;
 
@@ -170,7 +170,7 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
             return;
 
         bool wired = false;
-        var attackButtonGo = GameObject.Find(MainRollButtonPath);
+        var attackButtonGo = MainUiHud.FindAlongPaths(MainRollButtonPath);
         if (attackButtonGo != null && attackButtonGo.TryGetComponent(out Button attackButton))
         {
             attackButton.onClick.AddListener(DiceRollGateway.Roll);
@@ -207,14 +207,14 @@ public class DiceSpawner : GameServiceBehaviour<DiceSpawner>
     {
         if (autoRollText == null)
         {
-            var autoTextGo = GameObject.Find($"{MainRollButtonPath}/AutoText");
+            var autoTextGo = MainUiHud.FindAlongPaths($"{MainRollButtonPath}/AutoText");
             if (autoTextGo != null)
                 autoRollText = autoTextGo.GetComponent<TMPro.TextMeshProUGUI>();
         }
 
         if (autoRollIndicator == null)
         {
-            var attackButtonGo = GameObject.Find(MainRollButtonPath);
+            var attackButtonGo = MainUiHud.FindAlongPaths(MainRollButtonPath);
             if (attackButtonGo != null)
                 autoRollIndicator = attackButtonGo.GetComponent<Image>();
         }

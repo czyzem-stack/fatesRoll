@@ -24,12 +24,13 @@ public class HeroesPanelUI : MonoBehaviour
 
     private void Awake()
     {
-        var hudGO = GameObject.Find("MainUI_Canvas/Resources");
-        if (hudGO != null) cachedGlobalHUD = hudGO;
+        ResolveGlobalHudCache();
     }
 
     private void OnEnable()
     {
+        if (cachedGlobalHUD == null)
+            ResolveGlobalHudCache();
         ToggleGlobalHUD(false);
         UpdateUI();
     }
@@ -39,17 +40,17 @@ public class HeroesPanelUI : MonoBehaviour
         ToggleGlobalHUD(true);
     }
 
+    private void ResolveGlobalHudCache()
+    {
+        cachedGlobalHUD = MainUiHud.FindGlobalResourcesHud();
+    }
+
     private void ToggleGlobalHUD(bool visible)
     {
+        if (cachedGlobalHUD == null)
+            ResolveGlobalHudCache();
         if (cachedGlobalHUD != null)
-        {
             cachedGlobalHUD.SetActive(visible);
-        }
-        else
-        {
-            var hud = GameObject.Find("Resources");
-            if (hud != null) hud.SetActive(visible);
-        }
     }
 
     private void Update()

@@ -9,9 +9,9 @@ public class UpgradeAlertController : MonoBehaviour
 {
     private static readonly string[] UpgradeAlertPaths =
     {
-        "MainUI_Canvas/Home/HomeMenu/Upgrade/Alert_Green",
-        "MainUI_Canvas/HomeMenu/Upgrade/Alert_Green",
-        "MainUI_Canvas/Panel_Home/HomeMenu/Upgrade/Alert_Green",
+        $"{MainUiHud.Canvas}/Home/HomeMenu/Upgrade/Alert_Green",
+        $"{MainUiHud.Canvas}/HomeMenu/Upgrade/Alert_Green",
+        $"{MainUiHud.Canvas}/Panel_Home/HomeMenu/Upgrade/Alert_Green",
     };
 
     [SerializeField] private TextMeshProUGUI countText;
@@ -51,7 +51,7 @@ public class UpgradeAlertController : MonoBehaviour
 
         foreach (string path in UpgradeAlertPaths)
         {
-            var alertGo = GameObject.Find(path);
+            GameObject alertGo = MainUiHud.FindAlongPaths(path);
             if (alertGo == null)
                 continue;
 
@@ -74,7 +74,7 @@ public class UpgradeAlertController : MonoBehaviour
         if (countText != null && alertVisual != null)
             return;
 
-        var canvas = GameObject.Find("MainUI_Canvas");
+        GameObject canvas = MainUiHud.FindAlongPaths(MainUiHud.Canvas);
         if (canvas == null)
             return;
 
