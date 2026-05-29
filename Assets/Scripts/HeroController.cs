@@ -540,10 +540,10 @@ public bool IsMoving => movement != null && movement.IsMoving;
         float critChance = stats != null ? stats.CritChance : 0f;
         float critMult = stats != null ? stats.CritDamage : 0f;
 
-        heroDamage = CombatLog.RollAndApplyCrit(heroDamage, critChance, critMult, out isCrit);
+        heroDamage = CombatLog.RollAndApplyCrit(heroDamage, critChance, critMult, out isCrit, out float critRoll);
 
         if (stats != null)
-            CombatLog.CritCheck("Steve", critChance, Random.Range(0f, 100f), isCrit); // roll shown for logging only
+            CombatLog.CritCheck("Steve", critChance, critRoll, isCrit);
 
         int finalDamage = Mathf.Max(1, Mathf.RoundToInt(heroDamage));
         CombatLog.DamageCalc("Steve", $"dice roll {rollTotal} | base {baseDamage:F0} × roll/7 → {finalDamage}" + (isCrit ? " (crit)" : ""));

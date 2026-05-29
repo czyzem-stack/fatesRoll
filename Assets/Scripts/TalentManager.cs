@@ -135,7 +135,8 @@ public class TalentManager : GameServiceBehaviour<TalentManager>
                 totalBonuses[8] += energyMaxBonus;
                 break;
             case 9: // Coin
-                if (LootManager.Instance != null) LootManager.Instance.goldPerCoin += coinGainBonus;
+                if (GameServices.TryGet(out LootManager loot))
+                    loot.AddGoldPerCoinBonus(coinGainBonus);
                 totalBonuses[9] += coinGainBonus;
                 break;
         }

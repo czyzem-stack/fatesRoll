@@ -1451,7 +1451,7 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
         yield return new WaitForSeconds(hitDelay);
         if (!isDead && currentHP > 0 && hero != null && hero.InCombat)
         {
-            float damage = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit);
+            float damage = CombatLog.RollAndApplyCrit(attackDamage, critChance, critDamage, out bool isCrit, out float critRoll);
             
             if (battleShoutTurnsRemaining > 0)
             {
@@ -1463,7 +1463,7 @@ CombatLog.DamageDealt(attackerName, gameObject.name, amount, currentHP);
                 }
             }
 
-            CombatLog.CritCheck(gameObject.name, critChance, Random.Range(0f, 100f), isCrit);
+            CombatLog.CritCheck(gameObject.name, critChance, critRoll, isCrit);
 
             CombatLog.DamageCalc(gameObject.name, $"base {attackDamage:F0}" + (isCrit ? $" × crit {critDamage:F0}%" : "") + $" → {(int)damage}");
             bool hit = hero.TakeDamage((int)damage, gameObject.name, isCrit);

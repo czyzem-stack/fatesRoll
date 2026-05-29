@@ -129,7 +129,7 @@ public class LootManagerEditor : Editor
             { "pickupStaggerDelay", "Delay between each coin starting its flight to Steve — creates a one-by-one collect." },
             { "heroCollectOffset", "Offset from Steve's position where coins fly to (Y ≈ chest). X/Z usually 0." },
 
-            { "goldPerCoin", "Gold added to the balance for each coin that reaches Steve." },
+            { "goldPerCoin", "Base gold added to the balance for each coin that reaches Steve. Talent coin upgrades add on top at runtime." },
             { "goldFloatingTextColor", "Color of the world-space '+X Gold' text after the batch is collected." },
             { "goldText", "HUD TextMeshPro label for Steve's current gold total." },
         };

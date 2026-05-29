@@ -63,7 +63,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
     public Vector3 heroCollectOffset = new Vector3(0f, 1.1f, 0f);
 
     [Header("Gold & UI")]
-    [Tooltip("Gold added to Steve's balance for each coin that reaches him.")]
+    [Tooltip("Base gold added to Steve's balance for each coin that reaches him (talent bonuses stack on top).")]
     public int goldPerCoin = 1;
     [Tooltip("Color of the floating '+X Gold' text above Steve after a batch is collected.")]
     public Color goldFloatingTextColor = new Color(1f, 0.82f, 0.2f, 1f);
@@ -126,6 +126,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
 
     private int currentGold;
     private int currentGems;
+    private int talentGoldPerCoinBonus;
     private readonly List<DroppedCoin> activeCoins = new List<DroppedCoin>();
     private int pendingBatchCoins;
     private int pendingBatchGold;
@@ -135,6 +136,20 @@ public class LootManager : GameServiceBehaviour<LootManager>
     private static readonly int GroundRayMask = ~0;
 
     public bool IsCollectPhaseActive => collectPhaseActive;
+
+    /// <summary>Gold granted per collected coin (base <see cref="goldPerCoin"/> plus talent upgrades).</summary>
+    public int GetGoldPerCoin() => goldPerCoin + talentGoldPerCoinBonus;
+
+    /// <summary>Raises gold per coin from talent upgrades.</summary>
+    public void AddGoldPerCoinBonus(int bonus)
+    {
+        if (bonus <= 0)
+            return;
+
+        talentGoldPerCoinBonus += bonus;
+        GlobalSettings.LogGameplay(
+            $"LootManager: +{bonus} gold per coin (total {GetGoldPerCoin()} per coin).");
+    }
 
     private void Reset()
     {
@@ -216,7 +231,7 @@ public class LootManager : GameServiceBehaviour<LootManager>
         int bonus = RogueLiteManager.Instance != null ? RogueLiteManager.Instance.BonusCoinsPerEnemyKill : 0;
         int count = Random.Range(minCoins, maxCoins + 1) + bonus;
         pendingBatchCoins = count;
-        pendingBatchGold = count * goldPerCoin;
+        pendingBatchGold = count * GetGoldPerCoin();
         collectPhaseActive = false;
 
         for (int i = 0; i < count; i++)

@@ -83,11 +83,25 @@ public static class CombatLog
     /// </summary>
     public static float RollAndApplyCrit(float baseDamage, float critChance, float critMultiplierPercent, out bool isCrit)
     {
+        return RollAndApplyCrit(baseDamage, critChance, critMultiplierPercent, out isCrit, out _);
+    }
+
+    /// <summary>
+    /// Rolls for crit and applies the multiplier if successful. Also returns the d100 roll used for logging.
+    /// </summary>
+    public static float RollAndApplyCrit(
+        float baseDamage,
+        float critChance,
+        float critMultiplierPercent,
+        out bool isCrit,
+        out float critRoll)
+    {
         isCrit = false;
+        critRoll = 0f;
         if (critChance <= 0f) return baseDamage;
 
-        float roll = Random.Range(0f, 100f);
-        isCrit = roll < critChance;
+        critRoll = Random.Range(0f, 100f);
+        isCrit = critRoll < critChance;
 
         if (isCrit)
             return baseDamage * (1f + critMultiplierPercent / 100f);
