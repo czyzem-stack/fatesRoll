@@ -1,6 +1,6 @@
 # FatesRoll — Architecture
 
-Technical reference for the **main** play scene (`Assets/Scenes/main.unity`). Build flow: `title.unity` (loading / tap to start) → `main.unity`.
+Technical reference for the Unity 6 prototype. **Play flow:** `Bootstrap.unity` → `title.unity` → `main.unity`. Services live on the bootstrap object (DDOL); gameplay lives in `main`.
 
 ---
 
@@ -8,90 +8,88 @@ Technical reference for the **main** play scene (`Assets/Scenes/main.unity`). Bu
 
 1. [System overview](#1-system-overview)
 2. [Component map](#2-component-map)
-3. [Singletons and scene objects](#3-singletons-and-scene-objects)
-4. [Core game loop](#4-core-game-loop)
-5. [Dice roll pipeline](#5-dice-roll-pipeline)
-6. [Movement and POI routing](#6-movement-and-poi-routing)
-7. [Combat flows](#7-combat-flows)
-8. [Enemy AI](#8-enemy-ai)
-9. [POI lifecycle](#9-poi-lifecycle)
-10. [Editor vs runtime (POI setup)](#10-editor-vs-runtime-poi-setup)
-11. [Stats and damage formulas](#11-stats-and-damage-formulas)
-12. [UI and health bars](#12-ui-and-health-bars)
-13. [Title scene and level-up rewards](#13-title-scene-and-level-up-rewards)
-14. [Repo, version, and README automation](#14-repo-version-and-readme-automation)
-15. [Script index](#15-script-index)
+3. [Singletons and bootstrap](#3-singletons-and-bootstrap)
+4. [Bootstrap and scene flow](#4-bootstrap-and-scene-flow)
+5. [Core game loop](#5-core-game-loop)
+6. [Dice roll pipeline](#6-dice-roll-pipeline)
+7. [Movement and POI routing](#7-movement-and-poi-routing)
+8. [Combat flows](#8-combat-flows)
+9. [Enemy AI](#9-enemy-ai)
+10. [POI lifecycle](#10-poi-lifecycle)
+11. [Editor vs runtime (POI setup)](#11-editor-vs-runtime-poi-setup)
+12. [Stats and damage formulas](#12-stats-and-damage-formulas)
+13. [UI and HUD](#13-ui-and-hud)
+14. [Title scene and level-up rewards](#14-title-scene-and-level-up-rewards)
+15. [Meta progression (quests, talents, death)](#15-meta-progression-quests-talents-death)
+16. [Equipment and loot](#16-equipment-and-loot)
+17. [Repo, version, and README automation](#17-repo-version-and-readme-automation)
+18. [Editor menus](#18-editor-menus)
+19. [Script index](#19-script-index)
 
 ---
 
 ## 1. System overview
 
-High-level view: input drives dice; dice drives movement or combat; POIs host enemies; managers coordinate targets and cleanup.
+Input drives dice; dice drives movement or combat; POIs host enemies and treasure chests; bootstrap managers coordinate services across scene loads.
 
 ```mermaid
 flowchart TB
+    subgraph Scenes
+        BS[Bootstrap.unity]
+        TS[title.unity]
+        MS[main.unity]
+        BS --> TS --> MS
+    end
+
     subgraph Input
         KB[Keyboard / Input System]
         UI[HUD Buttons / Hold Proxy]
     end
 
-    subgraph Core["Gameplay core"]
+    subgraph Bootstrap["DDOL services (GameServices)"]
+        GSvc[GameServices]
+        GS[GlobalSettings]
         DS[DiceSpawner]
-        HC[HeroController]
         EM[EnergyManager]
         LM[LevelManager]
         RL[RogueLiteManager]
         LM2[LootManager]
+        ELM[EquipmentLootManager]
+        TM[TalentManager]
+        QM[QuestManager]
+        RDC[RunDeathController]
     end
 
-    subgraph POI["Points of interest"]
+    subgraph MainScene["main.unity"]
+        HC[HeroController]
+        HE[HeroEquipment]
         PM[POIManager]
         PN[POINode]
         EN[Enemy]
     end
 
-    subgraph Data["Tuning & stats"]
-        GS[GlobalSettings]
-        PS[PlayerStats]
-        ED[EnemyData SO]
-    end
-
-    subgraph World["Scene / world"]
-        NM[NavMesh]
-        SC[main.unity]
-    end
-
     KB --> DS
     UI --> DS
     DS --> EM
-    DS --> GS
     DS --> HC
     DS --> LM
     LM --> RL
-    LM --> HC
-    RL --> PS
-    RL --> EM
-    RL --> LM2
-    DS --> EN
-
-    HC --> PM
-    HC --> PS
-    HC --> GS
-    HC --> NM
-
-    PM --> PN
-    ED -->|optional enemyData| PN
-    PN --> EN
-
-    EN --> HC
-    EN --> PM
+    RL --> HC
+    EN --> LM2
+    EN --> ELM
+    ELM --> HE
+    HC --> RDC
+    QM --> EN
+    TM --> HC
+    TM --> LM2
+    TM --> EM
 ```
 
 ---
 
 ## 2. Component map
 
-Who talks to whom (runtime dependencies).
+Runtime dependencies (simplified).
 
 ```mermaid
 graph LR
@@ -101,43 +99,45 @@ graph LR
     DiceSpawner --> PlayerStats
     DiceSpawner --> Enemy
     DiceSpawner --> LevelManager
-    DiceSpawner --> DieResult
 
     HeroController --> POIManager
     HeroController --> GlobalSettings
     HeroController --> PlayerStats
     HeroController --> Enemy
+    HeroController --> RunDeathController
+    HeroController --> EquipmentLootManager
+
+    Enemy --> HeroController
+    Enemy --> POIManager
+    Enemy --> LootManager
+    Enemy --> EquipmentLootManager
+    Enemy --> QuestManager
 
     POINode --> POIManager
     POINode --> Enemy
 
-    Enemy --> HeroController
-    Enemy --> POIManager
-    Enemy --> FloatingText
-
-    POIManager --> POINode
-
     LevelManager --> HeroController
-    LevelManager --> GlobalSettings
     LevelManager --> RogueLiteManager
 
     RogueLiteManager --> PlayerStats
     RogueLiteManager --> EnergyManager
     RogueLiteManager --> LootManager
 
-    EnergyManager --> GlobalSettings
-    EnergyManager --> HeroController
-    EnergyManager --> FloatingText
+    TalentManager --> PlayerStats
+    TalentManager --> EnergyManager
+    TalentManager --> LootManager
 
-    QADashboard --> HeroController
-    QADashboard --> DiceSpawner
-    QADashboard --> POIManager
-    QADashboard --> GlobalSettings
+    EquipmentLootManager --> HeroEquipment
+    HeroEquipment --> PlayerStats
+
+    MainUiHud --> LootManager
+    MainUiHud --> EnergyManager
+    MainUiHud --> LevelManager
 ```
 
 ---
 
-## 3. Singletons and scene objects
+## 3. Singletons and bootstrap
 
 Gameplay services use **`GameServices`** (`DefaultExecutionOrder -10000`) plus **`GameServiceBehaviour<T>`** — no `FindAnyObjectByType` in `Instance` getters.
 
@@ -156,39 +156,81 @@ flowchart TD
         C -->|no| E[GameServices.Get T]
     end
 
-    subgraph Managers
-        GS[GlobalSettings<br/>DontDestroyOnLoad]
-        EM[EnergyManager]
-        PM[POIManager]
-        LM[LevelManager]
-        RL[RogueLiteManager]
-        LM2[LootManager]
-    end
-
     Dict --> E
 ```
 
-**Scene setup:** **FatesRoll → Setup → Add Game Services Bootstrap** groups managers under a `GameServices` object (optional **Persist Across Scenes**). Steve calls `GameServices.RegisterHero(this)` in `HeroController.Awake` (and again in `Start` if bootstrap order was late). Access Steve via `GameServices.Hero` or `GameServices.HeroController`. Check bootstrap with `GameServices.IsInitialized`. Strict lookup: `GameServices.Get<T>()` throws if missing; `TryGet<T>`, `HasInstance`, and `Foo.Instance` stay null-safe.
+**Scene setup:** **FatesRoll → Setup → Add Game Services Bootstrap** (or open `Bootstrap.unity`). One `GameServices` root with manager children; enable **Persist Across Scenes**. Steve registers via `GameServices.RegisterHero(this)` in `HeroController.Awake` (and again in `Start` if bootstrap order was late).
 
-**Domain reload:** `GameServices` clears `Current` on `SubsystemRegistration` and `BeforeSceneLoad` (no stale GC handles after script recompile).
+**Access patterns**
 
-**Startup cost:** `GameServices` Awake only sets `Current` and DDOL; child discovery runs next frame (`deferHeavyBootstrap`). `POIManager` / `SpawnManager` scene scans (`FindObjectsByType`) also run after one frame; spawn init waits for POI init. Optional `targetFrameRateOnStart` on bootstrap for profiling.
+| API | Behavior |
+|-----|----------|
+| `GameServices.Hero` / `HeroController` | Steve; null-safe, purges stale refs |
+| `GameServices.IsInitialized` | Bootstrap finished Awake |
+| `GameServices.Get<T>()` | Throws if missing (strict) |
+| `GameServices.TryGet<T>(out T)` | Null-safe |
+| `Foo.Instance` / `HasInstance` | Null-safe via registry |
+
+**Domain reload:** `GameServices` clears `Current` on `SubsystemRegistration` and `BeforeSceneLoad`.
+
+**Startup cost:** Awake only sets `Current` and DDOL; child discovery runs next frame (`deferHeavyBootstrap`). Bootstrap `[GameServices]` logs are gated by `GlobalSettings.verboseGameplayLogs` (off by default). Missing required services still log warnings once.
 
 | Component | Pattern | Notes |
 |-----------|---------|--------|
-| `GameServices` | Bootstrap registry | Inspector refs + optional `GetComponentInChildren` on bootstrap root only |
-| `GlobalSettings` | `GameServiceBehaviour` + `DontDestroyOnLoad` | Movement, energy, combat delays, XP curve |
-| `EnergyManager` | `GameServiceBehaviour` | Current energy, regen timer, HUD text |
-| `POIManager` | `GameServiceBehaviour` | Registry of active `POINode`s |
-| `LevelManager` | `GameServiceBehaviour` | XP bar, level-up celebration trigger |
-| `RogueLiteManager` | `GameServiceBehaviour` | Post–level-up reward popup (A/B stat picks) |
-| `LootManager` | `GameServiceBehaviour` | Coin drops; applies RogueLite coin bonus |
-| `HeroController` | Scene component | One hero (Steve); `GameServices.Hero` |
-| `DiceSpawner` | `GameServiceBehaviour` | Roll orchestration |
+| `GameServices` | Bootstrap registry | Inspector refs + optional `GetComponentInChildren` on bootstrap root |
+| `GlobalSettings` | `GameServiceBehaviour` + DDOL | Movement, energy, combat delays, XP curve, log toggles |
+| `DiceSpawner` | `GameServiceBehaviour` | Roll orchestration; input from Resources or Inspector |
+| `EnergyManager` | `GameServiceBehaviour` | Pool, regen, HUD; `AddMaxEnergyBonus()` for talents |
+| `POIManager` | `GameServiceBehaviour` | Active `POINode` registry |
+| `SpawnManager` | `GameServiceBehaviour` | Encounter spawning; reset on death |
+| `LevelManager` | `GameServiceBehaviour` | XP bar; `ProgressChanged` event |
+| `RogueLiteManager` | `GameServiceBehaviour` | Post–level-up A/B stat popup |
+| `LootManager` | `GameServiceBehaviour` | Coin celebration drops; `BalanceChanged` event |
+| `EquipmentLootManager` | `GameServiceBehaviour` | Treasure chest A/B equipment popup |
+| `TalentManager` | `GameServiceBehaviour` | Gold-paid random upgrades; `Upgraded` event |
+| `QuestManager` | `GameServiceBehaviour` | Kill quests + achievements; child of bootstrap |
+| `RunDeathController` | `GameServiceBehaviour` | Death fade, respawn, world reset |
+| `EnemyStatManager` | `GameServiceBehaviour` | Run difficulty scaling |
+| `HeroController` | Scene component on Steve | Movement, combat, chest travel |
+| `HeroEquipment` | Scene component on Steve | Modular rig visuals + stat bonuses |
+
+**Do not** duplicate managers under `main.unity`. Use **FatesRoll → Setup → Remove Duplicate Bootstrap From Main Scene** if copies appear after merges.
 
 ---
 
-## 4. Core game loop
+## 4. Bootstrap and scene flow
+
+```mermaid
+sequenceDiagram
+    participant BS as Bootstrap.unity
+    participant BF as BootstrapFlow
+    participant GS as GameServices
+    participant TS as title.unity
+    participant MS as main.unity
+
+    BS->>GS: Awake → DDOL persist
+    BS->>BF: Start
+    BF->>TS: LoadScene(title, Single)
+    Note over GS: Services survive
+    TS->>TS: TitleFlowController preload main
+    TS->>MS: LoadScene(main) on tap
+    MS->>GS: Rebind HUD refs (sceneLoaded)
+    MS->>HC: HeroController registers hero
+```
+
+| Scene | Build index | Role |
+|-------|-------------|------|
+| `Assets/Scenes/Bootstrap.unity` | 0 | DDOL `GameServices`, `BootstrapFlow` → loads title |
+| `Assets/Scenes/title.unity` | 1 | Loading bar, tap to start, async preload of main |
+| `Assets/Scenes/main.unity` | 2 | Gameplay world, Steve, POIs, MainUI |
+
+**Always test:** Play from **Bootstrap** (or use **FatesRoll → Scenes → Set Play Mode Start To Bootstrap**). Playing `main.unity` directly skips bootstrap and breaks service wiring.
+
+**Camera:** Cinemachine virtual camera + `IsometricCameraControl` (scroll zoom). Legacy `CameraFollow` is an obsolete empty stub — remove via **FatesRoll → Cleanup → Remove Obsolete Camera Follow In Main Scene**.
+
+---
+
+## 5. Core game loop
 
 One turn from the player’s perspective.
 
@@ -203,69 +245,30 @@ sequenceDiagram
     participant LM as LevelManager
 
     P->>DS: Roll (input / auto-roll)
-    DS->>DS: CanRoll? (not rolling, not moving, has energy)
+    DS->>DS: CanRoll? (not rolling, not moving, has energy, not dead)
     DS->>EM: Deplete(energyDepletionPerRoll)
     DS->>DS: Spawn 2× d6, wait settle, sum total
 
     alt Not in combat
         DS->>HC: MoveSteps(total)
         HC->>PM: GetPOIByOrder(nextPOIOrder)
-        HC->>HC: NavMesh partial path + leftoverDiceValue
-        HC->>EN: Proximity less than 3m
-        HC->>HC: EnterCombat + InitialAttackCoroutine
+        HC->>HC: NavMesh path + leftoverDiceValue
+        HC->>EN: Proximity / chest interact
+        HC->>HC: EnterCombat or open chest
     else In combat
-        DS->>EN: Combat roll damage + anim timing
+        DS->>HC: CalculateRollDamage + anim timing
+        HC->>EN: TakeDamage
         EN-->>HC: PerformAttack if alive
     end
 
     DS->>LM: AddXP(total) unless early exit on kill
     LM->>HC: PlayLevelUpCelebration (if leveled)
     HC->>RL: RunPostCelebrationRewards (after anim)
-    Note over RL: Popup: pick Strength / Agility / Vitality / Luck / Energy / Coins
 ```
 
 ---
 
-## 5. Dice roll pipeline
-
-Detailed `RollRoutine` coroutine.
-
-```mermaid
-flowchart TD
-    Start([RollDice / OnRoll]) --> Can{CanRoll?}
-    Can -->|no| Stop([Return])
-    Can -->|yes| Lock[isRolling = true]
-
-    Lock --> Energy[EnergyManager.Deplete]
-    Energy --> Throw{hero.InCombat?}
-    Throw -->|no| Anim[Animator Throw + 0.2s wait]
-    Throw -->|yes| SkipAnim[Skip throw anim]
-    Anim --> Cleanup
-    SkipAnim --> Cleanup[Destroy old DieResult objects]
-
-    Cleanup --> Spawn[Spawn 2× d6Prefab at chest height]
-    Spawn --> Settle[Wait until DieResult settled or 3s timeout]
-    Settle --> Buffer[+1.0s visual buffer]
-    Buffer --> Sum[LastRoll = sum of dice]
-
-    Sum --> Branch{hero.InCombat?}
-    Branch -->|yes| CombatPath[Face → wind-up → Attack trigger → TakeDamage → retaliate]
-    Branch -->|no| Move[hero.MoveSteps total]
-
-    CombatPath --> Dead{enemy.isDead?}
-    Dead -->|yes| XP2[AddXP total×2 + Victory + exit]
-    Dead -->|no| Delay[combatReactionDelay]
-    Delay --> Retaliate[enemy.PerformAttack]
-
-    Move --> XP[LevelManager.AddXP total]
-    CombatPath --> XP
-    Retaliate --> XP
-    XP2 --> Finally
-    XP --> LevelUp{levels gained?}
-    LevelUp -->|yes| WaitCelebration[wait while hero.IsCelebrating]
-    LevelUp -->|no| Finally
-    WaitCelebration --> Finally[finally: isRolling = false]
-```
+## 6. Dice roll pipeline
 
 **`CanRoll()` gates**
 
@@ -274,38 +277,17 @@ flowchart TD
 | `isRolling` | Already in `RollRoutine` |
 | `hero.IsMoving` | NavMesh walk in progress |
 | Energy | `currentEnergy < energyDepletionPerRoll` |
+| Death / chest popup | `RunDeathController.IsDeathInProgress` or equipment reward flow active |
 
 *Note:* `InCombat` does **not** block rolling (combat rolls are intentional).
 
+Roll input: assign `InputSystem_Actions` on `DiceSpawner` or rely on `Assets/Resources/InputSystem_Actions.inputactions` for builds.
+
 ---
 
-## 6. Movement and POI routing
+## 7. Movement and POI routing
 
-Ordered POI visits (`POINode.order`) replaced random-only targeting in v0.0.025+.
-
-```mermaid
-flowchart LR
-    subgraph Selection
-        O[nextPOIOrder]
-        PM[POIManager.GetPOIByOrder]
-        O --> PM
-        PM --> T[currentTarget POI root]
-    end
-
-    subgraph Path
-        T --> Calc[NavMesh.CalculatePath]
-        Calc --> Partial[Walk min roll distance along path]
-        Partial --> Left[leftoverDiceValue if path shorter than roll]
-    end
-
-    subgraph Arrival
-        Partial --> Prox{dist to POI less than 3m?}
-        Prox -->|yes| Inc[nextPOIOrder++]
-        Inc --> Fight{Has Enemy?}
-        Fight -->|yes| Combat[EnterCombat + arrival attack]
-        Fight -->|no| Resolve[POIManager.ResolvePOI]
-    end
-```
+Ordered POI visits (`POINode.order`).
 
 **`GetPOIByOrder(order)` logic**
 
@@ -313,359 +295,241 @@ flowchart LR
 2. Else return POI with smallest `poi.order > order`.
 3. Else `null` (no walk).
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle: scene load
-    Idle --> Walking: MoveSteps SetDestination
-    Walking --> Idle: destination reached OR proximity finalize
-    Walking --> InCombat: Enemy within 3m
-    InCombat --> Idle: ExitCombat on enemy Die
-    Idle --> InCombat: dice combat branch while engaged
-```
+Treasure chest POIs: Steve paths to chest interact range; `Enemy.OpenTreasureChest()` enqueues equipment rewards (no combat).
 
 ---
 
-## 7. Combat flows
+## 8. Combat flows
 
-Two entry paths share similar animation timing but different damage formulas.
+Two entry paths share animation timing; dice combat uses `HeroController.CalculateRollDamage` (`AttackDamage × roll/7` + crit).
 
-### 7.1 Arrival combat (first hit)
+**Crit:** `CombatLog.RollAndApplyCrit` rolls once; combat logs show the same d100 used for the hit.
 
-Triggered from `HeroController` when Steve reaches POI range.
-
-```mermaid
-sequenceDiagram
-    participant HC as HeroController
-    participant EN as Enemy
-    participant GS as GlobalSettings
-    participant PS as PlayerStats
-
-    HC->>EN: FaceTarget (instant)
-    HC->>HC: Wait 0.45s
-    Note over HC: damage = leftoverSteps × leftoverStepDamageMultiplier + AttackDamage×0.5
-    HC->>PS: Crit roll
-    HC->>HC: CrossFade battle stance → Attack trigger
-    HC->>EN: TakeDamage(finalDamage)
-    alt enemy dead
-        HC->>HC: VictoryFlourish
-    else alive
-        HC->>HC: Wait combatReactionDelay
-        EN->>HC: PerformAttack
-    end
-```
-
-### 7.2 In-combat dice attack
-
-Triggered from `DiceSpawner` when `hero.InCombat`.
-
-```mermaid
-sequenceDiagram
-    participant DS as DiceSpawner
-    participant HC as HeroController
-    participant EN as Enemy
-    participant PS as PlayerStats
-
-    Note over DS: damage = AttackDamage × (roll / 7)
-    DS->>PS: Crit check
-    DS->>HC: FaceTarget instant
-    DS->>EN: FaceTarget instant
-    DS->>DS: Wait 0.25s + anim wind-up 0.6s + Attack 0.35s
-    DS->>EN: TakeDamage
-    alt dead
-        DS->>HC: VictoryFlourish
-        DS->>DS: AddXP roll×2, yield break
-    else
-        DS->>DS: combatReactionDelay
-        EN->>HC: PerformAttack
-    end
-```
-
-### 7.3 Combat state (hero + enemy)
-
-```mermaid
-stateDiagram-v2
-    [*] --> Exploring
-    Exploring --> Walking: roll → MoveSteps
-    Walking --> Engaged: proximity + EnterCombat
-    Engaged --> Engaged: combat rolls
-    Engaged --> Exploring: Enemy.Die → ExitCombat → ResolvePOI
-    Walking --> Exploring: non-enemy POI ResolvePOI
-```
+**Arrival combat** — triggered when Steve reaches POI engage range.  
+**In-combat dice attack** — triggered from `DiceSpawner` when `hero.InCombat`.
 
 ---
 
-## 8. Enemy AI
+## 9. Enemy AI
 
-`Enemy.HandleAI()` each frame while alive.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Patrol
-    Patrol --> Taunt: patrolPointsBeforeTaunt reached
-    Taunt --> Patrol: TauntRoutine done
-    Patrol --> Chase: hero near spawn OR hero within 6m
-    Chase --> Engaged: hero.currentEnemy == this
-    Engaged --> Engaged: agent stopped, FaceTarget hero
-    Chase --> Patrol: hero far
-    Engaged --> Dead: HP <= 0
-    Patrol --> Dead
-    Chase --> Dead
-    Dead --> [*]: Die → DelayedResolve POI
-```
-
-| State | Behavior |
-|--------|----------|
-| **Patrol** | Random NavMesh points within `patrolRadius` of `spawnPosition` |
-| **Taunt** | `Taunting` trigger, ~2.2s, sets `isAttacking` |
-| **Chase** | `SetDestination(hero)`, `chaseSpeed` |
-| **Engaged** | Stop agent, slerp face toward Steve |
+`Enemy.HandleAI()` each frame while alive: patrol → taunt → chase → engaged. Steve initiates melee; enemies do not aggro from arbitrary distance beyond chase rules.
 
 ---
 
-## 9. POI lifecycle
+## 10. POI lifecycle
 
-```mermaid
-flowchart TD
-    subgraph Editor
-        E[POINodeEditor] --> Inst[Instantiate monster prefab child]
-        Inst --> HB[Instantiate GUI Pro slider prefab]
-        HB --> Comp[Add Enemy + NavMeshAgent on root]
-    end
-
-    subgraph Runtime Start
-        PN[POINode.Start] --> Reg[POIManager.RegisterPOI]
-        Reg --> Init[Enemy.Initialize full HP + health UI]
-    end
-
-    subgraph Encounter
-        Init --> Wait[Active in scene]
-        Wait --> Fight[Combat]
-    end
-
-    subgraph End
-        Fight --> Die[Enemy.Die]
-        Die --> Exit[hero.ExitCombat]
-        Exit --> Delay[Wait 2s]
-        Delay --> Res[POIManager.ResolvePOI]
-        Res --> Unreg[UnregisterPOI]
-        Unreg --> Destroy[Destroy POI root]
-    end
-
-    Editor -.->|visuals saved in scene| Wait
-```
-
-**`POINode` root structure (typical)**
-
-```
-POI_Orc (POINode, Enemy, NavMeshAgent, tag=POI)
-├── OrcPBRDefault (animator mesh child)
-└── Slider_Border_Tapered_02_Green (world-space Canvas)
-    ├── Bg / Border / Fill Area / Fill
-```
+Editor: `POINodeEditor` builds monster prefab + health bar under POI root.  
+Runtime: `POINode.Start` → register → `Enemy.Initialize`.  
+Death: `Enemy.Die` → coin loot → quest progress → `ExitCombat` → delayed `POIManager.ResolvePOI`.
 
 ---
 
-## 10. Editor vs runtime (POI setup)
-
-```mermaid
-flowchart TB
-    subgraph Editor only
-        INS[Inspector: type + order]
-        INS --> REF[Force Refresh / type change]
-        REF --> POINodeEditor.UpdateVisuals
-        POINodeEditor --> DestroyChildren[Clear all children]
-        DestroyChildren --> Prefab[Load Orc/Skeleton/Slime prefab]
-        Prefab --> HealthPrefab[Slider_Border_Tapered_02_Green]
-    end
-
-    subgraph Play mode
-        START[POINode.Start] --> REG[RegisterPOI]
-        REG --> INIT[Enemy.Initialize]
-        INIT --> AI[Enemy Update AI]
-    end
-
-    POINodeEditor -->|saves to| SCENE[main.unity]
-    SCENE --> START
-```
+## 11. Editor vs runtime (POI setup)
 
 | Concern | Editor | Play mode |
 |---------|--------|-----------|
 | Monster mesh | `POINodeEditor` spawns prefab | Already in scene |
-| Health bar | Editor positions at +2.8y | `LateUpdate` pins at +3.0y world, billboards |
-| Stats | `Enemy` inspector / `OnValidate` | `Initialize()` sets HP = maxHP |
+| Health bar | Editor positions at +2.8y | `LateUpdate` billboards |
+| Stats | `Enemy` inspector / `EnemyData` SO | `Initialize()` |
 
 ---
 
-## 11. Stats and damage formulas
-
-Shared RPG formulas on **hero** (`PlayerStats`) and **enemy** (`Enemy`).
+## 12. Stats and damage formulas
 
 | Derived stat | Formula |
 |--------------|---------|
-| maxHP | `vitality × 10 + 100` |
+| maxHP | `vitality × 10 + 100` (+ talent) |
 | attackDamage | `strength × 4 + 20` |
-| attackSpeed | `1.0 + agility × 0.03` |
-| critChance (%) | `luck × 0.8` |
-| critDamage (%) | `50 + luck × 1.5` |
-| dodgeChance (%) | `agility × 0.6` |
-
-**Damage applications**
-
-| Source | Formula |
-|--------|---------|
-| Arrival hit | `AttackDamage × (lastRoll / 7)` (+ crit) via `HeroController.CalculateRollDamage` |
-| Combat roll | Same as arrival hit while `InCombat` |
-| Enemy hit | `Enemy.attackDamage` (+ crit); hero dodges via `PlayerStats` |
+| critChance (%) | `luck × 0.8` (+ talent) |
+| critDamage (%) | `50 + luck × 1.5` (+ talent) |
+| dodgeChance (%) | `agility × 0.6` (+ talent) |
 
 **Where to tune**
 
 | What | Component |
 |------|-----------|
-| Steve HP, damage, crit, dodge | `PlayerStats` on Steve |
-| Enemy HP, damage, patrol | `Enemy` on each monster (or `EnemyData` prefab) |
-| Melee engage distance, combat delays | `GlobalSettings.meleeEngageDistance` |
-| Combat console spam | `GlobalSettings.combatLogEnabled` |
-| Dice / movement / XP logs | `GlobalSettings.verboseGameplayLogs` (off by default) |
+| Steve stats | `PlayerStats` on Steve |
+| Enemy stats | `Enemy` / `EnemyData` on POI |
+| Melee engage, combat delays | `GlobalSettings` |
+| Combat console | `GlobalSettings.combatLogEnabled` |
+| Dice / movement / XP logs | `GlobalSettings.verboseGameplayLogs` |
 
 ---
 
-## 12. UI and health bars
+## 13. UI and HUD
 
-```mermaid
-flowchart LR
-    subgraph Hero HUD
-        FIND[GameObject.Find MainUI paths]
-        FIND --> SL1[Slider_Bottom PlayerStats HP]
-        EM --> SL2[Energy text + regen timer]
-    end
+**`MainUiHud`** — static dual-path lookups for GUI Pro layout variants (`MainUI_Canvas/Resources` vs `HUD_Resources`, etc.). Managers call `MainUiHud.FindComponentAlongPaths<T>(...)` in `AutoAssignUI()` and on `sceneLoaded`.
 
-    subgraph Enemy HUD
-        CAN[Child World Space Canvas]
-        CAN --> BAR[Slider Bg / Border / Fill]
-        EN --> VIS[SetHealthBarVisible on combat / damage]
-        EN --> LATE[LateUpdate: world pos + billboard]
-    end
+**Event-driven meta UI** (no per-frame polling in panels):
 
-    subgraph Floating
-        FT[FloatingText TMP world]
-        FT --> DMG[Damage numbers]
-        FT --> NRG[Energy depleted text]
-    end
-```
+| Event | Source | Typical subscribers |
+|-------|--------|---------------------|
+| `LootManager.BalanceChanged` | Gold/gem spend or pickup | Talent, Shop, Mission, Heroes, upgrade badge |
+| `LevelManager.ProgressChanged` | XP / level | Talent, Heroes |
+| `TalentManager.Upgraded` | Paid upgrade | Talent UI, upgrade badge |
+| `PlayerStats.StatsChanged` | Derived stat recalc | Power score |
+| `QuestManager.OnQuestsUpdated` | Quest progress / claim | Mission panel, top quest HUD |
+
+**Mission scroll:** content under `ScrollRect/Viewport/Content`. Legacy typo `Veiwport` still resolved as fallback; fix via **FatesRoll → Setup → Fix Scroll Viewport Typo In Main Scene**.
+
+**Enemy HUD:** world-space slider on POI root, billboard in `Enemy.LateUpdate`.
 
 ---
 
-## 13. Title scene and level-up rewards
+## 14. Title scene and level-up rewards
 
-### 13.1 Title → main
+`TitleFlowController`: loading UI → async preload main (`allowSceneActivation = false`) → tap activates main.
 
-| Scene | Role |
-|-------|------|
-| `Assets/Scenes/title.unity` | Build index **0** — loading bar, tap to start, preloads `main` |
-| `Assets/Scenes/main.unity` | Build index **1** — gameplay |
+After level-up celebration, `RogueLiteManager` shows A/B stat pick (timeScale 0). Energy regen and bonus coins per kill stack via `RogueLiteManager` modifiers on `EnergyManager` / `LootManager`.
 
-`TitleFlowController` drives loading UI, async preload (`allowSceneActivation = false`), then activates `main` on tap. Editor: **FatesRoll → Scenes** menus (`Setup Title Loading Scene`, play-mode start from title).
+---
 
-### 13.2 Level-up roguelite popup
+## 15. Meta progression (quests, talents, death)
 
-After Steve’s level-up animation (`HeroController.LevelUpCelebrationSeconds`, default **2.7s**), `RogueLiteManager` shows a centered `Popup_01_Basic_Demo` panel (dimmed fullscreen overlay) with **two random different** upgrade buttons.
+### 15.1 Session persistence (prototype)
+
+**No disk save / PlayerPrefs** in current prototype. On Steve death, **these persist for the session:**
+
+| Persists | Resets on death |
+|----------|-----------------|
+| Gold, gems | Enemy run scaling (`EnemyStatManager`) |
+| Talent levels + bonuses | Spawn encounters |
+| Active quests + progress | POI enemy refresh |
+| Equipped gear (visuals + stats) | Steve position → spawn |
+
+`RunDeathController`: fade out → reset world difficulty → respawn Steve → fade in → stand-up → `HeroEquipment.ReapplyEquippedVisuals()`.
+
+`RunDeathController` must live on **bootstrap only** (not runtime-spawned).
+
+### 15.2 Quests
+
+`QuestManager` on bootstrap (`EnsureQuestManagerOnBootstrap` if missing). Kill quests track `POIType` targets; UI via `MissionPanelUI`, `MissionItemUI`, `TopQuestDisplay`. Setup: **FatesRoll → Setup → Ensure QuestManager On Bootstrap**.
+
+### 15.3 Talents
+
+`TalentManager.PerformUpgrade()` spends gold, picks random category (HP, stats, dodge, crit, energy, coin gain). Energy uses `EnergyManager.AddMaxEnergyBonus()`; coin gain uses `LootManager.AddGoldPerCoinBonus()` (does not mutate serialized `goldPerCoin`).
+
+---
+
+## 16. Equipment and loot
+
+### 16.1 Coin loot (live)
+
+`LootManager.OnEnemyDied`: firework burst → ground linger → Steve pickup → batch gold grant.  
+Effective gold per coin: `LootManager.GetGoldPerCoin()` = base + talent bonus + rogue-lite kill bonus (drop count).
+
+### 16.2 Equipment loot (live — chest flow)
 
 ```mermaid
 sequenceDiagram
-    participant LM as LevelManager
     participant HC as HeroController
-    participant RL as RogueLiteManager
+    participant EN as Enemy (chest POI)
+    participant ELM as EquipmentLootManager
+    participant HE as HeroEquipment
     participant PS as PlayerStats
-    participant EM as EnergyManager
-    participant Loot as LootManager
 
-    LM->>LM: LevelUp → EnqueueLevelUp(level)
-    LM->>HC: PlayLevelUpCelebration
-    HC->>HC: Wait celebration duration
-    HC->>RL: RunPostCelebrationRewards
-    RL->>RL: timeScale = 0, show popup
-    Note over RL: Title + flavor text; 2 colored buttons
-    RL->>PS: Apply Strength / Agility / Vitality / Luck
-    RL->>EM: energyRegenTimeReduction += pick
-    RL->>Loot: bonusCoinsPerEnemyKill += pick
-    RL->>RL: Hide popup, restore timeScale
+    HC->>EN: Path to chest interact range
+    HC->>EN: OpenTreasureChest
+    EN->>ELM: EnqueueChestReward(poi)
+    HC->>ELM: RunChestRewards (coroutine)
+    ELM->>ELM: Roll 2 items from EquipmentCatalog
+    ELM->>ELM: A/B popup (timeScale 0)
+    ELM->>HE: Equip chosen EquipmentInstance
+    HE->>PS: Apply stat bonuses, StatsChanged
 ```
 
-**Per-stat Inspector fields** (`RogueLiteManager`, each of six stats):
+**Data**
 
-| Field | Meaning |
-|-------|---------|
-| Upgrade Amount | Flat bonus (e.g. +1 STR, −1s regen interval, +1 coin per kill) |
-| Offer Chance % | Weight in random pool (20 on all six ≈ equal odds) |
-| Upgrade Scaler | Repeat picks: `amount × scaler^timesAlreadyChosen` (default **1** = flat) |
-| Button Color | `Button_Rectangle_01_Convex_*` prefab color |
+| Asset / type | Role |
+|--------------|------|
+| `EquipmentCatalog` | Pools of `EquipmentItemDefinition` by slot/category |
+| `EquipmentItemDefinition` | Prefab id, slot, chest category, stat weights |
+| `EquipmentInstance` | Rolled item + 2-of-4 stat bonuses |
+| `EquipmentSlotType` | MainHand, OffHand, head sub-slots, body, cape, rings, etc. |
 
-**Popup typography** (same component): title/body/button font sizes, panel scale, choice button scale.
+**`HeroEquipment`** on Steve: resolves MC02 rig sockets, toggles body/head variants, spawns weapon prefabs, applies stat-only slots.
 
-**Setup:** **FatesRoll → Roguelite → Add RogueLiteManager To Scene** (under `Managers`), save `main.unity`.
+### 16.3 Inventory UI (planned — next major feature)
 
-**Energy regen:** `EnergyManager` uses `RogueLiteManager.GetEffectiveEnergyRegenInterval()` (`base interval − total reduction`).
+| Status | Item |
+|--------|------|
+| Done | Chest drop + equip onto Steve, celebration coin loot, equipment stats |
+| Done | Equipment panel prefab in scene (GUI Pro demo layout) |
+| **TODO** | Functional inventory grid (owned items, not just equipped) |
+| **TODO** | Equip/unequip from UI, compare tooltips |
+| **TODO** | FTUE chest drops, naked Steve default loadout |
+| **TODO** | QA pass on slot conflicts (head layers, body toggles) |
 
-**Coins:** `LootManager` adds `RogueLiteManager.BonusCoinsPerEnemyKill` to per-enemy drop count.
+When adding inventory, prefer extending `HeroEquipment` + a new `InventoryManager` service on bootstrap rather than scene `Find` from UI `Update()`.
 
 ---
 
-## 14. Repo, version, and README automation
-
-```mermaid
-flowchart LR
-    DEV[Developer commit] --> WRAP[git-commit.ps1 optional]
-    WRAP --> PRE[pre-commit hook]
-    PRE --> BUMP[bump-version.ps1]
-    BUMP --> VER[VERSION + ProjectSettings.bundleVersion]
-    PRE --> STG1[git add version files]
-    DEV --> MSG[commit-msg hook]
-    MSG --> README[update-readme.ps1]
-    README --> CHG[README version line + changelog row]
-    MSG --> STG2[git add README.md]
-```
-
-Files:
+## 17. Repo, version, and README automation
 
 | Path | Role |
 |------|------|
 | `VERSION` | `v0.0.XXX` tag string |
-| `scripts/bump-version.ps1` | Increment patch |
-| `scripts/update-readme.ps1` | Sync README from commit subject |
-| `scripts/git-commit.ps1` | `git -c core.hooksPath=.githooks commit` |
-| `.githooks/pre-commit` | Version bump |
-| `.githooks/commit-msg` | README update |
+| `scripts/git-commit.ps1` | Commit with `.githooks` |
+| `scripts/bump-version.ps1` | Pre-commit patch bump |
+| `scripts/update-readme.ps1` | Commit-msg README changelog row |
+
+First line of commit message becomes the README changelog summary for that version.
 
 ---
 
-## 15. Script index
+## 18. Editor menus
+
+| Menu | Purpose |
+|------|---------|
+| **FatesRoll → Setup → Add Game Services Bootstrap** | Create `Bootstrap.unity` + wire managers |
+| **FatesRoll → Setup → Ensure QuestManager On Bootstrap** | Reparent/create `QuestManager` |
+| **FatesRoll → Setup → Fix Scroll Viewport Typo In Main Scene** | Safe ScrollRect rename (do not text-edit binary scenes) |
+| **FatesRoll → Setup → Remove Duplicate Bootstrap From Main Scene** | Strip copied managers from main |
+| **FatesRoll → Cleanup → Remove Missing Scripts In Main Scene** | Strip broken script refs |
+| **FatesRoll → Cleanup → Remove Obsolete Camera Follow In Main Scene** | Remove legacy camera component |
+| **FatesRoll → Scenes → Set Play Mode Start To Bootstrap** | Correct play-test entry |
+| **FatesRoll → Scenes → Setup Title Loading Scene** | Title flow + build order |
+
+---
+
+## 19. Script index
 
 | Script | Responsibility |
 |--------|----------------|
-| `GameServices` | Early bootstrap registry; `Hero`, `Get<T>()`; Inspector wiring |
-| `GameServiceBehaviour<T>` | Base for managers — registers in Awake, no scene search in getters |
-| `DiceSpawner` | Input, roll physics, energy, branch move vs combat |
+| `GameServices` | DDOL bootstrap registry; hero registration |
+| `GameServiceBehaviour<T>` | Manager base — registers in Awake |
+| `BootstrapFlow` | Bootstrap → load title |
+| `GlobalSettings` | Tuning singleton; log gates |
+| `DiceSpawner` | Input, roll physics, move vs combat branch |
 | `DieResult` | Dice face value + settled detection |
-| `HeroController` | NavMesh move, POI target, arrival combat, hero HP HUD |
-| `PlayerStats` | Hero primary/derived stats, dodge |
-| `Enemy` | Enemy stats, AI, HP bar, damage, death |
-| `EnemyData` | ScriptableObject; assign on `POINode.enemyData` to override enemy stats at Start |
-| `POINode` | POI tag, type, visit `order`, register/init enemy |
-| `POIManager` | POI list, resolve, nearest/random/order query |
-| `POINodeEditor` | Editor prefab + health bar setup |
-| `GlobalSettings` | Tunable singleton |
-| `EnergyManager` | Energy pool + UI |
-| `LevelManager` | XP + level UI; queues `RogueLiteManager` on level-up |
-| `RogueLiteManager` | Level-up reward popup, stat upgrades, energy/coin modifiers |
-| `RogueLiteStatConfig` | Serializable per-stat tuning (amount, chance %, scaler, button color) |
-| `TitleFlowController` | Title scene: loading → tap → load `main` |
-| `TitleSceneSetup` | Editor: create/consolidate title scene, build order, play-mode start |
-| `LootManager` | Enemy coin celebration drops + gold HUD |
-| `FloatingText` | World TMP popups |
-| `QADashboard` | Debug HUD for roll/distance |
-| `QAVersionDisplay` / `GitVersionProvider` | Build version overlay |
-| `CameraFollow` | Camera follow Steve |
-| `UIButtonHoldProxy` / `UIPressedEffect` | UI feedback |
+| `HeroController` | NavMesh, POI/chest routing, combat, death hook |
+| `SteveMovement` / `SteveAnimator` | Locomotion + animation helpers |
+| `PlayerStats` | Hero stats, dodge, `StatsChanged` |
+| `HeroEquipment` | Modular equip visuals + bonuses |
+| `Enemy` | AI, combat, HP bar, chest + coin death hooks |
+| `EnemyData` | ScriptableObject stat template for POI |
+| `POINode` / `POIManager` | POI registry, order, resolve |
+| `SpawnManager` / `SpawnNode` | Encounter spawning |
+| `EnergyManager` | Energy pool, regen, talent max bonus API |
+| `LevelManager` | XP, level UI, `ProgressChanged` |
+| `LootManager` | Coin celebration, gold HUD, `GetGoldPerCoin()` |
+| `DroppedCoin` | Coin arc, pickup fly-to Steve |
+| `EquipmentLootManager` | Chest A/B equipment popup |
+| `EquipmentCatalog` / `EquipmentItemDefinition` / `EquipmentInstance` | Gear data |
+| `RogueLiteManager` | Level-up A/B stat rewards |
+| `TalentManager` | Gold upgrades, `Upgraded` event |
+| `QuestManager` | Quests + achievements |
+| `RunDeathController` | Death fade, respawn, session-persistent meta |
+| `EnemyStatManager` / `EnemySpecialController` | Run scaling, specials |
+| `MainUiHud` | HUD path lookups, mission scroll content |
+| `MissionPanelUI` / `MissionItemUI` / `TopQuestDisplay` | Quest UI |
+| `TalentUIController` / `UpgradeAlertController` | Talent shop + badge |
+| `CombatLog` | Unified combat logging + crit roll |
+| `IsometricCameraControl` | Cinemachine zoom |
+| `TitleFlowController` | Title → main loading flow |
+| `PersistenceUtility` | DDOL helper |
+| `CameraFollow` | **Obsolete stub** — remove from scenes |
+| `HeroWeaponStance` | **Obsolete stub** — remove from Steve |
 
 ---
 
